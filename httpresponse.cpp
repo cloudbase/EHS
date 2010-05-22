@@ -1,11 +1,18 @@
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
+#endif
+
+#ifdef _MSC_VER
+#pragma warning(disable : 4786)
 #endif
 
 #include "httpresponse.h"
+#include "datum.h"
+#include <cassert>
 #include <ctime>
 #include <clocale>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 
 using namespace std;
@@ -131,7 +138,7 @@ void HttpResponse::SetCookie ( CookieParameters & iroCookieParameters )
 	} else {
 
 #ifdef EHS_DEBUG
-		cerr << "Cookie set with insufficient data -- requires name and value" endl;
+		cerr << "Cookie set with insufficient data -- requires name and value" << endl;
 #endif
 	}
 

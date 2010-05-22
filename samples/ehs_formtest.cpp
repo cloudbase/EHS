@@ -1,4 +1,3 @@
-
 /*
 
   EHS is a library for adding web server support to a C++ application
@@ -22,90 +21,69 @@
 
 */
 
+#include <ehs.h>
 
+#include <iostream>
+#include <sstream>
 #include <string>
-#include <list>
 
-#include "../ehs.h"
 
-typedef std::list < std::string > StringList;
+using namespace std;
 
 class FormTester : public EHS {
 
 public:
-
 	FormTester ( ) {}
-
-	ResponseCode HandleRequest ( HttpRequest * ipoHttpRequest,
-								 HttpResponse * ipoHttpResponse );
-	
+	ResponseCode HandleRequest ( HttpRequest *, HttpResponse * );
 	StringList oNameList;
-	
-
 };
 
 
 // creates a page based on user input -- either displays data from
 //   form or presents a form for users to submit data.
-ResponseCode FormTester::HandleRequest ( HttpRequest * ipoHttpRequest,
-										 HttpResponse * ipoHttpResponse )
+ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * response )
 {
-	char psHtml[ 5000 ];
-	
+    ostringstream oss;
 
+    oss << "<html><head><title>StringList</title></head>" << endl << "<body>" << endl;
 	// if we got data from the user, show it
-	if ( ipoHttpRequest->oFormValueMap [ "user" ].sBody.length ( ) ||
-		 ipoHttpRequest->oFormValueMap [ "existinguser" ].sBody.length ( ) ) {
+	if ( request->oFormValueMap [ "user" ].sBody.length ( ) ||
+		 request->oFormValueMap [ "existinguser" ].sBody.length ( ) ) {
 			
-		std::string sName;
-			
-		sName = ipoHttpRequest->oFormValueMap [ "existinguser" ].sBody;
-		if ( ipoHttpRequest->oFormValueMap [ "user" ].sBody.length() ) {
-			sName = ipoHttpRequest->oFormValueMap [ "user" ].sBody;
+		string sName = request->oFormValueMap [ "existinguser" ].sBody;
+		if ( request->oFormValueMap [ "user" ].sBody.length() ) {
+			sName = request->oFormValueMap [ "user" ].sBody;
 		}
-
-		fprintf ( stderr, "Got name of %s\n", sName.c_str ( ) );
+		cerr << "Got name of " << sName << endl;
 			
-		char * psHtml = new char [ 5000 ];
-		sprintf ( psHtml, "<html><head><title>StringList</title></head>\n<body>Hi %s</body></html>", sName.c_str ( ) );
+        oss << "Hi " << sName << "</body></html>";
 		oNameList.push_back ( sName );
 			
-		ipoHttpResponse->SetBody( psHtml, strlen( psHtml ) );
+		response->SetBody( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
 
 	} else {
 
 		// otherwise, present the form to the user to fill in
-		fprintf ( stderr, "Got no form data\n" );
+		cerr << "Got no form data" << endl;
 
-		// create the options for the dropdown box
-		char psOptions [ oNameList.size ( ) * 200 ];
-		psOptions [ 0 ] = '\0';
-
-		for ( StringList::iterator oCurrentName = oNameList.begin();
-			  oCurrentName != oNameList.end ( );
-			  oCurrentName++ ) {
-
-			char psOption [ 200 ];
-			sprintf ( psOption, "<option>%s\n",
-					  oCurrentName->substr ( 0, 150 ).c_str ( ) );
-			strcat ( psOptions, psOption );
-			
+        oss << "<p>Please log in</p>" << endl << "<form action = \"/\" method=\"GET\">" << endl
+            << "User name: <input type=\"text\" name=\"user\"><br />" << endl
+            << "<select name=\"existinguser\" width=\"20\">" << endl;
+		for ( StringList::iterator i = oNameList.begin(); i != oNameList.end ( ); i++ ) {
+            oss << "<option>" << i->substr ( 0, 150 ) << endl;
 		}
-
-		sprintf ( psHtml, "<html><head><title>StringList</title></head> <body>Please log in<P> <form action = \"/\" method=GET> User name: <input type = text  name = user><BR> <select name = existinguser width = 20> %s </select> <input type = submit> </form>\n", 
-				  psOptions );
-		
-		ipoHttpResponse->SetBody( psHtml, strlen( psHtml ) );
-		return HTTPRESPONSECODE_200_OK;
-
+		oss << "</select> <input type=\"submit\">" << endl << "</form>" << endl;
 	}
+    oss << "</body>" << endl << "</html>";
+    response->SetBody( oss.str().c_str(), oss.str().length() );
+    return HTTPRESPONSECODE_200_OK;
 
 }
 
 void PrintUsage ( int argc, char ** argv ) {
-	printf ( "usage: %s <port> [<certificate_file> <certificate_passphrase>]\n", argv[0] );
-	printf ( "\tIf you specify the last 2 parameters, it will run in https mode\n" );
+    cout << "usage: " << argv[0] << " <port> [<certificate_file> <certificate_passphrase>]" << endl;
+	cout << "\tIf you specify the last 2 parameters, it will run in https mode" << endl;
 	exit ( 0 );
 
 }
@@ -137,21 +115,18 @@ int main ( int argc, char ** argv )
 
 
 	if ( argc == 4 ) {
-		printf ( "in https mode\n" );
+		cout << "in https mode" << endl;
 		oSP["https"] = 1;
-		printf ( "https = %d\n", oSP["https"].GetInt ( ) );
 		oSP["certificate"] = argv [ 2 ];
 		oSP["passphrase"] = argv [ 3 ];
 
 	}	
 
 	srv.StartServer ( oSP );
-
-	while ( 1 ) {
-		sleep ( 1 );
-	}
-
+    cout << "Press RETURN to terminate the server: "; cout.flush();
+    cin.get();
 	srv.StopServer ( );
 
+    return 0;
 }
 

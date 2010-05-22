@@ -56,6 +56,7 @@ Zac Hansen ( xaxxon@slackworks.com )
 #define MSG_NOSIGNAL 0 // no support
 #endif // MSG_NOSIGNAL
 
+#include <iostream>
 #include <sstream>
 
 using namespace std;
@@ -262,7 +263,7 @@ NetworkAbstraction * Socket::Accept ( )
 #ifdef EHS_DEBUG
     cerr
         << "[EHS_DEBUG] Allocated new socket object with fd="
-        << nNewFd << " and socket @0x" << hex << poSocket << endl;
+        << nNewFd << " and socket @" << hex << poSocket << endl;
 #endif
 
 	return poSocket;

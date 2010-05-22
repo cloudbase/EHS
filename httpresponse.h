@@ -2,20 +2,7 @@
 #ifndef HTTPRESPONSE_H
 #define HTTPRESPONSE_H
 
-#ifdef _WIN32
-#include <time.h>
-#pragma warning(disable : 4786)
-#endif
-
-#include <map>
-#include <list>
-#include <string>
-#include <sstream>
-
-#include <assert.h>
-
-#include "ehstypes.h"
-#include "datum.h"
+#include <ehstypes.h>
 
 /// different response codes and their corresponding phrases -- defined in EHS.cpp
 enum ResponseCode { HTTPRESPONSECODE_INVALID = 0,
@@ -87,6 +74,5 @@ class HttpResponse {
 
 
 };
-
 
 #endif // HTTPRESPONSE_H

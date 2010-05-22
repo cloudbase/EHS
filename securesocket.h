@@ -41,6 +41,7 @@ Zac Hansen ( xaxxon@slackworks.com )
 #include <string.h>
 
 #include <string>
+#include <iostream>
 
 #include "networkabstraction.h"
 #include "dynamicssllocking.h"

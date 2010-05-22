@@ -6,13 +6,15 @@ lib_LTLIBRARIES = libehs.la
 # Sources for building EHS library
 libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
 	socket.cpp sslerror.cpp staticssllocking.cpp datum.cpp \
-	httpresponse.cpp httprequest.cpp
+	httpresponse.cpp httprequest.cpp formvalue.cpp
 
 # headers to be installed with the library
-pkginclude_HEADERS = ehs.h networkabstraction.h socket.h securesocket.h \
-	sslerror.h staticssllocking.h threadabstractionlayer.h \
-	dynamicssllocking.h datum.h httpresponse.h httprequest.h \
-	ehstypes.h formvalue.h contentdisposition.h ehs-config.h
+pkginclude_HEADERS = ehs.h networkabstraction.h \
+	datum.h httpresponse.h httprequest.h \
+	ehstypes.h formvalue.h contentdisposition.h
+
+noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
+	staticssllocking.h dynamicssllocking.h threadabstractionlayer.h
 
 # Sample programs to be built but not installed
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \

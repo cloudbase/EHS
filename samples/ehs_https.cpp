@@ -1,15 +1,14 @@
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <ehs.h> 
+#include <iostream> 
 
-#include "../ehs.h"
+using namespace std;
 
 int main ( int argc, char ** argv )
 {
 
 	if ( argc != 4 ) {
-		printf ( "Usage: %s <port> <certificate file> <passphrase>\n", 
-				 argv [ 0 ] );
+		cout << "Usage: " << argv [ 0 ] << " <port> <certificate file> <passphrase>" << endl; 
 		exit ( 0 );
 	}
 
@@ -26,9 +25,9 @@ int main ( int argc, char ** argv )
 	oSP [ "threadcount" ] = 1;
 
 	poEHS->StartServer ( oSP );
+    cout << "Press RETURN to terminate the server: "; cout.flush();
+    cin.get();
+	poEHS->StopServer ( );
 
-	while ( 1 ) {
-		sleep ( 1 );
-	}
-
+    return 0;
 }

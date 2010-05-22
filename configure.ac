@@ -25,7 +25,7 @@ AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of t
      CXXFLAGS="$CXXFLAGS -I${withval}/include"
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
-AC_ARG_WITH([pme], AS_HELP_STRING([--with-pme=DIR], [Specifies the location of the PME library]),
+AC_ARG_WITH([pme],AS_HELP_STRING([--with-pme=DIR], [Specifies the location of the PME library]),
     [CPPFLAGS="$CPPFLAGS -I${withval}/include"
      CXXFLAGS="$CXXFLAGS -I${withval}/include"
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
@@ -35,31 +35,47 @@ AC_CHECK_LIB(pcre, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
 AC_CHECK_LIB(pme,main,,AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
+AC_CHECK_LIB(ssl,SSL_library_init)
+havessl=$ac_cv_lib_ssl_SSL_library_init
 
-COMPILE_WITH_SSL=0
-ac_cv_withssl=0
-AC_ARG_WITH([ssl],AS_HELP_STRING([--with-ssl],[compile with SSL support (requires OpenSSL)]),[ac_cv_withssl=1])
-if test "$ac_cv_withssl" = "1" ; then
-dnl Replace `main' with a function in -lssl:
-    AC_CHECK_LIB(ssl,main)
-    COMPILE_WITH_SSL=1
-    AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
-fi
+AC_MSG_CHECKING([whether to build with SSL support])
+withval=AUTO
+AC_ARG_WITH([ssl],AS_HELP_STRING([--with-ssl],[compile with SSL support (requires OpenSSL)]))
+AC_MSG_RESULT([$withval])
+case "$withval" in
+    [[yY][eE][sS]])
+        test "$havessl" = "yes" || AC_MSG_ERROR([For compiling with SSL support, OpenSSL is required])
+        AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
+        ;;
+    AUTO)
+        if test "$havessl" = "yes" ; then
+            AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
+            AC_MSG_RESULT([configure: libssl is available, enabled SSL support])
+        else
+            AC_MSG_RESULT([configure: libssl not available, disabled SSL support])
+        fi
+        ;;
+esac
 
-EHS_DEBUG=0
-AC_ARG_WITH([debug],AS_HELP_STRING([--with-debug],[compile with debugging information]),[EHS_DEBUG=1])
-if test "$EHS_DEBUG" = "1" ; then
-    AC_DEFINE([EHS_DEBUG],,[Whether to compile with debugging information])
-fi
+AC_MSG_CHECKING([whether to build with debugging information])
+enableval=NO
+AC_ARG_ENABLE([debug],AS_HELP_STRING([--enable-debug],[compile with debugging information]))
+AC_MSG_RESULT([$enableval])
+case "$enableval" in
+    [[yY][eE][sS]])
+        AC_DEFINE([EHS_DEBUG],[1],[Whether to compile with debugging information])
+        ;;
+esac
 
-EHS_MEMORY=0
-AC_ARG_WITH(memory,[  --with-memory           compile with memory tracking information],EHS_MEMORY=1)
-if test "$EHS_MEMORY" = "1" ; then
-    AC_DEFINE([EHS_MEMORY],,[Whether to compile with memory tracking information])
-fi
-AC_SUBST(COMPILE_WITH_SSL)
-AC_SUBST(EHS_DEBUG)
-AC_SUBST(EHS_MEMORY)
+AC_MSG_CHECKING([whether to build with memory tracking information])
+enableval=NO
+AC_ARG_ENABLE(memory,AS_HELP_STRING([--enable-memory],[compile with memory tracking information]))
+AC_MSG_RESULT([$enableval])
+case "$enableval" in
+    [[yY][eE][sS]])
+        AC_DEFINE([EHS_MEMORY],[1],[Whether to compile with memory tracking information])
+        ;;
+esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -75,6 +91,4 @@ dnl Checks for library functions.
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([memset select setlocale socket strcasecmp])
 
-CPPFLAGS="$CPPFLAGS -DIN_EHSBUILD"
-
-AC_OUTPUT([Makefile ehs-config.h])
+AC_OUTPUT([Makefile])

@@ -1,6 +1,7 @@
 
-#include "../ehs.h"
-
+#include <ehs.h>
+#include <cstring>
+#include <cstdio>
 
 
 // subclass of EHS that defines a custom HTTP response.
@@ -91,10 +92,8 @@ int main ( int argc, char ** argv )
 
 	srv->StartServer ( oSP );
 
-	while ( 1 ) {
-		// normally your program would be doing useful things here...
-		sleep ( 1 );
-	}
+    printf("Press RETURN to terminate the server: "); fflush(stdout);
+    getchar();
 
 	srv->StopServer ( );
 

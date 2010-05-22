@@ -136,7 +136,7 @@ NetworkAbstraction * SecureSocket::Accept ( )
 	if ( BIO_do_accept ( m_poAcceptBio ) < 0 ) {
 		
 #ifdef EHS_DEBUG
-        cerr << "Error accepting new connection" endl;
+        cerr << "Error accepting new connection" << endl;
 #endif
 
 	} else {
@@ -288,7 +288,7 @@ SecureSocket::InitializeCertificates ( ) {
         cerr
             << "setting callback to '"
             << hex << m_pfOverridePassphraseCallback
-            << "' and passphrase = '" << m_sServerCertificatePassphrase << "'" << endl
+            << "' and passphrase = '" << m_sServerCertificatePassphrase << "'" << endl;
 #endif
 
 		// set the callback

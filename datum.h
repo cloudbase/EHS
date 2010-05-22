@@ -1,9 +1,7 @@
-
 #ifndef DATUM_H
 #define DATUM_H
 
 #include <string>
-
 
 /// class that makes it easy to go between numbers and strings
 /** 

@@ -24,8 +24,42 @@ This can be found in the 'COPYING' file.
 #endif
 
 #include "ehs.h"
+#include "threadabstractionlayer.h"
+#include "socket.h"
+#include "securesocket.h"
+#include "debug.h"
+
+#include <pme.h>
+
+#ifdef HAVE_DLFCN_H
+# include <dlfcn.h>
+#endif
+
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
+#include <cassert>
+#include <cerrno>
+
+const char * const EHSconfig = "EHS_CONFIG:SSL="
+#ifdef COMPILE_WITH_SSL
+    "1"
+#else
+    "0"
+#endif
+    ",DEBUG="
+#ifdef EHS_DEBUG
+    "1"
+#else
+    "0"
+#endif
+    ",MEM="
+#ifdef EHS_MEMORY
+    "1"
+#else
+    "0"
+#endif
+    ",VERSION=" VERSION ",BUILD=" __DATE__ " " __TIME__;
 
 using namespace std;
 
@@ -238,6 +272,10 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
 					pthread_t oThread;
 
 					MUTEX_UNLOCK ( m_oMutex );
+                    EHS_TRACE ( "creating thread with ID=0x%x, NULL, func=0x%x, data=0x%x\n",
+                            &oThread,
+                            EHSServer::PthreadHandleData_ThreadedStub,
+                            (void *) m_poEHSServer );
 					pthread_create ( & oThread,
 									 NULL,
 									 EHSServer::PthreadHandleData_ThreadedStub,
@@ -468,7 +506,7 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 
 		for ( int i = 0; i < nThreadsToStart; i++ ) {
 
-			EHS_TRACE ( "creating thread with %x, NULL, %x, %x\n",
+			EHS_TRACE ( "creating thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
 					  &m_nAcceptThreadId,
 					  EHSServer::PthreadHandleData_ThreadedStub,
 					  (void *) this );
@@ -493,6 +531,10 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 		m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
 
 		// spawn off one thread just to deal with basic stuff
+        EHS_TRACE ( "creating thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
+					  &m_nAcceptThreadId,
+					  EHSServer::PthreadHandleData_ThreadedStub,
+					  (void *) this );
 		nResult = pthread_create ( &m_nAcceptThreadId,
 								   NULL,
 								   EHSServer::PthreadHandleData_ThreadedStub,
@@ -1114,7 +1156,7 @@ EHS::EHS ( EHS * ipoParent, ///< parent EHS object for routing purposes
 	}
 
 #ifdef EHS_MEMORY
-	cerr << "[EHS_MEMORY] Allocated: EHS" endl;
+	cerr << "[EHS_MEMORY] Allocated: EHS" << endl;
 #endif		
 
 }

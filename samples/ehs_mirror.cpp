@@ -1,25 +1,18 @@
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <ehs.h>
+#include <iostream>
+#include <sstream>
 
-#include "../ehs.h"
-
+using namespace std;
 
 class MyEHS : public EHS { 
 	
-	ResponseCode HandleRequest ( HttpRequest * ipoHttpRequest,
-								 HttpResponse * ipoHttpResponse ) {
+	ResponseCode HandleRequest ( HttpRequest * request, HttpResponse * response ) {
 
-		char psBuffer [ 100 ];
-
-		sprintf ( psBuffer, 
-				  "ehs_mirror: Secure - %s %s:%d",
-				  ipoHttpRequest->nSecure ? "yes" : "no",
-				  ipoHttpRequest->GetAddress().c_str ( ),
-				  ipoHttpRequest->GetPort()
-				  );
-
-		ipoHttpResponse->SetBody ( psBuffer, strlen ( psBuffer ) );
+        ostringstream oss;
+        oss << "ehs_mirror: Secure - " << (request->nSecure ? "yes" : "no")
+            << request->GetAddress() << ":" << request->GetPort() << endl;
+		response->SetBody ( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
 	}
 
@@ -28,8 +21,8 @@ class MyEHS : public EHS {
 int main ( int argc, char ** argv )
 {
 
-	if ( argc != 2 ) {
-		printf ( "Usage: %s <port>\n", argv [ 0 ] );
+	if ( ( argc != 2 ) && ( argc != 5 ) ) {
+		cout << "Usage: " << argv [ 0 ] << " <port> [<sslport> <certificate file> <passphrase>]" << endl; 
 		exit ( 0 );
 	}
 
@@ -38,29 +31,28 @@ int main ( int argc, char ** argv )
 	EHSServerParameters oSP;
 	oSP [ "port" ] = argv [ 1 ];
 	oSP [ "mode" ] = "threadpool";
-
 	// unnecessary because 1 is the default
-	oSP [ "threaded" ] = 1;
+	oSP [ "threadcount" ] = 1;
 
 	poMyEHS->StartServer ( oSP );
 
+    if ( argc == 5 ) {
+        // create a default EHS object, but set poMyEHS as its source EHS object
+        EHS * poEHS = new EHS;
+        oSP [ "port" ] = argv [ 2 ];
+        oSP [ "https" ] = 1;
+        oSP [ "mode" ] = "threadpool";
+        oSP [ "threadcount" ] = 1;
+        oSP [ "certificate" ] = argv [ 3 ];
+        oSP [ "passphrase" ] = argv [ 4 ];
 
+        poEHS->SetSourceEHS ( *poMyEHS );
+        poEHS->StartServer ( oSP );
+    }
 
-	// create a default EHS object, but set poMyEHS as its source EHS object
-	EHS * poEHS = new EHS;
-	oSP [ "port" ] = atoi ( argv [ 1 ] ) + 1;
-	oSP [ "https" ] = 1;
-	oSP [ "mode" ] = "threadpool";
-	oSP [ "threadcount" ] = 1;
-	oSP [ "passphrase" ] = "comoesta";
-	oSP [ "certificate" ] = "/home/xaxxon/certificates/server.pem";
+    cout << "Press RETURN to terminate the server: "; cout.flush();
+    cin.get();
+    poMyEHS->StopServer ( );
 
-	poEHS->SetSourceEHS ( *poMyEHS );
-	poEHS->StartServer ( oSP );
-
-
-	while ( 1 ) {
-		sleep ( 1 );
-	}
-
+    return 0;
 }

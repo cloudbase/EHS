@@ -1,4 +1,3 @@
-
 #ifndef EHSTYPES_H
 #define EHSTYPES_H
 

@@ -4,6 +4,8 @@
 
 #include "httprequest.h"
 
+#include <pme.h>
+
 #include <cassert>
 #include <iostream>
 
@@ -180,7 +182,7 @@ HttpRequest::ParseMultipartFormData ( )
 #ifdef EHS_DEBUG
         cerr
             << "[EHS_DEBUG] Info: Found boundary of '" << sBoundaryString << "'" << endl
-            << "[EHS_DEBUG] Info: Looking for boundary to match (" << sBody.length ( ) <<
+            << "[EHS_DEBUG] Info: Looking for boundary to match (" << sBody.length ( )
             << ") '" << sBody.substr ( 0, sActualBoundary.length ( ) ) << "'" << endl;
 #endif
 
@@ -223,7 +225,7 @@ HttpRequest::ParseMultipartFormData ( )
 	} else {
 
 #ifdef EHS_DEBUG
-        cerr << "[EHS_DEBUG] Error: Couldn't find boundary specification in content-type header" < endl;
+        cerr << "[EHS_DEBUG] Error: Couldn't find boundary specification in content-type header" << endl;
 #endif
 		return PARSEMULTIPARTFORMDATA_FAILED;
 	}

@@ -1,15 +1,14 @@
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <ehs.h>
+#include <iostream>
 
-#include "../ehs.h"
+using namespace std;
 
 int main ( int argc, char ** argv )
 {
 
-	if ( argc != 2 &&
-		 argc != 3 ) {
-		printf ( "Usage: %s <port> <threaded:0/1)>\n", argv [ 0 ] );
+	if ( argc != 2 && argc != 3 ) {
+        cout << "Usage: " << argv [ 0 ] << " <port> [threaded]" << endl;
 		exit ( 0 );
 	}
 
@@ -18,19 +17,11 @@ int main ( int argc, char ** argv )
 	EHSServerParameters oSP;
 	oSP [ "port" ] = argv [ 1 ];
 
-	int nThreaded = 0;
+	// start in thread pool mode
 	if ( argc == 3 ) {
-		nThreaded = atoi ( argv [ 2 ] );
-	}
-
-
-	// strt in thread pool mode
-	if ( nThreaded ) {
-		printf ( "Starting in threaded mode\n" );
+		cout << "Starting in threaded mode" << endl;
 		oSP [ "mode" ] = "threadpool";
-		
-		// unnecessary because 1 is the default
-		oSP [ "threadcount" ] = 2;
+		oSP [ "threadcount" ] = 1;
 		
 		poEHS->StartServer ( oSP );
 		
@@ -41,17 +32,14 @@ int main ( int argc, char ** argv )
 	} 
 	// start in single threaded mode
 	else {
-		printf ( "Starting in single threaded mode\n" );
+		cout << "Starting in single threaded mode" << endl;
 		oSP [ "mode" ] = "singlethreaded";
 		
-		// not threaded
 		poEHS->StartServer ( oSP );
-		
 		
 		while ( 1 ) {
 			poEHS->HandleData ( 1000 ); // waits for 1 second
 		}
 		
 	}
-
 }

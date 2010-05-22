@@ -1,9 +1,9 @@
-
 #ifndef FORMVALUE_H
 #define FORMVALUE_H
 
 #include <string>
 
+#include "ehstypes.h"
 #include "contentdisposition.h"
 
 /// This is how data is passed in from the client has to be more complicated because of metadata associated with MIME-style attachments
@@ -26,38 +26,18 @@ class FormValue {
 	std::string sBody; 
 	
 	/// Default constructor
-	FormValue ( ) {
-#ifdef EHS_MEMORY
-        std::cerr << "[EHS_MEMORY] Allocated: FormValue" << std::endl;
-#endif		
-	}
+	FormValue ( );
 	
 	/// Constructor 
 	FormValue ( std::string & irsBody, ///< body for the form value
 				ContentDisposition & ioContentDisposition ///< content disposition type string
-		) :
-		oContentDisposition ( ioContentDisposition ),
-		sBody ( irsBody ) {
-#ifdef EHS_MEMORY
-		std::cerr << "[EHS_MEMORY] Allocated: FormValue" << std::endl;
-#endif		
-	}
+		);
 
-#ifdef EHS_MEMORY
-	/// This is only for watching memory allocation
-	FormValue ( const FormValue & iroFormValue ) {
-		*this = iroFormValue;
-		std::cerr << "[EHS_MEMORY] Allocated: FormValue (Copy Constructor)" << std::endl;
-	}
-#endif		
+	/// Copy constructor
+	FormValue ( const FormValue & iroFormValue );
 
 	/// destructor
-	virtual ~FormValue ( ) {
-#ifdef EHS_MEMORY
-		std::cerr << "[EHS_MEMORY] Deallocated: FormValue" << std::endl;
-#endif		
-	}
-   
+	virtual ~FormValue ( );
 };
 
 #endif // FORMVALUE_H
