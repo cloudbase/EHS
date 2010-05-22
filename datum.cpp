@@ -11,8 +11,13 @@
 #define strcasecmp stricmp
 #endif
 
-
-
+Datum & Datum::operator= ( unsigned long inUL )
+{
+	char psBuffer [ 100 ];
+	sprintf ( psBuffer, "%lu", inUL );
+	sDatum = psBuffer;
+	return *this;
+}
 Datum & Datum::operator= ( long inLong )
 {
 	char psBuffer [ 100 ];
@@ -62,6 +67,11 @@ bool Datum::operator== ( const char * ipsString )
 
 	return sDatum == ipsString;
 
+}
+
+Datum::operator unsigned long ( )
+{
+	return strtoul ( sDatum.c_str ( ) , NULL, 10);
 }
 
 Datum::operator long ( )

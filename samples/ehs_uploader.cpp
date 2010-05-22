@@ -26,7 +26,8 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
     cerr << "Request-URI: " << sUri << endl;
 
     if ( sUri == "/" ) {
-        string sBody = "<html><head><title>ehs uploader</title></head> <body> <form method=\"POST\" action=";
+        string sBody = "<html><head><title>ehs uploader</title></head><body>";
+        sBody += "<form method=\"POST\" action=";
         sBody += "/upload.html enctype=\"multipart/form-data\">Upload file:<br />";
         sBody += "<input type=\"file\" name=\"file\"><br /><input type=\"submit\" value=\"submit\"></form></body></html>";
         response->SetBody ( sBody.c_str(), sBody.length ( ) );
@@ -77,6 +78,7 @@ int main ( int argc, char ** argv )
     EHSServerParameters oSP;
     oSP["port"] = argv [ 1 ];
     oSP [ "mode" ] = "threadpool";
+    oSP [ "maxrequestsize" ] = 1024 * 1024 * 10;
     srv.StartServer ( oSP );
     cout << "Press RETURN to terminate the server: "; cout.flush();
     cin.get();

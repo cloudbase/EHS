@@ -191,7 +191,8 @@ EHSConnection::EHSConnection ( NetworkAbstraction * ipoNetworkAbstraction,
 	m_poEHSServer ( ipoEHSServer ),
 	m_nRequests ( 0 ),
 	m_nResponses ( 0 ),
-	m_poNetworkAbstraction ( ipoNetworkAbstraction )
+	m_poNetworkAbstraction ( ipoNetworkAbstraction ),
+    m_nMaxRequestSize ( MAX_REQUEST_SIZE_DEFAULT )
 {
 
 	UpdateLastActivity ( );
@@ -247,14 +248,15 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
 		return ADDBUFFER_INVALID;
 	}
 
-	// this is binary safe -- only the single argument char* constructor looks for NULL
-	m_sBuffer += string ( ipsData, inSize );
-
-	// make sure the buffer hasn't grown too big
-	if ( m_sBuffer.length ( ) > MAX_BUFFER_SIZE_BEFORE_BOOT ) {
+	// make sure the buffer doesn't grow too big
+	if ( (m_sBuffer.length ( ) + inSize) > m_nMaxRequestSize ) {
 		MUTEX_UNLOCK ( m_oMutex );
+        EHS_TRACE ( "AddBuffer: MaxRequestSize (%lu) exceeded.\n", m_nMaxRequestSize );
 		return ADDBUFFER_TOOBIG;
 	}
+
+	// this is binary safe -- only the single argument char* constructor looks for NULL
+	m_sBuffer += string ( ipsData, inSize );
 
 	// need to run through our buffer until we don't get a full result out
 	do {
@@ -662,7 +664,7 @@ int EHSServer::RemoveEHSConnection ( EHSConnection * ipoEHSConnection )
 	int nDeletedOneAlready = 0;
 
 
-	EHS_TRACE ( "%d elements to look for somethign to delete\n",
+	EHS_TRACE ( "%d connections to look for something to delete\n",
 				m_oEHSConnectionList.size ( ) );
 
 
@@ -916,7 +918,13 @@ void EHSServer::CheckAcceptSocket ( )
 		// create a new EHSConnection object and initialize it
 		EHSConnection * poEHSConnection = 
 			new EHSConnection ( poNewClient, this );
-		
+        if ( m_poTopLevelEHS->m_oEHSServerParameters.find ( "maxrequestsize" ) !=
+                m_poTopLevelEHS->m_oEHSServerParameters.end () ) {
+            unsigned long n = m_poTopLevelEHS->m_oEHSServerParameters [ "maxrequestsize" ];
+			EHS_TRACE ( "Setting connections MaxRequestSize to %lu\n", n );
+            poEHSConnection->SetMaxRequestSize ( n );
+        }
+
 		MUTEX_LOCK ( m_oMutex );
 		m_oEHSConnectionList.push_back ( poEHSConnection );
 		m_nAcceptedNewConnection = 1;

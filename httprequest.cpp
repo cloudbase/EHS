@@ -126,8 +126,8 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody ( string isSubbody ///
 		roFormValue.sBody = isSubbody.substr ( nBlankLinePosition + 4);
 
 #ifdef EHS_DEBUG		
-        cerr << "[EHS_DEBUG] Info: Subbody body (in binary):" << endl
-                                                                 << "---" << endl << roFormValue.sBody << endl << "---" << endl;
+        // cerr << "[EHS_DEBUG] Info: Subbody body (in binary):" << endl
+        // << "---" << endl << roFormValue.sBody << endl << "---" << endl;
 #endif
 		
 	}

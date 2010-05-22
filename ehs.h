@@ -71,6 +71,9 @@ extern "C" {
 
 class EHSServer;
 
+/// this is to protect from people being malicious or really stupid
+#define MAX_REQUEST_SIZE_DEFAULT (256 * 1024)
+
 /// EHSConnection abstracts the concept of a connection to an EHS application
 /**
  * EHSConnection abstracts the concept of a connection to an EHS application.  
@@ -94,8 +97,6 @@ class EHSConnection {
 
         int m_nResponses; ///< holds id of last response sent
 
-
-
         /// file descriptor associated with this client
         NetworkAbstraction * m_poNetworkAbstraction;	
 
@@ -113,6 +114,8 @@ class EHSConnection {
 
         /// remote port from which the connection originated
         int m_nPort;
+
+        size_t m_nMaxRequestSize;
 
     public:
 
@@ -152,9 +155,6 @@ class EHSConnection {
             ADDBUFFER_INVALIDREQUEST,
             ADDBUFFER_TOOBIG };
 
-        /// this is to protect from people being malicious or really stupid
-#define MAX_BUFFER_SIZE_BEFORE_BOOT 102400
-
         /// adds new data to psBuffer
         AddBufferResult AddBuffer ( char * ipsData, int inSize );
 
@@ -175,6 +175,9 @@ class EHSConnection {
 
         /// returns underlying network abstraction
         NetworkAbstraction * GetNetworkAbstraction ( );
+
+        /// Sets the maximum request size
+        void SetMaxRequestSize ( size_t n ) { m_nMaxRequestSize = n; }
 
 };
 

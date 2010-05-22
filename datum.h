@@ -20,6 +20,9 @@ class Datum {
 
   public:
 
+	/// assignment operator for unsigned long
+	Datum & operator= ( unsigned long inUL );
+
 	/// assignment operator for longs
 	Datum & operator= ( long inLong );
 
@@ -49,6 +52,9 @@ class Datum {
 
 	/// explicit accessor for int
 	int GetInt() { return (int)(*this); }
+
+	/// conversion operator for unsigned long
+	operator unsigned long ( );
 
 	/// conversion operator for long
 	operator long ( );
