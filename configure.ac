@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([ehs],[1.3.1],[ehsdev@fritz-elfert.de])
+AC_INIT([ehs],[1.3.9],[ehsdev@fritz-elfert.de])
 AC_REVISION([$Id$])
 AC_CONFIG_AUX_DIR([conf])
 AC_CONFIG_MACRO_DIR([m4])
@@ -120,5 +120,7 @@ AC_ARG_ENABLE([warn],
         CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 	]
 )
+LIBVERSION="`echo $VERSION|tr . :`"
+AC_SUBST(LIBVERSION)
 
 AC_OUTPUT([Makefile])

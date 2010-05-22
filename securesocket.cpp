@@ -372,8 +372,8 @@ void SecureSocket::Close ( )
 
 int 
 SecureSocket::DefaultCertificatePassphraseCallback ( char * ipsBuffer,
-													 int inSize,
-													 int inRWFlag,
+													 int ,
+													 int ,
 													 void * ipUserData )
 {
 #ifdef EHS_DEBUG

@@ -2,6 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Build EHS library
 lib_LTLIBRARIES = libehs.la
+libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
 
 # Sources for building EHS library
 libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
