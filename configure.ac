@@ -1,7 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(ehs.h)
-AM_INIT_AUTOMAKE(ehs, 1.3.1)
-AM_CONFIG_HEADER(config.h)
+AC_INIT([ehs],[1.3.1],[ehsdev@fritz-elfert.de])
+AC_CONFIG_AUX_DIR([conf])
+AC_CONFIG_SRCDIR([ehs.cpp])
+AC_CONFIG_HEADERS([config.h])
+AC_CANONICAL_TARGET
+AM_INIT_AUTOMAKE([foreign no-installinfo no-installman])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 dnl Checks for programs.
 AC_PROG_CXX
@@ -15,48 +19,33 @@ AC_PROG_RANLIB
 dnl Checks for libraries.
 AM_PROG_LIBTOOL
 
-# Define functions for specifying where pcre and pme live
-AC_DEFUN([PCRE_WITH_PCRE_DIR], [
-    AC_ARG_WITH([pcre], AC_HELP_STRING([--with-pcre=DIR], [  Specifies the location of the PCRE library]),
+AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of the PCRE library]),
     [CPPFLAGS="$CPPFLAGS -I${withval}/include"
      CXXFLAGS="$CXXFLAGS -I${withval}/include"
-     LDFLAGS="$LDFLAGS -L${withval}/lib"
-dnl      AC_MSG_ERROR(HI ${withval})
-],
-    [])
-])
-AC_DEFUN([PME_WITH_PME_DIR], [
-    AC_ARG_WITH([pme], AC_HELP_STRING([--with-pme=DIR], [  Specifies the location of the PME library]),
-    [CPPFLAGS="$CPPFLAGS -I${withval}/include"
-     CXXFLAGS="$CXXFLAGS -I${withval}/include"
-     LDFLAGS="$LDFLAGS -L${withval}/lib"
-dnl      AC_MSG_ERROR(HI ${withval})
-],
-    [])
-])
+     LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
-# Call our new functions we just defined
-PCRE_WITH_PCRE_DIR
-PME_WITH_PME_DIR
+AC_ARG_WITH([pme], AS_HELP_STRING([--with-pme=DIR], [Specifies the location of the PME library]),
+    [CPPFLAGS="$CPPFLAGS -I${withval}/include"
+     CXXFLAGS="$CXXFLAGS -I${withval}/include"
+     LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
 dnl Replace `main' with a function in -lpcre:
 AC_CHECK_LIB(pcre, main)
 AC_CHECK_LIB(pthread, pthread_create)
-dnl Replace `main' with a function in -lssl:
-AC_CHECK_LIB(ssl, main)
-
 AC_CHECK_LIB(sokt, socket)
-
-AC_CHECK_LIB(pme, main,, AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
+AC_CHECK_LIB(pme,main,,AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
 
 COMPILE_WITH_SSL=0
-AC_ARG_WITH(ssl,[  --with-ssl              compile with SSL support (requires OpenSSL)],AC_CHECK_LIB(ssl,main,COMPILE_WITH_SSL=1))
-if test "$COMPILE_WITH_SSL" = "1" ; then
-    AC_DEFINE([COMPILE_WITH_SSL], [1], [Whether to compile with SSL support or not])
+ac_cv_withssl=0
+AC_ARG_WITH([ssl],AS_HELP_STRING([--with-ssl],[compile with SSL support (requires OpenSSL)]),[ac_cv_withssl=1])
+if test "$ac_cv_withssl" = "1" ; then
+dnl Replace `main' with a function in -lssl:
+    AC_CHECK_LIB(ssl,main,[COMPILE_WITH_SSL=1])
+    AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
 fi
 
 EHS_DEBUG=0
-AC_ARG_WITH(debug,[  --with-debug            compile with debugging information on],EHS_DEBUG=1)
+AC_ARG_WITH([debug],AS_HELP_STRING([--with-debug],[compile with debugging information]),[EHS_DEBUG=1])
 if test "$EHS_DEBUG" = "1" ; then
     AC_DEFINE([EHS_DEBUG],,[Whether to compile with debugging information])
 fi
