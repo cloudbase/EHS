@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT([ehs],[1.3.1],[ehsdev@fritz-elfert.de])
+AC_REVISION([$Id$])
 AC_CONFIG_AUX_DIR([conf])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([ehs.cpp])
@@ -90,5 +91,34 @@ AC_C_CONST
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([memset select setlocale socket strcasecmp])
+
+FE_SVNREV([SVNREV])
+AC_DEFINE_UNQUOTED(SVNREV,"$SVNREV",[SVN revision])
+FE_RCVERSION
+
+AC_ARG_ENABLE([warn],
+	AS_HELP_STRING([--enable-warn],
+		[Enable additional warnings (Default: NO)]),
+	[
+		AC_MSG_NOTICE([will enable additional warnings])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wall])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wextra])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wchar-subscripts])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wcomment])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wformat])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wformat-security])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wimplicit])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wmissing-braces])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wparentheses])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wreturn-type])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wswitch])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wuninitialized])
+        CPPFLAGS="$CPPFLAGS $ac_checked_CPPFLAGS"
+        fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wctor-dtor-privacy])
+        fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wnon-virtual-dtor])
+        fe_CHECK_FLAG([C++],[CXXFLAGS],[-Woverloaded-virtual])
+        CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
+	]
+)
 
 AC_OUTPUT([Makefile])

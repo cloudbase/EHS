@@ -25,51 +25,45 @@ Zac Hansen ( xaxxon@slackworks.com )
 
 // must be outside COMPILE_WITH_SSL check
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #ifdef COMPILE_WITH_SSL
 
 #include "sslerror.h"
 
+using namespace std;
 
-int SslError::nErrorMessagesLoaded = 0;
+bool SslError::bMessagesLoaded = false;
 
-
-int SslError::GetError ( std::string & irsReport,
-						 int inPeek )
+int SslError::GetError ( string & irsReport, bool inPeek )
 {
 
 	// get the error code
-	unsigned long nError = ERR_get_error ( );
+	unsigned long nError = inPeek ? ERR_peek_error ( ) : ERR_get_error ( );
 
 	// if there is no error, or we don't want full text, return the error
 	//   code now
 	if ( nError == 0 || irsReport == "noreport" ) {
-		irsReport = "";
+		irsReport.clear();
 		return nError;
 	}
 
 	// do we need to load the strings?
-	if ( !nErrorMessagesLoaded ) {
+	if ( !bMessagesLoaded ) {
 		SSL_load_error_strings ( );
-		nErrorMessagesLoaded = 1;
+		bMessagesLoaded = true;
 	}
 
 	char psBuffer [ 256 ];
-	ERR_error_string_n ( nError,
-						 psBuffer,
-						 256 );
-
+	ERR_error_string_n ( nError, psBuffer, 256 );
 	irsReport = psBuffer;
-
 	return nError;
-
 }
 
-int SslError::PeekError ( std::string & irsReport )
+int SslError::PeekError ( string & irsReport )
 {
-	return GetError ( irsReport, 1 );
+	return GetError ( irsReport, true );
 }
 
 

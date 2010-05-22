@@ -204,20 +204,6 @@ int PeerCertificateVerifyCallback ( int inOk,
 
 }
 
-
-int deleteme ( char * buf, int size, int flag, void * userdata ) 
-{
-#ifdef EHS_DEBUG
-    cerr << "private key callback buffer size=" << size << ", userdata=" << hex << userdata << endl;
-#endif
-
-	strcpy ( buf, "comoesta" );
-
-	return 8;
-
-}
-
-
 SSL_CTX * 
 SecureSocket::InitializeCertificates ( ) {
 		
@@ -283,7 +269,8 @@ SecureSocket::InitializeCertificates ( ) {
 	if ( m_sServerCertificatePassphrase != "" ) {
 
 #ifdef EHS_DEBUG
-        cerr << "default callback is at " << hex << SecureSocket::DefaultCertificatePassphraseCallback << endl;
+        cerr << "default callback is at " << hex
+            << reinterpret_cast<void *>(SecureSocket::DefaultCertificatePassphraseCallback) << endl;
 				  
         cerr
             << "setting callback to '"

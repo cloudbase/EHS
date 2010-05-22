@@ -81,7 +81,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 
 }
 
-void PrintUsage ( int argc, char ** argv ) {
+void PrintUsage ( int, char ** argv ) {
     cout << "usage: " << argv[0] << " <port> [<certificate_file> <certificate_passphrase>]" << endl;
 	cout << "\tIf you specify the last 2 parameters, it will run in https mode" << endl;
 	exit ( 0 );

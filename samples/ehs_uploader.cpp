@@ -8,131 +8,78 @@
 #include <ehs.h>
 
 #include <fstream>
-#include <cstring>
-#include <cassert>
+#include <iostream>
 
 #include <pme.h>
 
 using namespace std;
 
-
-string g_sPort = "";
-
 class FileUploader : public EHS {
     public:
         FileUploader ( ) {}
-
-        ResponseCode HandleRequest ( HttpRequest * ipoHttpRequest,
-                HttpResponse * ipoHttpResponse );
+        ResponseCode HandleRequest ( HttpRequest *, HttpResponse *);
 };
 
-
-
-ResponseCode FileUploader::HandleRequest ( HttpRequest * ipoHttpRequest,
-        HttpResponse * ipoHttpResponse )
+ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse * response )
 {
-
-    // make a regex to get rid of the path if it exists
-    // zero or more anything followed by a backslash or forward slash
-    //   followed by one or more things that aren't a backslash or forward slash
-    //   it takes four backslashes \\\\ to make an actual backslash
-    PME oFilenameRegex ( ".*?[\\\\\\/]?([^\\\\\\/]+)$" );
-
-    string sUri = ipoHttpRequest->sUri;
-    fprintf ( stderr, "url: %s\n", sUri.c_str ( ) );
+    string sUri = request->sUri;
+    cerr << "Request-URI: " << sUri << endl;
 
     if ( sUri == "/" ) {
-
-        string sBody = " <html><head><title>ehs uploader</title></head> <body> <form method = POST action=";
-
-        sBody += "/upload.html enctype=multipart/form-data> upload file:<BR> <input type=file name=file><BR> <input type=submit value=submit> </form> </body> </html>";
-
-
-        ipoHttpResponse->SetBody ( sBody.c_str ( ), sBody.length ( ) );
+        string sBody = "<html><head><title>ehs uploader</title></head> <body> <form method=\"POST\" action=";
+        sBody += "/upload.html enctype=\"multipart/form-data\">Upload file:<br />";
+        sBody += "<input type=\"file\" name=\"file\"><br /><input type=\"submit\" value=\"submit\"></form></body></html>";
+        response->SetBody ( sBody.c_str(), sBody.length ( ) );
         return HTTPRESPONSECODE_200_OK;
-
     }
-    // it doesn't have to end in .html.. just sort of traditional
-    else if ( sUri == "/upload.html" ) {
-        fprintf ( stderr, "body length = %d\n", 
-                ipoHttpRequest->oFormValueMap [ "file" ].sBody.length ( ) );
-        if ( ipoHttpRequest->oFormValueMap [ "file" ].sBody.length ( ) != 0 ) {
 
-            string sFilename = ipoHttpRequest->oFormValueMap [ "file" ].
-                oContentDisposition.oContentDispositionHeaders [ "filename" ];
-
-            fprintf ( stderr, "sFilename = '%s'\n", sFilename.c_str ( ) );
-
-            int pnVector [ 120 ];
-            int nMatchResult;
-
-            int nMatches = oFilenameRegex.match ( sFilename );
-            fprintf ( stderr, "Found %d matches\n", nMatches );
-
-            fprintf ( stderr, "'%s' %d -- %d:%d\n",
-                    sFilename.c_str ( ),
-                    nMatchResult, pnVector [ 2 ], pnVector [ 3 ] );
-
-            sFilename = oFilenameRegex [ 1 ];
-
-            if ( sFilename.length ( ) != 0 ) {
-                fprintf ( stderr, "Writing '%d' bytes to filename: '%s'\n",
-                        ipoHttpRequest->oFormValueMap [ "file" ].sBody.length ( ),
-                        sFilename.c_str ( ) );
-                ofstream outfile ( sFilename.c_str ( ) );
-                outfile.write ( ipoHttpRequest->oFormValueMap [ "file" ].sBody.c_str ( ),
-                        ipoHttpRequest->oFormValueMap [ "file" ].sBody.length ( ) );
-
+    if ( sUri == "/upload.html" ) {
+        int nFileSize = request->oFormValueMap [ "file" ].sBody.length ( );
+        string sFileName = request->oFormValueMap [ "file" ].
+            oContentDisposition.oContentDispositionHeaders [ "filename" ];
+        cerr << "nFileSize = " << nFileSize << endl;
+        cerr << "sFileName = '" << sFileName << "'" << endl;
+        if ( 0 != nFileSize ) {
+            size_t lastSlash = sFileName.find_last_of("/\\");
+            sFileName = sFileName.substr(lastSlash + 1);
+            cerr << "stripped sFileName = '" << sFileName << "'" << endl;
+            if ( !sFileName.empty ( ) ) {
+                cerr << "Writing " << nFileSize << " bytes to file" << endl;
+                ofstream outfile ( sFileName.c_str(), ios::out | ios::trunc | ios::binary );
+                outfile.write( request->oFormValueMap [ "file" ].sBody.c_str(), nFileSize);
                 outfile.close ( );
-
             } else {
-                fprintf ( stderr, "NO FILENAME FOUND\n" );
-                assert ( 0 );
-
+                cerr << "NO FILENAME FOUND" << endl;
             }
-
-
-        } 
-        // there was nothing sent in as a file
-        else {
-
-            ipoHttpResponse->SetBody ( "Must upload file", strlen ( "Must upload file" ) );
+            response->SetBody ( "", 0 );
             return HTTPRESPONSECODE_200_OK;
-
-
-
+        } else {
+            string msg = "<http><body>Must upload file</body></http>";
+            // there was nothing sent in as a file
+            response->SetBody ( msg.c_str(), msg.length() );
+            return HTTPRESPONSECODE_200_OK;
         }
-
-    } 
+    }
 
     return HTTPRESPONSECODE_404_NOTFOUND;
-
 }
 
 
 
 int main ( int argc, char ** argv )
 {
-
     if ( argc < 2 ) {
-        printf ( "usage: %s <port>\n", argv[0] );
+        cout << "usage: " << argv[0] << " <port>" << endl;
         exit ( 0 );
     }
 
     FileUploader srv;
-
     EHSServerParameters oSP;
     oSP["port"] = argv [ 1 ];
     oSP [ "mode" ] = "threadpool";
-    // unnecessary as 1 is the default
-    oSP["threadcount"] = 1;
-
     srv.StartServer ( oSP );
-
-    while ( 1 ) {
-        sleep ( 1 );
-    }
-
+    cout << "Press RETURN to terminate the server: "; cout.flush();
+    cin.get();
     srv.StopServer ( );
-
+    return 0;
 }

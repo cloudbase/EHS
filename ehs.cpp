@@ -41,7 +41,7 @@ This can be found in the 'COPYING' file.
 #include <cassert>
 #include <cerrno>
 
-const char * const EHSconfig = "EHS_CONFIG:SSL="
+static const char * const EHSconfig = "EHS_CONFIG:SSL="
 #ifdef COMPILE_WITH_SSL
     "1"
 #else
@@ -59,7 +59,12 @@ const char * const EHSconfig = "EHS_CONFIG:SSL="
 #else
     "0"
 #endif
-    ",VERSION=" VERSION ",BUILD=" __DATE__ " " __TIME__;
+    ",VERSION=" VERSION ",RELEASE=" SVNREV ",BUILD=" __DATE__ " " __TIME__;
+
+const char * getEHSconfig()
+{
+    return EHSconfig;
+}
 
 using namespace std;
 
@@ -497,12 +502,12 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 		// create a pthread 
 		int nResult = -1;
 
-		EHS_TRACE ( "Starting %d threads\n", roEHSServerParameters [ "threadcount" ].GetInt ( ) );
-
 		int nThreadsToStart = roEHSServerParameters [ "threadcount" ].GetInt ( );
 		if ( nThreadsToStart == 0 ) {
 			nThreadsToStart = 1;
 		}
+
+		EHS_TRACE ( "Starting %d threads\n", nThreadsToStart );
 
 		for ( int i = 0; i < nThreadsToStart; i++ ) {
 
@@ -560,9 +565,9 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 
 
 	if ( m_nServerRunningStatus == SERVERRUNNING_THREADPOOL ) {
-		EHS_TRACE ( "Info: EHS Server running in dedicated thread mode with '%s' threads\n",
-				  roEHSServerParameters [ "threadcount" ] == "" ? 
-				  roEHSServerParameters [ "threadcount" ].GetCharString ( ) : "1" );
+		EHS_TRACE ( "Info: EHS Server running in dedicated thread mode with %s threads\n",
+				  roEHSServerParameters [ "threadcount" ] == "" ? "1" :
+				  roEHSServerParameters [ "threadcount" ].GetCharString ( ) );
 	} else if ( m_nServerRunningStatus == SERVERRUNNING_ONETHREADPERREQUEST ) {
 		EHS_TRACE ( "Info: EHS Server running with one thread per request\n" );
 	} else if ( m_nServerRunningStatus == SERVERRUNNING_SINGLETHREADED ) {
@@ -1353,7 +1358,7 @@ void EHS::SetSourceEHS ( EHS & iroSourceEHS )
 }
 
 
-void EHS::SetCertificateFile ( string & irsCertificateFile ) 
+void EHS::SetCertificateFile ( string & ) 
 {
 
 	assert ( 0 );
@@ -1361,7 +1366,7 @@ void EHS::SetCertificateFile ( string & irsCertificateFile )
 }
 
 /// set certificate passphrase
-void EHS::SetCertificatePassphrase ( string & irsCertificatePassphrase )
+void EHS::SetCertificatePassphrase ( string & )
 {
 
 	assert ( 0 );
@@ -1369,7 +1374,7 @@ void EHS::SetCertificatePassphrase ( string & irsCertificatePassphrase )
 }
 
 /// sets a new passphrase callback function
-void EHS::SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) )
+void EHS::SetPassphraseCallback ( int ( * ) ( char *, int, int, void * ) )
 {
 
 	assert ( 0 );

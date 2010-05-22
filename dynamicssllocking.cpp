@@ -34,8 +34,7 @@ Zac Hansen ( xaxxon@slackworks.com )
 
 
 
-CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char * ipsFile,
-																   int inLine )
+CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char *, int )
 {
 
 	CRYPTO_dynlock_value * poDynlock = new CRYPTO_dynlock_value;
@@ -49,8 +48,8 @@ CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char
 
 void DynamicSslLocking::DynamicLockCallback ( int inMode,
 											  CRYPTO_dynlock_value * ipoDynlock,
-											  const char * ipsFile,
-											  int inLine )
+											  const char *,
+											  int )
 {
 
 	if ( inMode & CRYPTO_LOCK ) {
@@ -62,8 +61,8 @@ void DynamicSslLocking::DynamicLockCallback ( int inMode,
 }
 
 void DynamicSslLocking::DynamicLockCleanupCallback ( struct CRYPTO_dynlock_value * ipoDynlock,
-													 const char * ipsFile,
-													 int inLine )
+													 const char * ,
+													 int )
 {
 
 	MUTEX_CLEANUP ( ipoDynlock->oMutex );

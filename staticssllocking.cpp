@@ -25,7 +25,7 @@ Zac Hansen ( xaxxon@slackworks.com )
 
 // must be outside COMPILE_WITH_SSL check
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #ifdef COMPILE_WITH_SSL
@@ -39,8 +39,8 @@ MUTEX_TYPE * StaticSslLocking::poMutexes;
 
 void StaticSslLocking::SslStaticLockCallback ( int inMode,
 												int inMutex,
-												const char * ipsFile,
-												int inLine )
+												const char *,
+												int )
 {
 
 	if ( inMode & CRYPTO_LOCK ) {

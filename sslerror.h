@@ -40,18 +40,15 @@ class SslError
   public:
 
 	/// gets info about the previous error and removes from SSL error queue returns 0 when no error available on queue
-	int GetError ( std::string & irsReport,
-				   int inPeek = 0 );
+	int GetError ( std::string & irsReport, bool inPeek = false );
 
 	/// gets info about the previous error and leaves it on SSL error queue returns 0 when no error available on queue
 	int PeekError ( std::string & irsReport );
 
-
   protected:
 
 	/// represents whether the error strings have been loaded
-	static int nErrorMessagesLoaded;
-
+	static bool bMessagesLoaded;
 };
 
 #endif // COMPILE_WITH_SSL

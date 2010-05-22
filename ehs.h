@@ -65,7 +65,9 @@
 
 #include <string>
 
-extern const char * const EHSconfig;
+extern "C" {
+    const char * getEHSconfig();
+};
 
 class EHSServer;
 
