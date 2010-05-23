@@ -1,26 +1,28 @@
-
-/** \mainpage EHS 1.1.3
-
-
-  EHS is a library for embedding HTTP(S) support into a C++ application
-  Copyright (C) 2004 Zachary J. Hansen
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License version 2.1 as published by the Free Software Foundation;
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-  This can be found in the 'COPYING' file.
-
-*/
+/* $Id$ */
+/** \mainpage EHS
+ *
+ * EHS is a library for embedding HTTP(S) support into a C++ application
+ *
+ * Copyright (C) 2004 Zachary J. Hansen
+ *
+ * Code cleanup, new features and bugfixes: Copyright (C) 2010 Fritz Elfert
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License version 2.1 as published by the Free Software Foundation;
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Lesser General Public
+ *    License along with this library; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *    This can be found in the 'COPYING' file.
+ *
+ */
 
 #ifndef EHS_H
 #define EHS_H
@@ -57,6 +59,7 @@
 ///////////////////////////////////
 
 // EHS headers
+#include <formvalue.h>
 #include <ehstypes.h>
 #include <datum.h>
 #include <networkabstraction.h>
@@ -181,11 +184,7 @@ class EHSConnection {
 
 };
 
-
-
-// predeclare because of circular reference between EHSServer and EHS
 class EHSServer;
-
 
 /// EHS provides HTTP server functionality to a child class
 /**
@@ -287,17 +286,14 @@ class EHS {
         /// This looks for incoming connections in EHSServer.
         void HandleData ( int inTimeoutMilliseconds = 0 );
 
-	/// Called at the start of a thread routine.
-	/// Should return true, if everything is OK, false otherwise.
-	virtual bool ThreadInitHandler();
+        /// Called at the start of a thread routine.
+        /// Should return true, if everything is OK, false otherwise.
+        virtual bool ThreadInitHandler();
 
-	/// Called at exit of a thread routine
-	virtual void ThreadExitHandler();
+        /// Called at exit of a thread routine
+        virtual void ThreadExitHandler();
 
 };
-
-
-
 
 /// EHSServer contains all the network functionality for EHS
 /**

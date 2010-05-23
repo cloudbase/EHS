@@ -1,6 +1,10 @@
 /* $Id$
+ *
  * EHS is a library for embedding HTTP(S) support into a C++ application
+ *
  * Copyright (C) 2004 Zachary J. Hansen
+ *
+ * Code cleanup, new features and bugfixes: Copyright (C) 2010 Fritz Elfert
  *
  *    This library is free software; you can redistribute it and/or
  *    modify it under the terms of the GNU Lesser General Public
@@ -52,9 +56,9 @@ inline void EHS_TRACE( const char* szFormat ... )
 }
 
 #define _STR(x) #x
-#define EHS_TODO			(_message) message ("  *** TODO: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
-#define EHS_FUTURE		(_message) message ("  *** FUTURE: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
-#define EHS_TODOCUMENT	(_message) message ("  *** TODOCUMENT: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
-#define EHS_DEBUGCODE	(_message) message ("  *** DEBUG CODE (REMOVE!): " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
+#define EHS_TODO       (_message) message ("  *** TODO: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
+#define EHS_FUTURE     (_message) message ("  *** FUTURE: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
+#define EHS_TODOCUMENT (_message) message ("  *** TODOCUMENT: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
+#define EHS_DEBUGCODE  (_message) message ("  *** DEBUG CODE (REMOVE!): " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
 
 #endif // _DEBUG_H

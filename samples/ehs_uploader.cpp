@@ -1,10 +1,32 @@
-/*
+/* $Id$
+ *
+ * EHS is a library for embedding HTTP(S) support into a C++ application
+ *
+ * Copyright (C) 2004 Zachary J. Hansen
+ *
+ * Code cleanup, new features and bugfixes: Copyright (C) 2010 Fritz Elfert
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License version 2.1 as published by the Free Software Foundation;
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Lesser General Public
+ *    License along with this library; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *    This can be found in the 'COPYING' file.
+ *
+ */
 
+/*
   This is a sample EHS program that allows you to upload
   a file to the server 
-
 */
-
 #include <ehs.h>
 
 #include <fstream>
@@ -29,7 +51,9 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
         string sBody = "<html><head><title>ehs uploader</title></head><body>";
         sBody += "<form method=\"POST\" action=";
         sBody += "/upload.html enctype=\"multipart/form-data\">Upload file:<br />";
-        sBody += "<input type=\"file\" name=\"file\"><br /><input type=\"submit\" value=\"submit\"></form></body></html>";
+        sBody += "<input type=\"file\" name=\"file\"><br />";
+        sBody += "<input type=\"submit\" value=\"submit\"></form></body></html>";
+
         response->SetBody ( sBody.c_str(), sBody.length ( ) );
         return HTTPRESPONSECODE_200_OK;
     }
@@ -64,8 +88,6 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
 
     return HTTPRESPONSECODE_404_NOTFOUND;
 }
-
-
 
 int main ( int argc, char ** argv )
 {

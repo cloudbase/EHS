@@ -1,29 +1,27 @@
-
-/*
-
-EHS is a library for adding web server support to a C++ application
-Copyright (C) 2001, 2002 Zac Hansen
-  
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; version 2
-of the License only.
-  
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-  
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-or see http://www.gnu.org/licenses/gpl.html
-
-Zac Hansen ( xaxxon@slackworks.com )
-
-*/
-
-
+/* $Id$
+ *
+ * EHS is a library for embedding HTTP(S) support into a C++ application
+ *
+ * Copyright (C) 2004 Zachary J. Hansen
+ *
+ * Code cleanup, new features and bugfixes: Copyright (C) 2010 Fritz Elfert
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License version 2.1 as published by the Free Software Foundation;
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Lesser General Public
+ *    License along with this library; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *    This can be found in the 'COPYING' file.
+ *
+ */
 
 #ifndef SOCKET_H
 #define SOCKET_H
@@ -59,7 +57,6 @@ Zac Hansen ( xaxxon@slackworks.com )
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <string.h>
 
 ///////////////////////////////////
 #endif // end platform headers   //
@@ -70,52 +67,57 @@ Zac Hansen ( xaxxon@slackworks.com )
 /// plain socket implementation of NetworkAbstraction
 class Socket : public NetworkAbstraction {
 
-  public:
-	
-	/// sets up socket stuff (mostly for win32) and then listens on specified port
-	virtual InitResult Init ( int inPort );
+    public:
 
-	/// default constructor
-	Socket ( ) : nAcceptSocket ( 0 ) { }
+        /// sets up socket stuff (mostly for win32) and then listens on specified port
+        virtual InitResult Init ( int inPort );
 
-	/// client socket constructor
-	Socket ( int inAcceptSocket, sockaddr_in * );
+        /// default constructor
+        Socket ( );
 
-	/// destructor
-	virtual ~Socket ( );
+        /// client socket constructor
+        Socket ( int inAcceptSocket, sockaddr_in * );
 
-	/// returns the FD associated with this socket
-	virtual int GetFd ( ) { return nAcceptSocket; };
+        /// destructor
+        virtual ~Socket ( );
 
-	/// implements standard FD read
-	virtual int Read ( void * ipBuffer, int ipBufferLength );
+        /// Sets the bind address of the socket
+        virtual void SetBindAddress ( const char * bindAddress );
 
-	/// implements standard FD send
-	virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
+        /// returns the FD associated with this socket
+        virtual int GetFd ( ) { return nAcceptSocket; };
 
-	/// implements standard FD close
-	virtual void Close ( );
+        /// implements standard FD read
+        virtual int Read ( void * ipBuffer, int ipBufferLength );
 
-	/// implements standard FD accept
-	virtual NetworkAbstraction * Accept ( );
-	
-	/// Returns false, plain sockets are not secure
-	virtual int IsSecure ( ) { return 0; }
+        /// implements standard FD send
+        virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
 
-  protected:
+        /// implements standard FD close
+        virtual void Close ( );
 
-	/// Socket on which this connection came in
-	int nAcceptSocket;
+        /// implements standard FD accept
+        virtual NetworkAbstraction * Accept ( );
 
+        /// Returns false, plain sockets are not secure
+        virtual int IsSecure ( ) { return 0; }
 
-	/// stores the address of the current connection
-	sockaddr_in oInternetSocketAddress;
+    protected:
 
-	/// returns the address of the incoming connection
-	std::string GetAddress ( );
+        /// Socket on which this connection came in
+        int nAcceptSocket;
 
-	/// returns the port of the incoming connection
-	int GetPort ( );
+        /// stores the address of the current connection
+        sockaddr_in oInternetSocketAddress;
+
+        /// stores the bind address
+        sockaddr_in oBindAddress;
+
+        /// returns the address of the incoming connection
+        std::string GetAddress ( );
+
+        /// returns the port of the incoming connection
+        int GetPort ( );
 
 };
 

@@ -1,28 +1,27 @@
-
-/*
-
-EHS is a library for adding web server support to a C++ application
-Copyright (C) 2001, 2002 Zac Hansen
-  
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; version 2
-of the License only.
-  
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-  
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-or see http://www.gnu.org/licenses/gpl.html
-
-Zac Hansen ( xaxxon@slackworks.com )
-
-*/
-
+/* $Id$
+ *
+ * EHS is a library for embedding HTTP(S) support into a C++ application
+ *
+ * Copyright (C) 2004 Zachary J. Hansen
+ *
+ * Code cleanup, new features and bugfixes: Copyright (C) 2010 Fritz Elfert
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License version 2.1 as published by the Free Software Foundation;
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Lesser General Public
+ *    License along with this library; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *    This can be found in the 'COPYING' file.
+ *
+ */
 
 #ifndef SECURE_SOCKET_H
 #define SECURE_SOCKET_H
@@ -37,8 +36,10 @@ Zac Hansen ( xaxxon@slackworks.com )
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 
 #include <string>
 #include <iostream>
@@ -60,127 +61,135 @@ Zac Hansen ( xaxxon@slackworks.com )
 class SecureSocket : public NetworkAbstraction 
 {
 
-  public:
-	
-	/// initialize OpenSSL and this socket object
-	virtual InitResult Init ( int inPort );
+    public:
 
-	/// constructor for server socket
-	SecureSocket ( std::string isServerCertificate = "",
-				   std::string isServerCertificatePassphrase = "" ) : 
-		m_nClosed ( 0 ),
-		m_nFd ( -1 ),
-		m_poAcceptBio ( NULL ),
-		m_poAcceptSsl ( NULL ),
-		m_sServerCertificate ( isServerCertificate ),
-		m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
-		m_pfOverridePassphraseCallback ( NULL )
-		{ 
+        /// initialize OpenSSL and this socket object
+        virtual InitResult Init ( int inPort );
+
+        /// constructor for server socket
+        SecureSocket ( std::string isServerCertificate = "",
+                std::string isServerCertificatePassphrase = "" ) : 
+            m_nClosed ( 0 ),
+            m_nFd ( -1 ),
+            m_poAcceptBio ( NULL ),
+            m_poAcceptSsl ( NULL ),
+            m_sServerCertificate ( isServerCertificate ),
+            m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
+            m_pfOverridePassphraseCallback ( NULL ),
+            m_sBindAddress ( "0.0.0.0" )
+    { 
 #ifdef EHS_DEBUG
-            std::cerr << "calling SecureSocket constructor A" << std::endl;
+        std::cerr << "calling SecureSocket constructor A" << std::endl;
 #endif
-		}
+    }
 
-	/// constructor for client socket
-	SecureSocket ( SSL * ipoAcceptSsl, 
-				   BIO * ipoAcceptBio, 
-				   std::string isServerCertificate = "",
-				   std::string isServerCertificatePassphrase = "") : 
-		m_nClosed ( 0 ),
-		m_nFd ( -1 ),
-		m_poAcceptBio ( ipoAcceptBio ),
-		m_poAcceptSsl ( ipoAcceptSsl ),
-		m_sServerCertificate ( isServerCertificate ),
-		m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
-		m_pfOverridePassphraseCallback ( NULL )
-		{
+        /// constructor for client socket
+        SecureSocket ( SSL * ipoAcceptSsl, 
+                BIO * ipoAcceptBio, 
+                std::string isServerCertificate = "",
+                std::string isServerCertificatePassphrase = "") : 
+            m_nClosed ( 0 ),
+            m_nFd ( -1 ),
+            m_poAcceptBio ( ipoAcceptBio ),
+            m_poAcceptSsl ( ipoAcceptSsl ),
+            m_sServerCertificate ( isServerCertificate ),
+            m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
+            m_pfOverridePassphraseCallback ( NULL ),
+            m_sBindAddress ( "0.0.0.0" )
+    {
 #ifdef EHS_DEBUG
-			std::cerr << "calling SecureSocket constructor B" << std::endl;
+        std::cerr << "calling SecureSocket constructor B" << std::endl;
 #endif
-		}
+    }
 
-	/// destructor
-	virtual ~SecureSocket ( ) {}
+        /// destructor
+        virtual ~SecureSocket ( ) {}
 
-	/// accepts on secure socket
-	virtual NetworkAbstraction * Accept ( );
+        /// Sets the bind address of the socket
+        virtual void SetBindAddress ( const char * bindAddress );
 
-	/// returns true because this socket is considered secure
-	virtual int IsSecure ( ) { return 1; }
+        /// accepts on secure socket
+        virtual NetworkAbstraction * Accept ( );
 
-	/// does random number stuff using OpenSSL 
-	int SeedRandomNumbers ( int inBytes );
+        /// returns true because this socket is considered secure
+        virtual int IsSecure ( ) { return 1; }
 
-	/// returns the FD associated with this secure socket
-	virtual int GetFd ( );
+        /// does random number stuff using OpenSSL 
+        int SeedRandomNumbers ( int inBytes );
 
-	/// deals with certificates for doing secure communication
-	SSL_CTX * InitializeCertificates ( );
+        /// returns the FD associated with this secure socket
+        virtual int GetFd ( );
 
-	/// does OpenSSL read
-	virtual int Read ( void * ipBuffer, int ipBufferLength );
+        /// deals with certificates for doing secure communication
+        SSL_CTX * InitializeCertificates ( );
 
-	/// does OpenSSL send
-	virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
-	
-	/// closes OpenSSL connectio
-	virtual void Close ( );
+        /// does OpenSSL read
+        virtual int Read ( void * ipBuffer, int ipBufferLength );
 
-	/// default callback that just uses m_sServerCertificatePassphrase member
-	static int DefaultCertificatePassphraseCallback ( char * ipsBuffer,
-													  int inSize,
-													  int inRWFlag,
-													  void * ipUserData );
-	
-	/// sets a callback for loading a certificate
-	void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
-	
-	/// has close been called on this object?
-	int m_nClosed;
+        /// does OpenSSL send
+        virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
 
-	/// stores the address of the current connection
-	sockaddr_in oInternetSocketAddress;
+        /// closes OpenSSL connectio
+        virtual void Close ( );
 
-  protected:
+        /// default callback that just uses m_sServerCertificatePassphrase member
+        static int DefaultCertificatePassphraseCallback ( char * ipsBuffer,
+                int inSize,
+                int inRWFlag,
+                void * ipUserData );
 
-	/// stores the file descriptor.  Needed for dealing with the object after the FD is closed because it's indexed by FD elsewhere
-	int m_nFd; 
+        /// sets a callback for loading a certificate
+        void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
 
-	/// the BIO associated with this connection
-	BIO * m_poAcceptBio;
+        /// has close been called on this object?
+        int m_nClosed;
 
-	/// the SSL object associated with this SSL connectio
-	SSL * m_poAcceptSsl;
+        /// stores the address of the current connection
+        sockaddr_in oInternetSocketAddress;
 
-	/// filename for certificate file
-	std::string m_sServerCertificate;
+    protected:
 
-	/// passphrase for certificate
-	std::string m_sServerCertificatePassphrase; 
+        /// stores the file descriptor.  Needed for dealing with the object after the FD is closed because it's indexed by FD elsewhere
+        int m_nFd; 
 
-	/// pointer to callback function
-	int (*m_pfOverridePassphraseCallback)(char*, int, int, void*);
+        /// the BIO associated with this connection
+        BIO * m_poAcceptBio;
+
+        /// the SSL object associated with this SSL connectio
+        SSL * m_poAcceptSsl;
+
+        /// filename for certificate file
+        std::string m_sServerCertificate;
+
+        /// passphrase for certificate
+        std::string m_sServerCertificatePassphrase; 
+
+        /// pointer to callback function
+        int (*m_pfOverridePassphraseCallback)(char*, int, int, void*);
 
 
-	// STATIC VARIABLES
+        // STATIC VARIABLES
 
-	/// dynamic portion of SSL locking mechanism
-	static DynamicSslLocking * poDynamicSslLocking;
+        /// dynamic portion of SSL locking mechanism
+        static DynamicSslLocking * poDynamicSslLocking;
 
-	/// static portion of SSL locking mechanism
-	static StaticSslLocking * poStaticSslLocking;
+        /// static portion of SSL locking mechanism
+        static StaticSslLocking * poStaticSslLocking;
 
-	/// error object for getting openssl error messages
-	static SslError * poSslError;
+        /// error object for getting openssl error messages
+        static SslError * poSslError;
 
-	/// certificate information
-	static SSL_CTX * poCtx;
+        /// certificate information
+        static SSL_CTX * poCtx;
 
-	/// gets the address associated with this connection
-	std::string GetAddress ( );
+        /// stores the bind address
+        std::string m_sBindAddress;
 
-	/// gets the port assocaited with this connection
-	int GetPort ( );
+        /// gets the address associated with this connection
+        std::string GetAddress ( );
+
+        /// gets the port assocaited with this connection
+        int GetPort ( );
 
 };
 
