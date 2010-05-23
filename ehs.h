@@ -211,7 +211,6 @@ class EHS {
         /// source EHS object to route requests to for data instead of processing it ourselves
         EHS * m_poSourceEHS;
 
-
     public:
 
         /// default constructor that can set a parrent and a path name

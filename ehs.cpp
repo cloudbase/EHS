@@ -415,11 +415,6 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 
 EHSServer::~EHSServer ( )
 {
-    while (m_nThreads > 0) {
-        EHS_TRACE ( "EHSServer destructor: waiting for %d threads to terminate\n", m_nThreads);
-        sleep(1);
-    }
-    EHS_TRACE ( "EHSServer destructor: all threads erminated\n");
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Deallocated: EHSServer" << endl;
 #endif		
@@ -830,6 +825,12 @@ void EHSServer::EndServerThread ( const char * ipsReason
     m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
     m_nAcceptThreadId = 0;
     MUTEX_UNLOCK ( m_oMutex );
+    while (m_nThreads > 0) {
+        EHS_TRACE ( "EndServerThread waiting for %d threads to terminate\n", m_nThreads);
+        pthread_cond_broadcast ( &m_oDoneAccepting );
+        sleep(1);
+    }
+    EHS_TRACE ( "EndServerThread: all threads terminated\n");
 }
 
 EHS::EHS ( EHS * ipoParent, ///< parent EHS object for routing purposes
