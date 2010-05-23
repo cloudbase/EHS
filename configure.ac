@@ -90,7 +90,7 @@ AC_C_CONST
 
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([memset select setlocale socket strcasecmp])
+AC_CHECK_FUNCS([memset select setlocale socket strcasecmp strtoul])
 
 FE_SVNREV([SVNREV])
 AC_DEFINE_UNQUOTED(SVNREV,"$SVNREV",[SVN revision])
@@ -123,4 +123,5 @@ AC_ARG_ENABLE([warn],
 LIBVERSION="`echo $VERSION|tr . :`"
 AC_SUBST(LIBVERSION)
 
-AC_OUTPUT([Makefile])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
