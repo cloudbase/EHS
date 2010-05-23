@@ -11,13 +11,16 @@ C++ class to have HTTP (web) server capabilities.
 
 How to build EHS (for UNIX):
 ------------------
-./configure --with-ssl --with-debug --with-memory
+./configure --with-ssl --enable-debug --enable-memory --enable-warn
 
---with-ssl: compile with HTTPS support.  Requires OpenSSL library installed.
---with-debug: prints out many debugging statements.  Recommended when you first
-              build a new application, but rather spammy.
---with-memory: prints out internal memory tracking information.  Mostly only 
-               used for EHS internal development.
+--with-ssl:      compile with HTTPS support. Requires OpenSSL library installed.
+                 If not specified, configure will enable SSL support if it
+                 finds OpenSSL automatically
+--enable-debug:  prints out many debugging statements.  Recommended when you first
+                 build a new application, but rather spammy.
+--enable-memory: prints out internal memory tracking information.  Mostly only 
+                 used for EHS internal development.
+--enable-warn:   Enable additional compiler warnings
 
 
 Requirements:
@@ -125,6 +128,9 @@ oSP [ "norouterequest" ] = "1" -- means to disregard trying to route requests
                                   call RegisterEHS ( ) to set up a hierarchy,
                                   but child EHS objects will never be called.
 
+oSP [ "maxrequestsize" ] = "262144" -- The maximum size of an incoming request.
+                                       You may want to increase this, if you
+                                       want to handle file uploads.
 
 Start your server:
 oEHS.StartServer ( oSP );
