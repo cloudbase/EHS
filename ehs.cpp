@@ -108,7 +108,9 @@ int EHSServer::ClearIdleConnections ( )
                 time ( NULL ) - (*i)->LastActivity ( ) > m_nIdleTimeout &&
                 (*i)->RequestsPending ( ) ) {
             EHS_TRACE ( "Done reading because of idle timeout\n" );
+            MUTEX_UNLOCK ( (*i)->m_oMutex );
             (*i)->DoneReading ( false );
+            MUTEX_LOCK ( (*i)->m_oMutex );
             nIdleConnections++;
         }
         MUTEX_UNLOCK ( (*i)->m_oMutex );
@@ -275,6 +277,7 @@ int EHSConnection::CheckDone ( )
         if ( m_nRequests - 1 <= m_nResponses ) {
             // if we haven't disconnected, do that now
             if ( !m_nDisconnected) {
+                EHS_TRACE ( "Closing connection: .\n", m_nMaxRequestSize );
                 m_poNetworkAbstraction->Close ( );
             }
             return 1;
@@ -546,14 +549,36 @@ void EHS::StopServer ( )
 void EHSServer::HandleData_Threaded ( )
 {
     if (m_poTopLevelEHS->ThreadInitHandler()) {
+        try {
         pthread_t nMyThreadId = pthread_self ( );
         do {
             HandleData (1000, nMyThreadId); // 1000ms select timeout
+#if 0
             EHS_TRACE ( "B1=%d B2=%d TID=%p\n",
                     (m_nServerRunningStatus == SERVERRUNNING_THREADPOOL), 
                     (nMyThreadId == m_nAcceptThreadId), nMyThreadId );
+#endif
         } while ( m_nServerRunningStatus == SERVERRUNNING_THREADPOOL ||
                 nMyThreadId == m_nAcceptThreadId );
+        } catch (domain_error de) {
+            cerr << "HandleData_Threaded: Catched domain_error " << de.what() << endl;
+        } catch (invalid_argument ia) {
+            cerr << "HandleData_Threaded: Catched invalid_argument " << ia.what() << endl;
+        } catch (length_error le) {
+            cerr << "HandleData_Threaded: Catched length_error " << le.what() << endl;
+        } catch (out_of_range oor) {
+            cerr << "HandleData_Threaded: Catched out_of_range " << oor.what() << endl;
+        } catch (range_error re) {
+            cerr << "HandleData_Threaded: Catched range_error " << re.what() << endl;
+        } catch (overflow_error oe) {
+            cerr << "HandleData_Threaded: Catched overflow_error " << oe.what() << endl;
+        } catch (underflow_error ue) {
+            cerr << "HandleData_Threaded: Catched underflow_error " << ue.what() << endl;
+        } catch (runtime_error rue) {
+            cerr << "HandleData_Threaded: Catched runtime_error " << rue.what() << endl;
+        } catch (...) {
+            cerr << "HandleData_Threaded: Catched generic exception ..." << endl;
+        }
         m_poTopLevelEHS->ThreadExitHandler();
     }
 }
