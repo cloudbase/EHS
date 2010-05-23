@@ -46,7 +46,7 @@ inline void EHS_TRACE( const char* szFormat ... )
 # ifdef _WIN32
     OutputDebugStringA(buf) ;
 # else
-    std::cerr << buf << std::endl;
+    std::cerr << buf << std::endl; std::cerr.flush();
 # endif
 #endif
 }

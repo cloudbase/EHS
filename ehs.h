@@ -288,6 +288,13 @@ class EHS {
         /// This looks for incoming connections in EHSServer.
         void HandleData ( int inTimeoutMilliseconds = 0 );
 
+	/// Called at the start of a thread routine.
+	/// Should return true, if everything is OK, false otherwise.
+	virtual bool ThreadInitHandler();
+
+	/// Called at exit of a thread routine
+	virtual void ThreadExitHandler();
+
 };
 
 
@@ -319,7 +326,7 @@ class EHSServer {
         void InitHttpResponse ( HttpResponse * ipoHttpResponse );
 
         /// stops the server
-        void EndServerThread ( char * ipsReason );
+        void EndServerThread ( const char * ipsReason );
 
         /// main function that deals with client connections and getting data
         void HandleData ( int inTimeoutMilliseconds, pthread_t inThreadId = NULL ); 
@@ -400,6 +407,7 @@ class EHSServer {
         /// number of seconds a connection can be idle before disconnect
         int m_nIdleTimeout;
 
+        int m_nThreads;
 };
 
 #endif // EHS_H

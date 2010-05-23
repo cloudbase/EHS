@@ -42,6 +42,4 @@ typedef std::map < int, HttpResponse * > HttpResponseMap;
 /// holds a list of pending requests
 typedef std::list < HttpRequest * > HttpRequestList;
 
-
-
 #endif
