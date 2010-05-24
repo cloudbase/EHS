@@ -29,25 +29,29 @@
 
 #include "ehs.h"
 
-#include <pme.h>
+#include <pcrecpp.h>
 #include <cassert>
+#include <string>
+#include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 using namespace std;
 
 void HttpRequest::GetFormDataFromString ( const string & irsString ///< string to parse for form data
         )
 {
-    PME oNameValueRegex ( "[?]?([^?=]*)=([^&]*)&?", "g" );
-    while ( oNameValueRegex.match ( irsString ) ) {
-        ContentDisposition oContentDisposition;
-        string sName = oNameValueRegex [ 1 ];
-        string sValue = oNameValueRegex [ 2 ];
+    pcrecpp::RE re("[?]?([^?=]*)=([^&]*)&?");
+    string name;
+    string value;
+    pcrecpp::StringPiece input(irsString);
+    while ( re.FindAndConsume ( &input, &name, &value ) ) {
 #ifdef EHS_DEBUG
-        cerr << "[EHS_DEBUG] Info: Got form data: '" << sName << "' => '" << sValue << "'" << endl;
+        cerr << "[EHS_DEBUG] Info: Got form data: '" << name << "' => '" << value << "'" << endl;
 #endif
-        oFormValueMap [ sName ] =
-            FormValue ( sValue, oContentDisposition );
+        ContentDisposition oContentDisposition;
+        oFormValueMap [ name ] =
+            FormValue ( value, oContentDisposition );
     }
 }
 
@@ -92,41 +96,26 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody ( string isSubbody ///
 
     // first line MUST be the content-disposition header line, so that
     //   we know what the name of the field is.. otherwise, we're in trouble
-    int nMatchResult = 0;
-    PME oContentDispositionRegex ( "Content-Disposition:[ ]?([^;]+);[ ]?(.*)" );
-    nMatchResult = oContentDispositionRegex.match ( sHeaders );
-    if ( nMatchResult == 3 ) {
+    string sContentDisposition;
+    string sNameValuePairs;
+    pcrecpp::RE re ( "Content-Disposition:[ ]?([^;]+);[ ]?(.*)" );
+    if ( re.PartialMatch( sHeaders, &sContentDisposition, &sNameValuePairs ) ) {
 
-        string sContentDisposition ( oContentDispositionRegex [ 1 ] );
-        string sNameValuePairs ( oContentDispositionRegex [ 2 ] );
         StringMap oStringMap;
-        PME oContentDispositionNameValueRegex ( "[ ]?([^= ]+)=\"([^\"]+)\"[;]?", "g" );
+        string sName;
+        string sValue;
+        pcrecpp::StringPiece nvp( sNameValuePairs );
+        pcrecpp::RE nvre ( "[ ]?([^= ]+)=\"([^\"]+)\"[;]?" );
 
-        // go through the sNameValuePairs string and grab out the pieces
-        nMatchResult = 3;
-
-        while ( nMatchResult == 3 ) {
-
-            nMatchResult = oContentDispositionNameValueRegex.match ( sNameValuePairs );
-            if ( nMatchResult == 3 ) {
-
-                string sName = oContentDispositionNameValueRegex [ 1 ];
-                string sValue = oContentDispositionNameValueRegex [ 2 ];
-
+        while ( nvre.FindAndConsume( &nvp, &sName, &sValue ) )
+        {
 #ifdef EHS_DEBUG
-                cerr
-                    << "[EHS_DEBUG] Info: Subbody header found: '"
-                    << sName << "' => '" << sValue << "' with "
-                    << nMatchResult << " matches" << endl;
+            cerr
+                << "[EHS_DEBUG] Info: Subbody header found: '"
+                << sName << "' => '" << sValue << "'" << endl;
 #endif				
+            oStringMap [ sName ] = sValue;
 
-                oStringMap [ sName ] = sValue;
-
-            } else if ( nMatchResult == 0 ) {
-                ; // this is okay -- just done with name value pairs
-            } else {
-                assert ( 0 );				
-            }
         }
 
         // take oStringMap and actually fill the right object with its data
@@ -166,18 +155,18 @@ HttpRequest::ParseMultipartFormData ( )
     assert ( !oRequestHeaders [ "content-type" ].empty ( ) );
 
     // find the boundary string
-    int nMatchResult = 0;
-
-    PME oMultipartFormDataContentTypeValueRegex ( "multipart/[^;]+;[ ]*boundary=([^\"]+)$" );
+    pcrecpp::RE re ( "multipart/[^;]+;[ ]*boundary=([^\"]+)$" );
 
 #ifdef EHS_DEBUG
     cerr << "looking for boundary in '" << oRequestHeaders [ "content-type" ] << "'" << endl;
 #endif	
 
-    if ( ( nMatchResult = oMultipartFormDataContentTypeValueRegex.match ( oRequestHeaders [ "content-type" ] ) ) ) {
-
-        assert ( nMatchResult == 2 );
-        string sBoundaryString = oMultipartFormDataContentTypeValueRegex [ 1 ];
+    // if ( ( nMatchResult = oMultipartFormDataContentTypeValueRegex.match ( oRequestHeaders [ "content-type" ] ) ) )
+    string sBoundaryString;
+    if ( re.FullMatch( oRequestHeaders [ "content-type" ], &sBoundaryString ) )
+    {
+        // assert ( nMatchResult == 2 );
+        // string sBoundaryString = oMultipartFormDataContentTypeValueRegex [ 1 ];
 
         // the actual boundary has two dashes prepended to it
         string sActualBoundary = string ("--") + sBoundaryString;
@@ -229,17 +218,20 @@ HttpRequest::ParseMultipartFormData ( )
 //   everything after the : gets passed in in irsData
 int HttpRequest::ParseCookieData ( string & irsData )
 {
-
 #ifdef EHS_DEBUG
     cerr << "looking for cookies in '" << irsData << "'" << endl;
 #endif
-    PME oCookieRegex ( "\\s*([^=]+)=([^;]+)(;|$)*", "g" );
-    int nNameValuePairsFound = 0;
-    while ( oCookieRegex.match ( irsData ) ) {
-        oCookieMap [ oCookieRegex [ 1 ] ] = oCookieRegex [ 2 ];
-        nNameValuePairsFound++;
+    int ccount = 0;
+
+    pcrecpp::RE re ( "\\s*([^=]+)=([^;]+)(;|$)*" );
+    pcrecpp::StringPiece input ( irsData );
+    string name;
+    string value;
+    while ( re.FindAndConsume ( &input, &name, &value ) ) {
+        oCookieMap [ name ] = value;
+        ccount++;
     }
-    return nNameValuePairsFound;
+    return ccount;
 }
 
 
@@ -252,8 +244,10 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
         )
 {
     string sLine;
+    string sName;
+    string sValue;
     int nDoneWithCurrentData = 0;
-    PME oHeaderRegex ( "^([^:]*):\\s+(.*)\\r\\n$" );
+    pcrecpp::RE reHeader ( "^([^:]*):\\s+(.*)\\r\\n$" );
 
     while ( ! nDoneWithCurrentData && 
             nCurrentHttpParseState != HTTPPARSESTATE_INVALIDREQUEST &&
@@ -274,14 +268,17 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // if we got a line, look for a request line
 
                     // everything must be uppercase according to rfc2616
-                    PME oRequestLineRegex ( "^(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT) ([^ ]*) HTTP/([^ ]+)\\r\\n$" );
-                    if ( oRequestLineRegex.match ( sLine ) ) {
+                    pcrecpp::RE re ( "^(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT) ([^ ]*) HTTP/([^ ]+)\\r\\n$" );
+                    string muri;
+                    string mver;
+                    string mreq;
+                    if ( re.FullMatch ( sLine, &mreq, &muri, &mver ) ) {
 
                         // get the info from the request line
-                        nRequestMethod = GetRequestMethodFromString ( oRequestLineRegex [ 1 ] );
-                        sUri = oRequestLineRegex [ 2 ];
-                        sOriginalUri = oRequestLineRegex [ 2 ];
-                        sHttpVersionNumber = oRequestLineRegex [ 3 ];
+                        nRequestMethod = GetRequestMethodFromString ( mreq );
+                        sUri = muri;
+                        sOriginalUri = muri;
+                        sHttpVersionNumber = mver;
 
                         // check to see if the uri appeared to have form data in it
                         GetFormDataFromString ( sUri );
@@ -325,11 +322,11 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                     }
 
-                } else if ( oHeaderRegex.match ( sLine ) ) {
+                } else if ( reHeader.FullMatch ( sLine, &sName, &sValue ) ) {
                     // else if there is still data
 
-                    string sName = oHeaderRegex [ 1 ];
-                    string sValue = oHeaderRegex [ 2 ];
+                    //string sName = oHeaderRegex [ 1 ];
+                    //string sValue = oHeaderRegex [ 2 ];
 
                     if ( sName == "Transfer-Encoding" &&
                             sValue == "chunked" ) {
@@ -471,14 +468,17 @@ int GetNextLine ( string & irsLine, ///< line removed from *ippsBuffer
         )
 {
     int nResult = 0;
+    // TODO:
+    // Find out the original author's intention about
+    // nResult. (Currently it is always returned as 0,
+    //  - any side-effects in changing/removing it?)
 
     // can't use split, because we lose our \r\n
-    PME oLineRegex ( "^([^\\r]*\\r\\n)(.*)$", "sm" );
-    if ( oLineRegex.match ( irsBuffer ) == 3 ) {
-        irsLine = oLineRegex [ 1 ];
-        irsBuffer = oLineRegex [ 2 ];
-    } else {
-        irsLine = "";
+    pcrecpp::RE_Options opt(PCRE_MULTILINE|PCRE_DOTALL);
+    pcrecpp::RE re( "^([^\\r]*\\r\\n)(.*)$", opt );
+    string mbuf;
+    if ( re.FullMatch ( irsBuffer, &irsLine, &mbuf ) ) {
+        irsBuffer = mbuf;
     }
     return nResult;
 }

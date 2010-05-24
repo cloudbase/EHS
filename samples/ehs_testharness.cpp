@@ -37,24 +37,26 @@ class TestHarness : public EHS
     {
         ostringstream oss;
         oss
-            << "request-method:         " << request->nRequestMethod << endl
-            << "uri:                    " << request->sUri << endl
-            << "http-version:           " << request->sHttpVersionNumber << endl
-            << "body-length:            " << request->sBody.length ( ) << endl
-            << "number-request-headers: " << request->oRequestHeaders.size ( ) << endl
-            << "number-form-value-maps: " << request->oFormValueMap.size ( ) << endl
-            << "client-address:         " << request->GetAddress ( ) << endl
-            << "client-port:            " << request->GetPort ( ) << endl;
+            << "<html><head><title>TestHarness</title></head><body><table><tr>"
+            << "<tr><td>request-method:</td><td>" << request->nRequestMethod << "</td></tr>" << endl
+            << "<tr><td>uri:</td><td>" << request->sUri << "</td></tr>" << endl
+            << "<tr><td>http-version:</td><td>" << request->sHttpVersionNumber << "</td></tr>" << endl
+            << "<tr><td>body-length:</td><td>" << request->sBody.length ( ) << "</td></tr>" << endl
+            << "<tr><td>number-request-headers:</td><td>" << request->oRequestHeaders.size ( ) << "</td></tr>" << endl
+            << "<tr><td>number-form-value-maps:</td><td>" << request->oFormValueMap.size ( ) << "</td></tr>" << endl
+            << "<tr><td>client-address:</td><td>" << request->GetAddress ( ) << "</td></tr>" << endl
+            << "<tr><td>client-port:</td><td>" << request->GetPort ( ) << "</td></tr>" << endl;
 
         for ( StringMap::iterator i = request->oRequestHeaders.begin ( );
                 i != request->oRequestHeaders.end ( ); i++ ) {
-            oss << "Request Header:         " << i->first << " => " << i->second << endl;
+            oss << "<tr><td>Request Header:</td><td>" << i->first << " => " << i->second << "</td></tr>" << endl;
         }
 
         for ( CookieMap::iterator i = request->oCookieMap.begin ( );
                 i != request->oCookieMap.end ( ); i++ ) {
-            oss << "Cookie:                 " << i->first << " => " << i->second << endl;
+            oss << "<tr><td>Cookie:</td><td>" << i->first << " => " << i->second << "</td></tr>" << endl;
         }
+        oss << "</body></html>";
 
         response->SetBody ( oss.str().c_str(), oss.str().length() );
         return HTTPRESPONSECODE_200_OK;

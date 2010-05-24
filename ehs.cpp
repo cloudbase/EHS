@@ -33,7 +33,7 @@
 #include "securesocket.h"
 #include "debug.h"
 
-#include <pme.h>
+#include <pcrecpp.h>
 
 #ifdef HAVE_DLFCN_H
 # include <dlfcn.h>
@@ -952,15 +952,14 @@ void EHS::HandleData ( int inTimeoutMilliseconds ///< milliseconds for select ti
 string GetNextPathPart ( string & irsUri ///< URI to look for next path part in
         )
 {
-    PME oNextPathPartRegex ( "^[/]{0,1}([^/]+)/(.*)$" );
-    if ( oNextPathPartRegex.match ( irsUri ) ) {
-        string sReturnValue = oNextPathPartRegex [ 1 ];
-        string sNewUri = oNextPathPartRegex [ 2 ];
-        irsUri = sNewUri;
-        return sReturnValue;
-    } else {
-        return "";
+    string ret;
+    string newuri;
+    pcrecpp::RE re("^[/]{0,1}([^/]+)/(.*)$");
+    if ( re.FullMatch ( irsUri, &ret, &newuri ) ) {
+        irsUri = newuri;
+        return ret;
     }
+    return "";
 }
 
 HttpResponse *

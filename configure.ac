@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([ehs],[1.4.1],[ehsdev@fritz-elfert.de])
+AC_INIT([ehs],[1.4.2],[ehsdev@fritz-elfert.de])
 AC_REVISION([$Id$])
 AC_CONFIG_AUX_DIR([conf])
 AC_CONFIG_MACRO_DIR([m4])
@@ -26,16 +26,11 @@ AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of t
      CXXFLAGS="$CXXFLAGS -I${withval}/include"
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
-AC_ARG_WITH([pme],AS_HELP_STRING([--with-pme=DIR], [Specifies the location of the PME library]),
-    [CPPFLAGS="$CPPFLAGS -I${withval}/include"
-     CXXFLAGS="$CXXFLAGS -I${withval}/include"
-     LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
-
 dnl Replace `main' with a function in -lpcre:
-AC_CHECK_LIB(pcre, main)
+AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
-AC_CHECK_LIB(pme,main,,AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
+dnl AC_CHECK_LIB(pme,main,,AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
 AC_CHECK_LIB(ssl,SSL_library_init)
 havessl=$ac_cv_lib_ssl_SSL_library_init
 

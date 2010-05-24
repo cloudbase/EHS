@@ -32,8 +32,6 @@
 #include <fstream>
 #include <iostream>
 
-#include <pme.h>
-
 using namespace std;
 
 class FileUploader : public EHS {
