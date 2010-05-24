@@ -504,13 +504,11 @@ int EHSServer::RemoveEHSConnection ( EHSConnection * ipoEHSConnection )
 
 bool EHS::ThreadInitHandler()
 {
-    EHS_TRACE ( "ThreadInitHandler TID=%p\n", pthread_self() );
     return true;
 }
 
 void EHS::ThreadExitHandler()
 {
-    EHS_TRACE ( "ThreadExitHandler TID=%p\n", pthread_self() );
 }
 
     EHS::StartServerResult
@@ -526,6 +524,8 @@ EHS::StartServer ( EHSServerParameters & iroEHSServerParameters )
         poEHSServer = new EHSServer ( this  );
         if ( poEHSServer->m_nServerRunningStatus == EHSServer::SERVERRUNNING_NOTRUNNING ) {
             EHS_TRACE ( "Error: Failed to start server\n" );
+            delete poEHSServer;
+            poEHSServer = NULL;
             return STARTSERVER_FAILED;
         }
     }
@@ -552,8 +552,10 @@ void EHS::StopServer ( )
 
     if ( poParent ) {
         poParent->StopServer ( );
-    } else {
+    } else if ( poEHSServer ) {
         poEHSServer->EndServerThread("server stopped");
+        delete poEHSServer;
+        poEHSServer = NULL;
     }
 }
 
@@ -891,7 +893,9 @@ EHS::~EHS ( )
     if ( poParent ) {
         poParent->UnregisterEHS ( (char *)(sRegisteredAs.c_str ( ) ) );
     }
-    delete poEHSServer;
+    if ( poEHSServer ) {
+        delete poEHSServer;
+    }
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Deallocated: EHS" << endl;
 #endif		

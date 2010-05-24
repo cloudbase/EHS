@@ -14,8 +14,8 @@ How to build EHS (for UNIX):
 ./configure --with-ssl --enable-debug --enable-memory --enable-warn
 
 --with-ssl:      compile with HTTPS support. Requires OpenSSL library installed.
-                 If not specified, configure will enable SSL support if it
-                 finds OpenSSL automatically
+                 If not specified, configure will enable SSL support automatically,
+                 if it finds OpenSSL.
 --enable-debug:  prints out many debugging statements.  Recommended when you first
                  build a new application, but rather spammy.
 --enable-memory: prints out internal memory tracking information.  Mostly only 
@@ -25,15 +25,12 @@ How to build EHS (for UNIX):
 
 Requirements:
 --------------
-PCRE (Perl Compatible Regular Expressions) can be found at http://www.pcre.org.
-EHS 1.1 was designed to work with version 4.3.  Earlier and later versions
-may work as well, but have not been tested.  Later versions should be fine.
-
-PME (PCRE Made Easy) can be found at http://xaxxon.slackworks.com/pme
+PCRECPP (Perl Compatible Regular Expressions for C++) can be found at
+http://www.pcre.org. EHS 1.4 was tested against version 7.8. Earlier and
+later versions may work as well, but have not been tested.
 
 OpenSSL is required for HTTPS support (./configure --with-ssl).  It can be 
 found at http://www.openssl.org.
-
 
 Writing a new program using EHS (or extending an existing one to use EHS)
 ----------------------------------------------------------------------------
@@ -68,9 +65,6 @@ whether or not the request was made over a secure connection.
 ehs_uploader.cpp: shows how to use multi-part form attachments to upload a file
 from the client to the server.  Useful for uploading configuration files to a 
 server or pictures to a web page.  
-
-
-
 
 * * Basics:
 ------------
@@ -131,6 +125,9 @@ oSP [ "norouterequest" ] = "1" -- means to disregard trying to route requests
 oSP [ "maxrequestsize" ] = "262144" -- The maximum size of an incoming request.
                                        You may want to increase this, if you
                                        want to handle file uploads.
+oSP [ "bindaddress" ] = "127.0.0.1" -- Specifies the address to bind to. The
+                                       default is "0.0.0.0" which listens on
+                                       all interfaces.
 
 Start your server:
 oEHS.StartServer ( oSP );
