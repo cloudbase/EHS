@@ -946,7 +946,7 @@ void EHS::HandleData ( int inTimeoutMilliseconds ///< milliseconds for select ti
         if ( poEHSServer->m_nServerRunningStatus ==
                 EHSServer::SERVERRUNNING_SINGLETHREADED ) {
             do {
-                poEHSServer->HandleData( inTimeoutMilliseconds );
+                poEHSServer->HandleData( inTimeoutMilliseconds, pthread_self ( ) );
             } while ( poEHSServer->RequestsPending ( ) ||
                     poEHSServer->m_nAcceptedNewConnection );
         }
