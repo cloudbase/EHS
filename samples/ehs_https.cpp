@@ -25,8 +25,56 @@
 
 #include <ehs.h> 
 #include <iostream> 
+#include <cstring>
+#include <cstdio>
+#include <cerrno>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 using namespace std;
+
+class MyHelper : public PrivilegedBindHelper
+{
+    public:
+        MyHelper()
+        {
+            pthread_mutex_init(&mutex, NULL);
+        }
+
+        virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port)
+        {
+            bool ret = false;
+            pid_t pid;
+            int status;
+            char buf[32];
+            pthread_mutex_lock(&mutex);
+            switch (pid = fork()) {
+                case 0:
+                    sprintf(buf, "%08x%08x%04x", socket, inet_addr(addr), port);
+                    execl("bindhelper", buf, NULL);
+                    exit(errno);
+                    break;
+                case -1:
+                    break;
+                default:
+                    if (waitpid(pid, &status, 0) != -1) {
+                        ret = (0 == status);
+                        if (0 != status)
+                            cerr << "bind: " << strerror(WEXITSTATUS(status)) << endl;
+                    }
+                    break;
+            }
+            pthread_mutex_unlock(&mutex);
+            return ret;
+        }
+
+    private:
+        pthread_mutex_t mutex;
+};
 
 int main ( int argc, char ** argv )
 {
@@ -37,6 +85,8 @@ int main ( int argc, char ** argv )
 	}
 
 	EHS * poEHS = new EHS;
+    PrivilegedBindHelper *h = new MyHelper;
+    poEHS->SetBindHelper(h);
 
 	EHSServerParameters oSP;
 	oSP [ "port" ] = argv [ 1 ];

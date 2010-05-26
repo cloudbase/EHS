@@ -44,7 +44,7 @@
 #include <string>
 #include <iostream>
 
-#include "networkabstraction.h"
+#include "socket.h"
 #include "dynamicssllocking.h"
 #include "staticssllocking.h"
 #include "sslerror.h"
@@ -58,60 +58,24 @@
 
 
 /// Secure socket implementation used for HTTPS
-class SecureSocket : public NetworkAbstraction 
+class SecureSocket : public Socket 
 {
-
     public:
-
-        /// Registers a PrivilegedBindHelper for use by this instance.
-        virtual void RegisterBindHelper(PrivilegedBindHelper *);
 
         /// initialize OpenSSL and this socket object
         virtual InitResult Init ( int inPort );
 
-        /// constructor for server socket
+        /// constructor for listener socket
         SecureSocket ( std::string isServerCertificate = "",
-                std::string isServerCertificatePassphrase = "" ) : 
-            m_nClosed ( 0 ),
-            m_nFd ( -1 ),
-            m_poAcceptBio ( NULL ),
-            m_poAcceptSsl ( NULL ),
-            m_sServerCertificate ( isServerCertificate ),
-            m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
-            m_pfOverridePassphraseCallback ( NULL ),
-            m_sBindAddress ( "0.0.0.0" ),
-            m_poBindHelper ( NULL )
-    { 
-#ifdef EHS_DEBUG
-        std::cerr << "calling SecureSocket constructor A" << std::endl;
-#endif
-    }
+                std::string isServerCertificatePassphrase = "" );
 
-        /// constructor for client socket
-        SecureSocket ( SSL * ipoAcceptSsl, 
-                BIO * ipoAcceptBio, 
+        /// constructor for accepted socket
+        SecureSocket ( SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in *,
                 std::string isServerCertificate = "",
-                std::string isServerCertificatePassphrase = "") : 
-            m_nClosed ( 0 ),
-            m_nFd ( -1 ),
-            m_poAcceptBio ( ipoAcceptBio ),
-            m_poAcceptSsl ( ipoAcceptSsl ),
-            m_sServerCertificate ( isServerCertificate ),
-            m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
-            m_pfOverridePassphraseCallback ( NULL ),
-            m_sBindAddress ( "0.0.0.0" ),
-            m_poBindHelper ( NULL )
-    {
-#ifdef EHS_DEBUG
-        std::cerr << "calling SecureSocket constructor B" << std::endl;
-#endif
-    }
+                std::string isServerCertificatePassphrase = "");
 
         /// destructor
-        virtual ~SecureSocket ( ) {}
-
-        /// Sets the bind address of the socket
-        virtual void SetBindAddress ( const char * bindAddress );
+        virtual ~SecureSocket ( ) { };
 
         /// accepts on secure socket
         virtual NetworkAbstraction * Accept ( );
@@ -121,9 +85,6 @@ class SecureSocket : public NetworkAbstraction
 
         /// does random number stuff using OpenSSL 
         int SeedRandomNumbers ( int inBytes );
-
-        /// returns the FD associated with this secure socket
-        virtual int GetFd ( );
 
         /// deals with certificates for doing secure communication
         SSL_CTX * InitializeCertificates ( );
@@ -146,19 +107,7 @@ class SecureSocket : public NetworkAbstraction
         /// sets a callback for loading a certificate
         void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
 
-        /// has close been called on this object?
-        int m_nClosed;
-
-        /// stores the address of the current connection
-        sockaddr_in oInternetSocketAddress;
-
     protected:
-
-        /// stores the file descriptor.  Needed for dealing with the object after the FD is closed because it's indexed by FD elsewhere
-        int m_nFd; 
-
-        /// the BIO associated with this connection
-        BIO * m_poAcceptBio;
 
         /// the SSL object associated with this SSL connectio
         SSL * m_poAcceptSsl;
@@ -185,19 +134,6 @@ class SecureSocket : public NetworkAbstraction
 
         /// certificate information
         static SSL_CTX * poCtx;
-
-        /// stores the bind address
-        std::string m_sBindAddress;
-
-        /// Our bind helper
-        PrivilegedBindHelper *m_poBindHelper;
-
-        /// gets the address associated with this connection
-        std::string GetAddress ( );
-
-        /// gets the port assocaited with this connection
-        int GetPort ( );
-
 };
 
 /// global error object

@@ -88,7 +88,7 @@ class Socket : public NetworkAbstraction {
         virtual void SetBindAddress ( const char * bindAddress );
 
         /// returns the FD associated with this socket
-        virtual int GetFd ( ) { return nAcceptSocket; };
+        virtual int GetFd ( ) { return m_nAcceptSocket; };
 
         /// implements standard FD read
         virtual int Read ( void * ipBuffer, int ipBufferLength );
@@ -107,23 +107,23 @@ class Socket : public NetworkAbstraction {
 
     protected:
 
-        /// Socket on which this connection came in
-        int nAcceptSocket;
-
-        /// stores the address of the current connection
-        sockaddr_in oInternetSocketAddress;
-
-        /// stores the bind address
-        sockaddr_in oBindAddress;
+        /// returns the port of the incoming connection
+        int GetPort ( );
 
         /// returns the address of the incoming connection
         std::string GetAddress ( );
 
+        /// Socket on which this connection came in
+        int m_nAcceptSocket;
+
+        /// stores the address of the current connection
+        sockaddr_in m_oInternetSocketAddress;
+
+        /// stores the bind address
+        sockaddr_in m_oBindAddress;
+
         /// Our bind helper
         PrivilegedBindHelper *m_poBindHelper;
-
-        /// returns the port of the incoming connection
-        int GetPort ( );
 
 };
 

@@ -37,16 +37,34 @@ using namespace std;
 
 SslError g_oSslError;
 
-void SecureSocket::SetBindAddress ( const char *bindAddress ///< address on which to listen
-        )
-{
-    if (bindAddress && strlen(bindAddress))
-        m_sBindAddress.assign(bindAddress);
+SecureSocket::SecureSocket ( std::string isServerCertificate,
+        std::string isServerCertificatePassphrase) : 
+    Socket ( ),
+    m_poAcceptSsl ( NULL ),
+    m_sServerCertificate ( isServerCertificate ),
+    m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
+    m_pfOverridePassphraseCallback ( NULL )
+{ 
+#ifdef EHS_DEBUG
+    std::cerr << "calling SecureSocket constructor A" << std::endl;
+#endif
 }
 
-void SecureSocket::RegisterBindHelper(PrivilegedBindHelper *helper)
+
+SecureSocket::SecureSocket ( SSL * ipoAcceptSsl, 
+        int inAcceptSocket, 
+        sockaddr_in * ipoInternetSocketAddress,
+        std::string isServerCertificate,
+        std::string isServerCertificatePassphrase ) : 
+    Socket ( inAcceptSocket, ipoInternetSocketAddress),
+    m_poAcceptSsl ( ipoAcceptSsl ),
+    m_sServerCertificate ( isServerCertificate ),
+    m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
+    m_pfOverridePassphraseCallback ( NULL )
 {
-    m_poBindHelper = helper;
+#ifdef EHS_DEBUG
+    std::cerr << "calling SecureSocket constructor B" << std::endl;
+#endif
 }
 
 NetworkAbstraction::InitResult 
@@ -85,90 +103,53 @@ SecureSocket::Init ( int inPort ///< port on which to listen
     }
     pthread_mutex_unlock ( &oMutex );
 
-    // set up the accept socket
-    ostringstream oss;
-    if (!m_sBindAddress.empty()) {
-        oss << m_sBindAddress << ":";
-    }
-    oss << inPort;
-    // TODO: Invokation of bind helper
-    m_poAcceptBio = BIO_new_accept ( (char *)oss.str().c_str() );
-
-    if ( m_poAcceptBio == NULL ) {
-#ifdef EHS_DEBUG
-        cerr << "couldn't create accept BIO on port " << inPort << endl;
-#endif
-        assert ( 0 );
-    }
-
-    int nAcceptSocketFd = BIO_get_fd ( m_poAcceptBio, NULL );
-    u_long MyTrueVariable = 1;
-    ioctl ( nAcceptSocketFd, FIONBIO, &MyTrueVariable );
-
-    if ( BIO_do_accept ( m_poAcceptBio ) <= 0 ) {
-#ifdef EHS_DEBUG
-        cerr << "Couldn't set up accept BIO on port: " << inPort << endl;
-#endif
-        return NetworkAbstraction::INITSOCKET_BINDFAILED;
-    }
-    return NetworkAbstraction::INITSOCKET_SUCCESS;
-}
-
-
-int SecureSocket::GetFd ( ) 
-{
-    // there has got to be a better place for this, but this should work
-    if ( m_nFd == -1 ) {
-        m_nFd = BIO_get_fd ( m_poAcceptBio, NULL );
-    }
-    return m_nFd;
+    return Socket::Init( inPort );
 }
 
 
 NetworkAbstraction * SecureSocket::Accept ( ) 
 {
-#ifdef EHS_DEBUG
-    cerr << "Accept called with acceptbio = " << hex << m_poAcceptBio << endl;
+    size_t oInternetSocketAddressLength = sizeof ( m_oInternetSocketAddress );
+    int fd = accept ( m_nAcceptSocket, 
+            (sockaddr *) &m_oInternetSocketAddress,
+#ifdef _WIN32
+            (int *) &oInternetSocketAddressLength 
+#else
+            &oInternetSocketAddressLength 
 #endif
-
-    int nAcceptSocket =  BIO_get_fd ( m_poAcceptBio, NULL );
-    assert ( nAcceptSocket >= 0 );
-
-    SecureSocket * poNewSecureSocket = NULL;
-
-    if ( BIO_do_accept ( m_poAcceptBio ) < 0 ) {
+            );
 
 #ifdef EHS_DEBUG
-        cerr << "Error accepting new connection" << endl;
+    cerr
+        << "Got a connection from " << GetAddress() << ":"
+        << ntohs(m_oInternetSocketAddress.sin_port) << endl;
 #endif
-
-    } else {
-
-        BIO * poClientBio = BIO_pop ( m_poAcceptBio );
-        assert ( poClientBio != NULL );
-
-        SSL * poClientSsl = SSL_new ( poCtx );
-        string sErrorString;
-
-        if ( poClientSsl == NULL ) {
-            // cerr << "poClientSsl == NULL" << endl;
-        }
-        SSL_set_accept_state ( poClientSsl );
-        SSL_set_bio ( poClientSsl, poClientBio, poClientBio );
-
-        poNewSecureSocket = new SecureSocket ( poClientSsl, poClientBio );
-
-
-        socklen_t oInternetSocketAddressLength = sizeof ( poNewSecureSocket->oInternetSocketAddress );
-
-        getpeername ( poNewSecureSocket->GetFd ( ),
-                (sockaddr*) &(poNewSecureSocket->oInternetSocketAddress),
-                &oInternetSocketAddressLength );
-
+    if ( fd == -1 ) {
+        return NULL;
     }
 
-    return poNewSecureSocket;
+    // TCP connection is ready. Do server side SSL.
+    SSL * ssl = SSL_new ( poCtx );
+    if ( NULL == ssl ) {
+#ifdef EHS_DEBUG
+        cerr << "SSL_new failed" << endl;
+#endif
+        return NULL;
+    }
+    SSL_set_fd ( ssl, fd );
+    int ret = SSL_accept ( ssl );
+    if ( 1 != ret ) {
+#ifdef EHS_DEBUG
+        string sError;
+        g_oSslError.GetError ( sError );
 
+        cerr << "SSL_accept failed: " << sError << endl;
+#endif
+        SSL_free ( ssl );
+        return NULL;
+    }
+
+    return new SecureSocket ( ssl, fd, &m_oInternetSocketAddress );
 }
 
 // SSL-only function for initializing special random numbers
@@ -348,8 +329,9 @@ int SecureSocket::Send ( const void * ipMessage, size_t inLength, int )
 
 void SecureSocket::Close ( )
 {
-    m_nClosed = 1;
-    BIO_free_all ( m_poAcceptBio );
+    Socket::Close ( );
+    if ( m_poAcceptSsl )
+        SSL_free( m_poAcceptSsl );
 }
 
     int 
@@ -370,18 +352,6 @@ SecureSocket::DefaultCertificatePassphraseCallback ( char * ipsBuffer,
 SecureSocket::SetPassphraseCallback ( int ( * ipfOverridePassphraseCallback ) ( char *, int, int, void * ) )
 {
     m_pfOverridePassphraseCallback = ipfOverridePassphraseCallback;
-}
-
-string SecureSocket::GetAddress ( )
-{
-    struct in_addr in;
-    memcpy (&in, &oInternetSocketAddress.sin_addr.s_addr, sizeof(in));
-    return string(inet_ntoa(in));
-}
-
-int SecureSocket::GetPort ( )
-{
-    return ntohs ( oInternetSocketAddress.sin_port );
 }
 
 #endif // COMPILE_WITH_SSL

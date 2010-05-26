@@ -67,23 +67,21 @@
 using namespace std;
 
     Socket::Socket ( )
-  : nAcceptSocket ( 0 ),
+  : m_nAcceptSocket ( 0 ),
     m_poBindHelper ( NULL )
 {
-    memset ( &oInternetSocketAddress, 0, sizeof ( oInternetSocketAddress ) );
-    memset ( &oBindAddress, 0, sizeof ( oBindAddress ) );
+    memset ( &m_oInternetSocketAddress, 0, sizeof ( m_oInternetSocketAddress ) );
+    memset ( &m_oBindAddress, 0, sizeof ( m_oBindAddress ) );
 }
 
 Socket::Socket ( int inAcceptSocket,
-        sockaddr_in * ipoInternetSocketAddress )
-    : m_poBindHelper ( NULL )
+        sockaddr_in * ipoInternetSocketAddress ) :
+    m_nAcceptSocket ( inAcceptSocket ),
+    m_poBindHelper ( NULL )
 {
-
-    nAcceptSocket = inAcceptSocket;
-
-    memcpy ( &oInternetSocketAddress, 
+    memcpy ( &m_oInternetSocketAddress, 
             ipoInternetSocketAddress,
-            sizeof ( oInternetSocketAddress ) );
+            sizeof ( m_oInternetSocketAddress ) );
 
 }
 
@@ -101,7 +99,7 @@ void Socket::SetBindAddress ( const char *bindAddress ///< address on which to l
 {
     in_addr_t baddr =
         (bindAddress && strlen(bindAddress)) ? inet_addr(bindAddress) : INADDR_ANY;
-    memcpy ( & ( oBindAddress.sin_addr ), & baddr, sizeof ( oBindAddress.sin_addr ) );
+    memcpy ( & ( m_oBindAddress.sin_addr ), & baddr, sizeof ( m_oBindAddress.sin_addr ) );
 }
 
 NetworkAbstraction::InitResult
@@ -150,14 +148,14 @@ Socket::Init ( int inPort ///< port on which to listen
 
     // need to create a socket for listening for new connections
 #ifdef EHS_DEBUG
-    if ( nAcceptSocket != 0 ) {
-        cerr << "[EHS_DEBUG] nAcceptSocket = " << nAcceptSocket << endl;
-        assert ( nAcceptSocket == 0 );
+    if ( m_nAcceptSocket != 0 ) {
+        cerr << "[EHS_DEBUG] m_nAcceptSocket = " << m_nAcceptSocket << endl;
+        assert ( m_nAcceptSocket == 0 );
     }
 #endif
 
-    nAcceptSocket = socket ( AF_INET, SOCK_STREAM, 0 );
-    if ( nAcceptSocket == -1 ) {
+    m_nAcceptSocket = socket ( AF_INET, SOCK_STREAM, 0 );
+    if ( m_nAcceptSocket == -1 ) {
 
 #ifdef EHS_DEBUG
         cerr << "[EHS_DEBUG] Error: socket() failed" << endl;
@@ -169,13 +167,13 @@ Socket::Init ( int inPort ///< port on which to listen
 #ifdef _WIN32
 
     u_long MyTrueVar = 1;
-    ioctlsocket ( nAcceptSocket, FIONBIO, &MyTrueVar );
+    ioctlsocket ( m_nAcceptSocket, FIONBIO, &MyTrueVar );
 
 #else
     int MyTrueVar = 1;
-    ioctl ( nAcceptSocket, FIONBIO, &MyTrueVar );
+    ioctl ( m_nAcceptSocket, FIONBIO, &MyTrueVar );
     MyTrueVar = 1; // not sure if it was changed in ioctl, so re-set it
-    setsockopt ( nAcceptSocket, SOL_SOCKET, SO_REUSEADDR, (const void *) &MyTrueVar, sizeof ( int ) );
+    setsockopt ( m_nAcceptSocket, SOL_SOCKET, SO_REUSEADDR, (const void *) &MyTrueVar, sizeof ( int ) );
 #endif
 
     // bind the socket to the appropriate port
@@ -184,16 +182,16 @@ Socket::Init ( int inPort ///< port on which to listen
     int nResult = -1;
 
     oSocketInfo.sin_family = AF_INET;
-    memcpy ( & ( oSocketInfo.sin_addr ), & oBindAddress.sin_addr, sizeof ( oSocketInfo.sin_addr ) );
+    memcpy ( & ( oSocketInfo.sin_addr ), & m_oBindAddress.sin_addr, sizeof ( oSocketInfo.sin_addr ) );
     oSocketInfo.sin_port = htons ( inPort );
 
     if (( inPort < 1024 ) && m_poBindHelper ) {
         struct in_addr in;
-        memcpy (&in, &oBindAddress.sin_addr, sizeof(in));
+        memcpy (&in, &m_oBindAddress.sin_addr, sizeof(in));
         string ba(inet_ntoa(in));
-        nResult = m_poBindHelper->BindPrivilegedPort( nAcceptSocket, ba.c_str(), inPort ) ? 0 : -1;
+        nResult = m_poBindHelper->BindPrivilegedPort( m_nAcceptSocket, ba.c_str(), inPort ) ? 0 : -1;
     } else {
-        nResult = bind ( nAcceptSocket, (sockaddr *)&oSocketInfo, sizeof ( sockaddr_in ) );
+        nResult = bind ( m_nAcceptSocket, (sockaddr *)&oSocketInfo, sizeof ( sockaddr_in ) );
     }
 
     if ( nResult == -1 ) {
@@ -204,7 +202,7 @@ Socket::Init ( int inPort ///< port on which to listen
     }
 
     // listen 
-    nResult = listen ( nAcceptSocket, 20 );
+    nResult = listen ( m_nAcceptSocket, 20 );
     if ( nResult != 0 ) {
 #ifdef EHS_DEBUG
         cerr << "[EHS_DEBUG] Error: listen() failed" << endl;
@@ -219,8 +217,8 @@ Socket::Init ( int inPort ///< port on which to listen
 int Socket::Read ( void * ipBuffer, int ipBufferLength )
 {
 
-    //return read ( nAcceptSocket, ipBuffer, ipBufferLength );
-    return recv ( nAcceptSocket, 
+    //return read ( m_nAcceptSocket, ipBuffer, ipBufferLength );
+    return recv ( m_nAcceptSocket, 
 #ifdef _WIN32
             (char *) ipBuffer,
 #else
@@ -231,7 +229,7 @@ int Socket::Read ( void * ipBuffer, int ipBufferLength )
 
 int Socket::Send ( const void * ipMessage, size_t inLength, int inFlags )
 {
-    return send ( nAcceptSocket, 
+    return send ( m_nAcceptSocket, 
 #ifdef _WIN32
             (const char *) ipMessage,
 #else
@@ -243,17 +241,17 @@ int Socket::Send ( const void * ipMessage, size_t inLength, int inFlags )
 void Socket::Close ( )
 {
 #ifdef _WIN32
-    closesocket ( nAcceptSocket );
+    closesocket ( m_nAcceptSocket );
 #else
-    close ( nAcceptSocket );
+    close ( m_nAcceptSocket );
 #endif
 }
 
 NetworkAbstraction * Socket::Accept ( )
 {
-    size_t oInternetSocketAddressLength = sizeof ( oInternetSocketAddress );
-    int nNewFd = accept ( nAcceptSocket, 
-            (sockaddr *) &oInternetSocketAddress,
+    size_t oInternetSocketAddressLength = sizeof ( m_oInternetSocketAddress );
+    int nNewFd = accept ( m_nAcceptSocket, 
+            (sockaddr *) &m_oInternetSocketAddress,
 #ifdef _WIN32
             (int *) &oInternetSocketAddressLength 
 #else
@@ -264,12 +262,12 @@ NetworkAbstraction * Socket::Accept ( )
 #ifdef EHS_DEBUG
     cerr
         << "Got a connection from " << GetAddress() << ":"
-        << ntohs(oInternetSocketAddress.sin_port) << endl;
+        << ntohs(m_oInternetSocketAddress.sin_port) << endl;
 #endif
     if ( nNewFd == -1 ) {
         return NULL;
     }
-    Socket * poSocket = new Socket ( nNewFd, &oInternetSocketAddress );
+    Socket * poSocket = new Socket ( nNewFd, &m_oInternetSocketAddress );
 #ifdef EHS_DEBUG
     cerr
         << "[EHS_DEBUG] Allocated new socket object with fd="
@@ -283,12 +281,12 @@ NetworkAbstraction * Socket::Accept ( )
 string Socket::GetAddress ( )
 {
     struct in_addr in;
-    memcpy (&in, &oInternetSocketAddress.sin_addr.s_addr, sizeof(in));
+    memcpy (&in, &m_oInternetSocketAddress.sin_addr.s_addr, sizeof(in));
     return string(inet_ntoa(in));
 }
 
 
 int Socket::GetPort ( )
 {
-    return ntohs ( oInternetSocketAddress.sin_port );
+    return ntohs ( m_oInternetSocketAddress.sin_port );
 }
