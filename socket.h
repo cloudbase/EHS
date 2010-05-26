@@ -69,6 +69,9 @@ class Socket : public NetworkAbstraction {
 
     public:
 
+        /// Registers a PrivilegedBindHelper for use by this instance.
+        virtual void RegisterBindHelper(PrivilegedBindHelper *);
+
         /// sets up socket stuff (mostly for win32) and then listens on specified port
         virtual InitResult Init ( int inPort );
 
@@ -115,6 +118,9 @@ class Socket : public NetworkAbstraction {
 
         /// returns the address of the incoming connection
         std::string GetAddress ( );
+
+        /// Our bind helper
+        PrivilegedBindHelper *m_poBindHelper;
 
         /// returns the port of the incoming connection
         int GetPort ( );

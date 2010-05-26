@@ -67,7 +67,8 @@
 using namespace std;
 
     Socket::Socket ( )
-: nAcceptSocket ( 0 )
+  : nAcceptSocket ( 0 ),
+    m_poBindHelper ( NULL )
 {
     memset ( &oInternetSocketAddress, 0, sizeof ( oInternetSocketAddress ) );
     memset ( &oBindAddress, 0, sizeof ( oBindAddress ) );
@@ -75,6 +76,7 @@ using namespace std;
 
 Socket::Socket ( int inAcceptSocket,
         sockaddr_in * ipoInternetSocketAddress )
+    : m_poBindHelper ( NULL )
 {
 
     nAcceptSocket = inAcceptSocket;
@@ -87,6 +89,11 @@ Socket::Socket ( int inAcceptSocket,
 
 Socket::~Socket ( )
 {
+}
+
+void Socket::RegisterBindHelper(PrivilegedBindHelper *helper)
+{
+    m_poBindHelper = helper;
 }
 
 void Socket::SetBindAddress ( const char *bindAddress ///< address on which to listen
@@ -180,7 +187,14 @@ Socket::Init ( int inPort ///< port on which to listen
     memcpy ( & ( oSocketInfo.sin_addr ), & oBindAddress.sin_addr, sizeof ( oSocketInfo.sin_addr ) );
     oSocketInfo.sin_port = htons ( inPort );
 
-    nResult = bind ( nAcceptSocket, (sockaddr *)&oSocketInfo, sizeof ( sockaddr_in ) );
+    if (( inPort < 1024 ) && m_poBindHelper ) {
+        struct in_addr in;
+        memcpy (&in, &oBindAddress.sin_addr, sizeof(in));
+        string ba(inet_ntoa(in));
+        nResult = m_poBindHelper->BindPrivilegedPort( nAcceptSocket, ba.c_str(), inPort ) ? 0 : -1;
+    } else {
+        nResult = bind ( nAcceptSocket, (sockaddr *)&oSocketInfo, sizeof ( sockaddr_in ) );
+    }
 
     if ( nResult == -1 ) {
 #ifdef EHS_DEBUG

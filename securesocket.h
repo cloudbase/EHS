@@ -63,6 +63,9 @@ class SecureSocket : public NetworkAbstraction
 
     public:
 
+        /// Registers a PrivilegedBindHelper for use by this instance.
+        virtual void RegisterBindHelper(PrivilegedBindHelper *);
+
         /// initialize OpenSSL and this socket object
         virtual InitResult Init ( int inPort );
 
@@ -76,7 +79,8 @@ class SecureSocket : public NetworkAbstraction
             m_sServerCertificate ( isServerCertificate ),
             m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
             m_pfOverridePassphraseCallback ( NULL ),
-            m_sBindAddress ( "0.0.0.0" )
+            m_sBindAddress ( "0.0.0.0" ),
+            m_poBindHelper ( NULL )
     { 
 #ifdef EHS_DEBUG
         std::cerr << "calling SecureSocket constructor A" << std::endl;
@@ -95,7 +99,8 @@ class SecureSocket : public NetworkAbstraction
             m_sServerCertificate ( isServerCertificate ),
             m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
             m_pfOverridePassphraseCallback ( NULL ),
-            m_sBindAddress ( "0.0.0.0" )
+            m_sBindAddress ( "0.0.0.0" ),
+            m_poBindHelper ( NULL )
     {
 #ifdef EHS_DEBUG
         std::cerr << "calling SecureSocket constructor B" << std::endl;
@@ -167,7 +172,6 @@ class SecureSocket : public NetworkAbstraction
         /// pointer to callback function
         int (*m_pfOverridePassphraseCallback)(char*, int, int, void*);
 
-
         // STATIC VARIABLES
 
         /// dynamic portion of SSL locking mechanism
@@ -184,6 +188,9 @@ class SecureSocket : public NetworkAbstraction
 
         /// stores the bind address
         std::string m_sBindAddress;
+
+        /// Our bind helper
+        PrivilegedBindHelper *m_poBindHelper;
 
         /// gets the address associated with this connection
         std::string GetAddress ( );

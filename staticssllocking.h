@@ -32,7 +32,7 @@
 #include <openssl/ssl.h>
 #include <cassert>
 
-#include "threadabstractionlayer.h"
+#include <pthread.h>
 
 /// static locking mechanism for OpenSSL
 class StaticSslLocking
@@ -47,7 +47,7 @@ class StaticSslLocking
         ~StaticSslLocking ( );
 
         /// static mutex array
-        static MUTEX_TYPE * poMutexes;
+        static pthread_mutex_t * poMutexes;
 
     protected:
 

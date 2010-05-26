@@ -29,6 +29,26 @@
 #include <string>
 #include <cstdlib>
 
+/**
+ * This abstracts an interface to an external bind helper
+ * program which facilitates binding of ports < 1024.
+ * Instead of doing it the apache way (do the bind() running as root
+ * and then dropping privileges) we run as unprivileged user and
+ * use that helper (setuid program) to temporarily elevate privileges
+ * for the bind() call. IMHO, this is safer, because that helper is
+ * VERY simple and does exactly ONE task: binding. NOTHING else.
+ */
+class PrivilegedBindHelper {
+
+    public:
+
+        /// Binds a socket to a privileged port/address. Returns true on success
+        virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port) = 0;
+
+        virtual ~PrivilegedBindHelper ( ) { }
+
+};
+
 /// Abstracts different socket types
 /**
  * this abstracts the differences between normal sockets and ssl sockets
@@ -38,6 +58,9 @@
 class NetworkAbstraction {
 
     public:
+
+        /// Registers a PrivilegedBindHelper for use by this instance.
+        virtual void RegisterBindHelper(PrivilegedBindHelper *) = 0;
 
         /// sets the bind address of the socket
         virtual void SetBindAddress ( const char * bindAddress ) = 0;

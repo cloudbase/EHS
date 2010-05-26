@@ -30,12 +30,12 @@
 #include <openssl/ssl.h>
 #include <assert.h>
 
-#include "threadabstractionlayer.h"
+#include <pthread.h>
 
 /// used for dynamic locking callback
 struct CRYPTO_dynlock_value
 {
-    MUTEX_TYPE oMutex;
+    pthread_mutex_t oMutex;
 };
 
 

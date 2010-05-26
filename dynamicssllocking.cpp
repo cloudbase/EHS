@@ -37,7 +37,7 @@ CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char
 
 	assert ( poDynlock != NULL );
 
-	MUTEX_SETUP ( poDynlock->oMutex );
+	pthread_mutex_init ( &poDynlock->oMutex, NULL );
 	return poDynlock;
 
 }
@@ -48,9 +48,9 @@ void DynamicSslLocking::DynamicLockCallback ( int inMode,
 											  int )
 {
 	if ( inMode & CRYPTO_LOCK ) {
-		MUTEX_LOCK ( ipoDynlock->oMutex );
+		pthread_mutex_lock ( &ipoDynlock->oMutex );
 	} else {
-		MUTEX_UNLOCK ( ipoDynlock->oMutex );
+		pthread_mutex_unlock ( &ipoDynlock->oMutex );
 	}
 }
 
@@ -58,7 +58,7 @@ void DynamicSslLocking::DynamicLockCleanupCallback ( struct CRYPTO_dynlock_value
 													 const char * ,
 													 int )
 {
-	MUTEX_CLEANUP ( ipoDynlock->oMutex );
+	pthread_mutex_destroy ( &ipoDynlock->oMutex );
 	delete ipoDynlock;
 }
 

@@ -59,6 +59,7 @@
 ///////////////////////////////////
 
 // EHS headers
+
 #include <formvalue.h>
 #include <ehstypes.h>
 #include <datum.h>
@@ -210,6 +211,9 @@ class EHS {
         /// source EHS object to route requests to for data instead of processing it ourselves
         EHS * m_poSourceEHS;
 
+        /// Our bind helper
+        PrivilegedBindHelper *m_poBindHelper;
+
     public:
 
         /// default constructor that can set a parrent and a path name
@@ -275,7 +279,6 @@ class EHS {
         /// stores a map with server parameters
         EHSServerParameters m_oEHSServerParameters;
 
-
         /// do everything needed to start server
         StartServerResult StartServer ( EHSServerParameters & iroEHSServerParameters );
 
@@ -293,6 +296,17 @@ class EHS {
         /// Called at exit of a thread routine
         virtual void ThreadExitHandler();
 
+        /// Sets a PrivilegedBindHelper for use by the network abstraction layer.
+        void SetBindHelper(PrivilegedBindHelper *helper)
+        {
+            m_poBindHelper = helper;
+        }
+
+        /// Retieves our PrivilegedBindHelper.
+        PrivilegedBindHelper * GetBindHelper()
+        {
+            return m_poBindHelper;
+        }
 };
 
 /// EHSServer contains all the network functionality for EHS

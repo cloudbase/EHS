@@ -33,7 +33,7 @@
 
 
 // deal with static variables
-MUTEX_TYPE * StaticSslLocking::poMutexes;
+pthread_mutex_t * StaticSslLocking::poMutexes;
 
 
 void StaticSslLocking::SslStaticLockCallback ( int inMode,
@@ -42,28 +42,28 @@ void StaticSslLocking::SslStaticLockCallback ( int inMode,
         int )
 {
     if ( inMode & CRYPTO_LOCK ) {
-        MUTEX_LOCK ( StaticSslLocking::poMutexes [ inMutex ] );
+        pthread_mutex_lock ( &StaticSslLocking::poMutexes [ inMutex ] );
     } else {
-        MUTEX_UNLOCK ( StaticSslLocking::poMutexes [ inMutex ] );
+        pthread_mutex_unlock ( &StaticSslLocking::poMutexes [ inMutex ] );
     }
 }
 
 unsigned long StaticSslLocking::SslThreadIdCallback ( )
 {
-    return ( (unsigned long) THREAD_ID );
+    return ( (unsigned long) pthread_self ( ) );
 }
 
 
 StaticSslLocking::StaticSslLocking ( )
 {
     // allocate the needed number of locks
-    StaticSslLocking::poMutexes = new MUTEX_TYPE [ CRYPTO_num_locks ( ) ];
+    StaticSslLocking::poMutexes = new pthread_mutex_t [ CRYPTO_num_locks ( ) ];
 
     assert ( StaticSslLocking::poMutexes != NULL );
 
     // initialize the mutexes
     for ( int i = 0; i < CRYPTO_num_locks ( ); i++ ) {
-        MUTEX_SETUP ( StaticSslLocking::poMutexes [ i ] );
+        pthread_mutex_init ( &StaticSslLocking::poMutexes [ i ], NULL );
     }
     // set callbacks
     CRYPTO_set_id_callback ( StaticSslLocking::SslThreadIdCallback );
@@ -77,7 +77,7 @@ StaticSslLocking::~StaticSslLocking ( )
     CRYPTO_set_id_callback ( NULL );
     CRYPTO_set_locking_callback ( NULL );
     for ( int i = 0; i < CRYPTO_num_locks ( ); i++ ) {
-        MUTEX_CLEANUP ( StaticSslLocking::poMutexes [ i ] );
+        pthread_mutex_destroy ( &StaticSslLocking::poMutexes [ i ] );
     }
     delete [] StaticSslLocking::poMutexes;
     StaticSslLocking::poMutexes = NULL;

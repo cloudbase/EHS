@@ -28,7 +28,6 @@
 #endif
 
 #include "ehs.h"
-#include "threadabstractionlayer.h"
 #include "socket.h"
 #include "securesocket.h"
 #include "debug.h"
@@ -38,6 +37,7 @@
 #ifdef HAVE_DLFCN_H
 # include <dlfcn.h>
 #endif
+#include <pthread.h>
 
 #include <fstream>
 #include <sstream>
@@ -105,19 +105,19 @@ int EHSServer::ClearIdleConnections ( )
     for ( EHSConnectionList::iterator i = m_oEHSConnectionList.begin ( );
             i != m_oEHSConnectionList.end ( ); i++ ) {
 
-        MUTEX_LOCK ( (*i)->m_oMutex );
+        pthread_mutex_lock ( &(*i)->m_oMutex );
         // if it's been more than N seconds since a response has been
         //   sent and there are no pending requests
         if ( (*i)->StillReading ( ) &&
                 time ( NULL ) - (*i)->LastActivity ( ) > m_nIdleTimeout &&
                 (*i)->RequestsPending ( ) ) {
             EHS_TRACE ( "Done reading because of idle timeout\n" );
-            MUTEX_UNLOCK ( (*i)->m_oMutex );
+            pthread_mutex_unlock ( &(*i)->m_oMutex );
             (*i)->DoneReading ( false );
-            MUTEX_LOCK ( (*i)->m_oMutex );
+            pthread_mutex_lock ( &(*i)->m_oMutex );
             nIdleConnections++;
         }
-        MUTEX_UNLOCK ( (*i)->m_oMutex );
+        pthread_mutex_unlock ( &(*i)->m_oMutex );
     }
     if ( nIdleConnections > 0 ) {
         EHS_TRACE ( "Cleared %d connections\n", nIdleConnections );
@@ -157,7 +157,7 @@ EHSConnection::EHSConnection ( NetworkAbstraction * ipoNetworkAbstraction,
 {
     UpdateLastActivity ( );
     // initialize mutex for this object
-    MUTEX_SETUP ( m_oMutex );
+    pthread_mutex_init ( &m_oMutex, NULL );
     // get the address and port of the new connection
     m_sAddress = ipoNetworkAbstraction->GetAddress ( );
     m_nPort = ipoNetworkAbstraction->GetPort ( );
@@ -190,15 +190,15 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
         int inSize ///< size of new data
         )
 {
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     // make sure we actually got some data
     if ( inSize <= 0 ) {
-        MUTEX_UNLOCK ( m_oMutex );
+        pthread_mutex_unlock ( &m_oMutex );
         return ADDBUFFER_INVALID;
     }
     // make sure the buffer doesn't grow too big
     if ( (m_sBuffer.length ( ) + inSize) > m_nMaxRequestSize ) {
-        MUTEX_UNLOCK ( m_oMutex );
+        pthread_mutex_unlock ( &m_oMutex );
         EHS_TRACE ( "AddBuffer: MaxRequestSize (%lu) exceeded.\n", m_nMaxRequestSize );
         return ADDBUFFER_TOOBIG;
     }
@@ -218,7 +218,7 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
                 if ( m_poEHSServer->m_nServerRunningStatus == EHSServer::SERVERRUNNING_ONETHREADPERREQUEST ) {
                     // create a thread if necessary
                     pthread_t oThread;
-                    MUTEX_UNLOCK ( m_oMutex );
+                    pthread_mutex_unlock ( &m_oMutex );
                     pthread_create ( & oThread,
                             NULL,
                             EHSServer::PthreadHandleData_ThreadedStub,
@@ -226,7 +226,7 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
                     EHS_TRACE ( "created thread with TID=0x%x, NULL, func=0x%x, data=0x%x\n",
                             oThread, EHSServer::PthreadHandleData_ThreadedStub, (void *) m_poEHSServer );
                     pthread_detach ( oThread );
-                    MUTEX_LOCK ( m_oMutex );
+                    pthread_mutex_lock ( &m_oMutex );
                 }
             }
             // create the initial request
@@ -244,31 +244,31 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
     } else {
         nReturnValue = ADDBUFFER_OK;
     }
-    MUTEX_UNLOCK ( m_oMutex );
+    pthread_mutex_unlock ( &m_oMutex );
     return nReturnValue;
 }
 
 /// call when no more reads will be performed on this object.  inDisconnected is true when client has disconnected
 void EHSConnection::DoneReading ( int inDisconnected )
 {
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     m_nDoneReading = 1;
     m_nDisconnected = inDisconnected;
-    MUTEX_UNLOCK ( m_oMutex );
+    pthread_mutex_unlock ( &m_oMutex );
 }
 
 
 HttpRequest * EHSConnection::GetNextRequest ( )
 {
     HttpRequest * poHttpRequest = NULL;
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     if ( m_oHttpRequestList.empty ( ) ) {
         poHttpRequest = NULL;
     } else {
         poHttpRequest = m_oHttpRequestList.front ( );
         m_oHttpRequestList.pop_front ( );
     }
-    MUTEX_UNLOCK ( m_oMutex );
+    pthread_mutex_unlock ( &m_oMutex );
     return poHttpRequest;
 }
 
@@ -307,7 +307,7 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
     //  compare against NULL for 64-bit systems
     assert ( m_poTopLevelEHS != NULL );
 
-    MUTEX_SETUP ( m_oMutex );
+    pthread_mutex_init ( &m_oMutex, NULL );
     pthread_cond_init ( & m_oDoneAccepting, NULL );
     m_nAccepting = 0;
     // grab out the parameters for less typing later on
@@ -366,6 +366,7 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
     if ( roEHSServerParameters [ "bindaddress" ] != "" ) {
         m_poNetworkAbstraction->SetBindAddress( (const char*)roEHSServerParameters [ "bindaddress" ] );
     }
+    m_poNetworkAbstraction->RegisterBindHelper(m_poTopLevelEHS->GetBindHelper());
     int nResult = m_poNetworkAbstraction->Init ( roEHSServerParameters [ "port" ] ); // initialize socket stuff
     if ( nResult != NetworkAbstraction::INITSOCKET_SUCCESS ) {
         EHS_TRACE ( "Error: Failed to initialize sockets\n" );
@@ -600,7 +601,7 @@ void EHSServer::HandleData ( int inTimeoutMilliseconds, ///< milliseconds for ti
         pthread_t inThreadId ///< numeric ID for this thread to help debug
         )
 {
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     // determine if there are any jobs waiting if this thread should --
     //   if we're running one-thread-per-request and this is the accept thread
     //   we don't look for requests
@@ -612,7 +613,7 @@ void EHSServer::HandleData ( int inTimeoutMilliseconds, ///< milliseconds for ti
     // if we got a request to handle
     if ( poHttpRequest != NULL ) {
         // handle the request and post it back to the connection object
-        MUTEX_UNLOCK ( m_oMutex );
+        pthread_mutex_unlock ( &m_oMutex );
         // route the request
         HttpResponse * poHttpResponse =
             m_poTopLevelEHS->RouteRequest ( poHttpRequest );
@@ -629,13 +630,13 @@ void EHSServer::HandleData ( int inTimeoutMilliseconds, ///< milliseconds for ti
             EHS_TRACE ( "Waiting on m_oDoneAccepting condition TID=%p\n", pthread_self() );
             pthread_cond_wait ( & m_oDoneAccepting, & m_oMutex );
             EHS_TRACE ( "Done waiting on m_oDoneAccepting condition TID=%p\n", pthread_self() );
-            MUTEX_UNLOCK ( m_oMutex );
+            pthread_mutex_unlock ( &m_oMutex );
         } else {
             // if no one is accepting, we accept
             m_nAcceptedNewConnection = 0;
             // we're now accepting
             m_nAccepting = 1;
-            MUTEX_UNLOCK ( m_oMutex );
+            pthread_mutex_unlock ( &m_oMutex );
             // set up the timeout and normalize
             timeval tv = { 0, inTimeoutMilliseconds * 1000 };
             tv.tv_sec = tv.tv_usec / 1000000;
@@ -670,10 +671,10 @@ void EHSServer::HandleData ( int inTimeoutMilliseconds, ///< milliseconds for ti
                 // check client sockets for data
                 CheckClientSockets ( );
             }
-            MUTEX_LOCK ( m_oMutex );
+            pthread_mutex_lock ( &m_oMutex );
             ClearIdleConnections ( );
             m_nAccepting = 0;
-            MUTEX_UNLOCK ( m_oMutex );
+            pthread_mutex_unlock ( &m_oMutex );
         } // END ACCEPTING
     } // END NO REQUESTS PENDING
 }
@@ -697,10 +698,10 @@ void EHSServer::CheckAcceptSocket ( )
             EHS_TRACE ( "Setting connections MaxRequestSize to %lu\n", n );
             poEHSConnection->SetMaxRequestSize ( n );
         }
-        MUTEX_LOCK ( m_oMutex );
+        pthread_mutex_lock ( &m_oMutex );
         m_oEHSConnectionList.push_back ( poEHSConnection );
         m_nAcceptedNewConnection = 1;
-        MUTEX_UNLOCK ( m_oMutex );
+        pthread_mutex_unlock ( &m_oMutex );
     } // end FD_ISSET ( )
 }
 
@@ -788,7 +789,7 @@ const char * GetResponsePhrase ( int inResponseCode ///< HTTP response code to g
 
 void EHSConnection::AddResponse ( HttpResponse * ipoHttpResponse )
 {
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     // push the object on to the list
     m_oHttpResponseMap [ ipoHttpResponse->m_nResponseId ] = ipoHttpResponse;
     // go through the list until we can't find the next response to send
@@ -808,16 +809,16 @@ void EHSConnection::AddResponse ( HttpResponse * ipoHttpResponse )
             if ( CheckDone ( ) ) {
                 EHS_TRACE( "add response found something to delete\n" );
                 // careful with mutexes around here.. Don't want to hold both
-                MUTEX_UNLOCK ( m_oMutex );
-                MUTEX_LOCK ( m_poEHSServer->m_oMutex );
+                pthread_mutex_unlock ( &m_oMutex );
+                pthread_mutex_lock ( &m_poEHSServer->m_oMutex );
                 m_poEHSServer->RemoveEHSConnection ( this );
-                MUTEX_UNLOCK ( m_poEHSServer->m_oMutex );
-                MUTEX_LOCK ( m_oMutex );
+                pthread_mutex_unlock ( &m_poEHSServer->m_oMutex );
+                pthread_mutex_lock ( &m_oMutex );
             }
             EHS_TRACE ( "Sending response %d to %x\n", m_nResponses, this );
         }
     } while ( nFoundNextResponse == 1 );
-    MUTEX_UNLOCK ( m_oMutex );
+    pthread_mutex_unlock ( &m_oMutex );
 }
 
 void EHSConnection::SendHttpResponse ( HttpResponse * ipoHttpResponse )
@@ -858,11 +859,11 @@ void EHSConnection::SendHttpResponse ( HttpResponse * ipoHttpResponse )
 void EHSServer::EndServerThread ( const char * ipsReason
         )
 {
-    MUTEX_LOCK ( m_oMutex );
+    pthread_mutex_lock ( &m_oMutex );
     m_sShutdownReason = ipsReason;
     m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
     m_nAcceptThreadId = 0;
-    MUTEX_UNLOCK ( m_oMutex );
+    pthread_mutex_unlock ( &m_oMutex );
     while (m_nThreads > 0) {
         EHS_TRACE ( "EndServerThread waiting for %d threads to terminate\n", m_nThreads);
         pthread_cond_broadcast ( &m_oDoneAccepting );
@@ -876,7 +877,8 @@ EHS::EHS ( EHS * ipoParent, ///< parent EHS object for routing purposes
         ) :
     poParent ( NULL ),
     poEHSServer ( NULL ),
-    m_poSourceEHS ( NULL )
+    m_poSourceEHS ( NULL ),
+    m_poBindHelper ( NULL )
 {
     if ( ipoParent != NULL ) {
         SetParent ( ipoParent, isRegisteredAs );

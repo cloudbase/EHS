@@ -44,6 +44,11 @@ void SecureSocket::SetBindAddress ( const char *bindAddress ///< address on whic
         m_sBindAddress.assign(bindAddress);
 }
 
+void SecureSocket::RegisterBindHelper(PrivilegedBindHelper *helper)
+{
+    m_poBindHelper = helper;
+}
+
 NetworkAbstraction::InitResult 
 SecureSocket::Init ( int inPort ///< port on which to listen
         ) {
@@ -86,6 +91,7 @@ SecureSocket::Init ( int inPort ///< port on which to listen
         oss << m_sBindAddress << ":";
     }
     oss << inPort;
+    // TODO: Invokation of bind helper
     m_poAcceptBio = BIO_new_accept ( (char *)oss.str().c_str() );
 
     if ( m_poAcceptBio == NULL ) {

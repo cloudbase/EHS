@@ -15,11 +15,11 @@ pkginclude_HEADERS = ehs.h networkabstraction.h \
 	ehstypes.h formvalue.h contentdisposition.h
 
 noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
-	staticssllocking.h dynamicssllocking.h threadabstractionlayer.h
+	staticssllocking.h dynamicssllocking.h
 
 # Sample programs to be built but not installed
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
-				  ehs_simple ehs_mirror ehs_https
+				  ehs_simple ehs_mirror ehs_https ehs_privport bindhelper
 
 # Rules for building sample programs
 ehs_formtest_SOURCES = samples/ehs_formtest.cpp
@@ -42,6 +42,11 @@ ehs_mirror_LDADD = libehs.la
 
 ehs_https_SOURCES = samples/ehs_https.cpp
 ehs_https_LDADD = libehs.la
+
+ehs_privport_SOURCES = samples/ehs_privport.cpp
+ehs_privport_LDADD = libehs.la
+
+bindhelper_SOURCES = samples/bindhelper.c
 
 # Extra stuff to install 
 EXTRA_DIST = ehs_development_guide.txt ehs-stress.pl building_for_windows.txt
