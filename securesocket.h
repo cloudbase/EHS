@@ -60,34 +60,29 @@
 /// Secure socket implementation used for HTTPS
 class SecureSocket : public Socket 
 {
+    private:
+
+        SecureSocket ( const SecureSocket & );
+
+        SecureSocket & operator = ( const SecureSocket & );
+
     public:
 
-        /// initialize OpenSSL and this socket object
+        /// initializes OpenSSL and this socket object
         virtual InitResult Init ( int inPort );
 
-        /// constructor for listener socket
+        /// Constructor for listener socket
         SecureSocket ( std::string isServerCertificate = "",
                 std::string isServerCertificatePassphrase = "" );
 
-        /// constructor for accepted socket
-        SecureSocket ( SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in *,
-                std::string isServerCertificate = "",
-                std::string isServerCertificatePassphrase = "");
-
         /// destructor
-        virtual ~SecureSocket ( ) { };
+        virtual ~SecureSocket ( );
 
         /// accepts on secure socket
         virtual NetworkAbstraction * Accept ( );
 
         /// returns true because this socket is considered secure
-        virtual int IsSecure ( ) { return 1; }
-
-        /// does random number stuff using OpenSSL 
-        int SeedRandomNumbers ( int inBytes );
-
-        /// deals with certificates for doing secure communication
-        SSL_CTX * InitializeCertificates ( );
+        virtual bool IsSecure ( ) { return true; }
 
         /// does OpenSSL read
         virtual int Read ( void * ipBuffer, int ipBufferLength );
@@ -107,6 +102,14 @@ class SecureSocket : public Socket
         /// sets a callback for loading a certificate
         void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
 
+    private:
+
+        /// Constructor for accepted socket
+        SecureSocket ( SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in * );
+
+        /// Initializes the SSL context and provides it with certificates.
+        SSL_CTX * InitializeCertificates ( );
+
     protected:
 
         /// the SSL object associated with this SSL connectio
@@ -121,7 +124,7 @@ class SecureSocket : public Socket
         /// pointer to callback function
         int (*m_pfOverridePassphraseCallback)(char*, int, int, void*);
 
-        // STATIC VARIABLES
+    private:
 
         /// dynamic portion of SSL locking mechanism
         static DynamicSslLocking * poDynamicSslLocking;
@@ -134,10 +137,12 @@ class SecureSocket : public Socket
 
         /// certificate information
         static SSL_CTX * poCtx;
+
+        static int refcount;
 };
 
 /// global error object
-extern SslError g_oSslError;
+//extern SslError g_oSslError;
 
 #endif
 

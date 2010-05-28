@@ -49,6 +49,12 @@ extern const char * ResponsePhrase [ ];
  */
 class HttpResponse {
 
+    private:
+
+        HttpResponse ( const HttpResponse & );
+
+        HttpResponse & operator = ( const HttpResponse & );
+
     public:
 
         /// constructor
@@ -65,17 +71,23 @@ class HttpResponse {
         /// sets cookies for the response
         void SetCookie ( CookieParameters & iroCookieParameters );
 
+        /// Sets the response code for this response
+        void SetResponseCode ( ResponseCode code ) { m_nResponseCode = code ; }
+
         /// Returns the body of the response
-        char * GetBody ( ) { return psBody; };
+        char * GetBody ( ) { return m_psBody; };
+
+    private:
 
         /// the response code to be sent back
         ResponseCode m_nResponseCode;
 
-        /// these are the headers sent back to the client in the http response.  Things like content-type and content-length
-        StringMap oResponseHeaders;
+        /// these are the headers sent back to the client in the http response.
+        /// Things like content-type and content-length
+        StringMap m_oResponseHeaders;
 
         /// cookies waiting to be sent
-        StringList oCookieList;
+        StringList m_oCookieList;
 
         /// ehs connection object this response goes back on
         EHSConnection * m_poEHSConnection;
@@ -83,17 +95,11 @@ class HttpResponse {
         /// response id for making sure we send responses in the right order
         int m_nResponseId;
 
-    protected:
-
-        /// request id for this request's connection object
-        int m_nRequestId;
-
         /// the actual body to be sent back -- set by SetBody
-        char * psBody;
+        char * m_psBody;
 
-        /// the size of the body to be sent back -- set by SetBody
-        int nBodyLength;
-
+        friend class EHSConnection;
+        friend class EHSServer;
 };
 
 #endif // HTTPRESPONSE_H

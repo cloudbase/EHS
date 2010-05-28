@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([ehs],[1.4.4],[ehsdev@fritz-elfert.de])
+AC_INIT([ehs],[1.4.5],[ehsdev@fritz-elfert.de])
 AC_REVISION([$Id$])
 AC_CONFIG_AUX_DIR([conf])
 AC_CONFIG_MACRO_DIR([m4])
@@ -112,6 +112,7 @@ AC_ARG_ENABLE([warn],
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wctor-dtor-privacy])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wnon-virtual-dtor])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Woverloaded-virtual])
+		fe_CHECK_FLAG([C++],[CXXFLAGS],[-Weffc++])
         CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 	]
 )

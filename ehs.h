@@ -86,10 +86,17 @@ class EHSServer;
  */
 class EHSConnection {
 
+    private:
+
+        EHSConnection ( const EHSConnection & );
+
+        EHSConnection & operator = ( const EHSConnection & );
+
     protected:
 
-        int m_nDoneReading; ///< we're never reading from this again
-        int m_nDisconnected; ///< client has closed connection on us
+        bool m_bDoneReading; ///< we're never reading from this again
+
+        bool m_bDisconnected; ///< client has closed connection on us
 
         HttpRequest * m_poCurrentHttpRequest; ///< request we're currently parsing
 
@@ -139,13 +146,14 @@ class EHSConnection {
         time_t LastActivity ( ) { return m_nLastActivity; }
 
         /// returns whether we're still reading from this socket -- mutex must be locked
-        int StillReading ( ) { return !m_nDoneReading; }
+        bool StillReading ( ) { return !m_bDoneReading; }
 
         /// returns whether the client has disconnected from us -- mutex must be locked
-        int Disconnected ( ) { return m_nDisconnected; }
+        bool Disconnected ( ) { return m_bDisconnected; }
 
-        /// call when no more reads will be performed on this object.  inDisconnected is true when client has disconnected
-        void DoneReading ( int inDisconnected );
+        /// call when no more reads will be performed on this object.
+        ///  ibDisconnected is true when client has disconnected
+        void DoneReading ( bool ibDisconnected );
 
         /// gets the next request object
         HttpRequest * GetNextRequest ( );
@@ -194,19 +202,24 @@ class EHSServer;
  */
 class EHS {
 
+    private:
+        EHS ( const EHS & );
+
+        EHS & operator = ( const EHS & );
+
     protected:
 
         /// stores path => EHSConnection pairs for path/tree traversal
-        EHSMap oEHSMap;
+        EHSMap m_oEHSMap;
 
         /// points to the EHS object this object was registered with, NULL if top level
-        EHS * poParent; 
+        EHS * m_poParent; 
 
         /// the string that this EHS object is regestered as
-        std::string sRegisteredAs;
+        std::string m_sRegisteredAs;
 
         /// EHSServer object associated with this EHS object
-        EHSServer * poEHSServer;
+        EHSServer * m_poEHSServer;
 
         /// source EHS object to route requests to for data instead of processing it ourselves
         EHS * m_poSourceEHS;
@@ -316,6 +329,12 @@ class EHS {
  */
 class EHSServer {
 
+    private:
+
+        EHSServer ( const EHSServer & );
+
+        EHSServer & operator = ( const EHSServer & );
+
     public:
 
         /// consturctor for an EHSServer -- takes parameters out of ipoTopLevelEHS->m_oEHSServerParameters;
@@ -370,7 +389,7 @@ class EHSServer {
         HttpRequest * GetNextRequest ( );
 
         /// whether we accepted a new connection last time through
-        int m_nAcceptedNewConnection;
+        bool m_bAcceptedNewConnection;
 
         /// returns number of requests pending
         int RequestsPending ( ) { return m_nRequestsPending; }
@@ -396,7 +415,7 @@ class EHSServer {
         int m_nAccepting;
 
         /// this is the server name sent out in the response headers
-        std::string sServerName;
+        std::string m_sServerName;
 
         /// creates the poll array with the accept socket and any connections present
         int CreateFdSet ( );

@@ -35,9 +35,12 @@ using namespace std;
 class FormTester : public EHS {
 
 public:
-	FormTester ( ) {}
+
+	FormTester ( ) : m_oNameList ( StringList ( ) ) { }
+
 	ResponseCode HandleRequest ( HttpRequest *, HttpResponse * );
-	StringList oNameList;
+
+	StringList m_oNameList;
 };
 
 
@@ -49,17 +52,17 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 
     oss << "<html><head><title>StringList</title></head>" << endl << "<body>" << endl;
 	// if we got data from the user, show it
-	if ( request->oFormValueMap [ "user" ].sBody.length ( ) ||
-		 request->oFormValueMap [ "existinguser" ].sBody.length ( ) ) {
+	if ( request->FormValues ( "user" ).m_sBody.length ( ) ||
+		 request->FormValues ( "existinguser" ).m_sBody.length ( ) ) {
 			
-		string sName = request->oFormValueMap [ "existinguser" ].sBody;
-		if ( request->oFormValueMap [ "user" ].sBody.length() ) {
-			sName = request->oFormValueMap [ "user" ].sBody;
+		string sName = request->FormValues ( "existinguser" ).m_sBody;
+		if ( request->FormValues ( "user" ).m_sBody.length() ) {
+			sName = request->FormValues ( "user" ).m_sBody;
 		}
 		cerr << "Got name of " << sName << endl;
 			
         oss << "Hi " << sName << "</body></html>";
-		oNameList.push_back ( sName );
+		m_oNameList.push_back ( sName );
 			
 		response->SetBody( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
@@ -72,7 +75,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
         oss << "<p>Please log in</p>" << endl << "<form action = \"/\" method=\"GET\">" << endl
             << "User name: <input type=\"text\" name=\"user\"><br />" << endl
             << "<select name=\"existinguser\" width=\"20\">" << endl;
-		for ( StringList::iterator i = oNameList.begin(); i != oNameList.end ( ); i++ ) {
+		for ( StringList::iterator i = m_oNameList.begin(); i != m_oNameList.end ( ); i++ ) {
             oss << "<option>" << i->substr ( 0, 150 ) << endl;
 		}
 		oss << "</select> <input type=\"submit\">" << endl << "</form>" << endl;

@@ -43,7 +43,16 @@ class Datum {
         /// holds the data in pointer form
         void * pDatum;
 
+    private:
+        Datum & operator = ( const Datum & );
+
+        // Datum ( const Datum & );
+
     public:
+
+        Datum ( ) : sDatum ( "" ), pDatum ( NULL ) { }
+
+        Datum ( const Datum & other ) : sDatum( other.sDatum ), pDatum( other.pDatum ) { }
 
         /// assignment operator for unsigned long
         Datum & operator= ( unsigned long inUL );

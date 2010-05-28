@@ -32,7 +32,11 @@
 #include "formvalue.h"
 #include "contentdisposition.h"
 
-FormValue::FormValue ( ) {
+FormValue::FormValue ( ) :
+    m_oFormHeaders ( StringMap ( ) ),
+    m_oContentDisposition ( ContentDisposition ( ) ),
+    m_sBody ( "" )
+{
 #ifdef EHS_MEMORY
     std::cerr << "[EHS_MEMORY] Allocated: FormValue" << std::endl;
 #endif		
@@ -41,15 +45,19 @@ FormValue::FormValue ( ) {
 FormValue::FormValue ( std::string & irsBody, ///< body for the form value
         ContentDisposition & ioContentDisposition ///< content disposition type string
         ) :
-    oContentDisposition ( ioContentDisposition ),
-    sBody ( irsBody ) {
+    m_oFormHeaders ( StringMap ( ) ),
+    m_oContentDisposition ( ioContentDisposition ),
+    m_sBody ( irsBody ) {
 #ifdef EHS_MEMORY
         std::cerr << "[EHS_MEMORY] Allocated: FormValue" << std::endl;
 #endif		
     }
 
-FormValue::FormValue ( const FormValue & iroFormValue ) {
-    *this = iroFormValue;
+FormValue::FormValue ( const FormValue & other ) :
+    m_oFormHeaders ( other.m_oFormHeaders ),
+    m_oContentDisposition ( other.m_oContentDisposition ),
+    m_sBody ( other.m_sBody )
+{
 #ifdef EHS_MEMORY
     std::cerr << "[EHS_MEMORY] Allocated: FormValue (Copy Constructor)" << std::endl;
 #endif		

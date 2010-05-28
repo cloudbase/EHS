@@ -40,10 +40,6 @@ using namespace std;
 class MyHelper : public PrivilegedBindHelper
 {
     public:
-        MyHelper()
-        {
-            pthread_mutex_init(&mutex, NULL);
-        }
 
         virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port)
         {
@@ -73,8 +69,10 @@ class MyHelper : public PrivilegedBindHelper
         }
 
     private:
-        pthread_mutex_t mutex;
+        static pthread_mutex_t mutex;
 };
+
+pthread_mutex_t MyHelper::mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main ( int argc, char ** argv )
 {

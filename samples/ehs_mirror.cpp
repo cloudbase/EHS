@@ -34,7 +34,7 @@ class MyEHS : public EHS {
 	ResponseCode HandleRequest ( HttpRequest * request, HttpResponse * response ) {
 
         ostringstream oss;
-        oss << "ehs_mirror: Secure - " << (request->nSecure ? "yes" : "no") << endl
+        oss << "ehs_mirror: Secure - " << (request->Secure() ? "yes" : "no") << endl
             << request->GetAddress() << ":" << request->GetPort() << endl;
 		response->SetBody ( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
@@ -51,6 +51,7 @@ int main ( int argc, char ** argv )
 	}
 
 	EHS * poMyEHS = new MyEHS;
+    EHS * poEHS = NULL;
 
 	EHSServerParameters oSP;
 	oSP [ "port" ] = argv [ 1 ];
@@ -62,7 +63,7 @@ int main ( int argc, char ** argv )
 
     if ( argc == 5 ) {
         // create a default EHS object, but set poMyEHS as its source EHS object
-        EHS * poEHS = new EHS;
+        poEHS = new EHS;
         oSP [ "port" ] = argv [ 2 ];
         oSP [ "https" ] = 1;
         oSP [ "mode" ] = "threadpool";
@@ -77,6 +78,11 @@ int main ( int argc, char ** argv )
     cout << "Press RETURN to terminate the server: "; cout.flush();
     cin.get();
     poMyEHS->StopServer ( );
+    delete poMyEHS;
+    if (NULL != poEHS) {
+        poEHS->StopServer ( );
+        delete poEHS;
+    }
 
     return 0;
 }

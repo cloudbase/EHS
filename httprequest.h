@@ -54,6 +54,12 @@ extern const char * RequestMethodStrings [];
  */
 class HttpRequest {
 
+    private:
+
+        HttpRequest ( const HttpRequest & );
+
+        HttpRequest & operator = ( const HttpRequest & );
+
     public:
 
         /// constructor
@@ -94,7 +100,6 @@ class HttpRequest {
         /// goes through a subbody and parses out elements
         ParseSubbodyResult ParseSubbody ( std::string sSubBody );
 
-
         /// this function is given data that is read from the client and it deals with it
         HttpParseStates ParseData ( std::string & irsData );
 
@@ -104,36 +109,83 @@ class HttpRequest {
         /// interprets the given string as if it's name=value pairs and puts them into oFormElements
         void GetFormDataFromString ( const std::string & irsString );
 
+        /// returns the address this request came from
+        std::string GetAddress ( );
+
+        /// returns the port this request came from
+        int GetPort ( );
+
+        /// returns this request's method
+        int Method ( ) { return m_nRequestMethod; }
+
+        /// returns true if this request was received via HTTPS
+        bool Secure ( ) { return m_bSecure; }
+
+        /// returns true if the client is disconnected
+        bool ClientDisconnected ( );
+
+        /// returns this request's URI
+        const std::string & Uri ( ) { return m_sUri; }
+
+        /// returns this request's HTTP version
+        const std::string & HttpVersion ( ) { return m_sHttpVersionNumber; }
+
+        /// returns this request's body
+        const std::string & Body ( ) { return m_sBody; }
+
+        /// retrieves the request headers of this instance.
+        StringMap & RequestHeaders ( ) { return m_oRequestHeaders; }
+
+        /// retrieves the form value map of this instance.
+        FormValueMap  & FormValues ( ) { return m_oFormValueMap; }
+
+        /// retrieves the cookie map of this instance.
+        CookieMap  & Cookies ( ) { return m_oCookieMap; }
+
+        /// retrieves a single form value of this instance.
+        FormValue & FormValues ( const std::string & name )
+        {
+            return m_oFormValueMap[ name ];
+        }
+
+        /// retrieves a single cookie value of this instance.
+        std::string Cookies ( const std::string & name )
+        {
+            return m_oCookieMap[ name ];
+        }
+
+    private:
+
         /// the current parse state -- where we are in looking at the data from the client
-        HttpParseStates nCurrentHttpParseState;
+        HttpParseStates m_nCurrentHttpParseState;
 
         /// this is the request method from the client
-        RequestMethod nRequestMethod;
+        RequestMethod m_nRequestMethod;
 
         /// the clients requested URI
-        std::string sUri;
+        std::string m_sUri;
 
         /// holds the original requested URI, not changed by any path routing
-        std::string sOriginalUri;
+        std::string m_sOriginalUri;
 
 
         /// the HTTP version of the request
-        std::string sHttpVersionNumber;
+        std::string m_sHttpVersionNumber;
 
         /// Binary data, not NULL terminated
-        std::string sBody; 
+        std::string m_sBody; 
 
         /// whether or not this came over secure channels
-        int nSecure;
+        int m_bSecure;
 
         /// headers from the client request
-        StringMap oRequestHeaders;
+        StringMap m_oRequestHeaders;
 
         /// Data specified by the client.  The 'name' field is mapped to a FormValue object which has the value and any metadata
-        FormValueMap oFormValueMap;
+        FormValueMap m_oFormValueMap;
 
         /// cookies that come in from the client
-        CookieMap oCookieMap;
+        CookieMap m_oCookieMap;
 
         /// request id for this connection
         int m_nRequestId;
@@ -141,15 +193,8 @@ class HttpRequest {
         /// connection object from which this request came
         EHSConnection * m_poSourceEHSConnection;
 
-        /// returns the address this request came from
-        std::string GetAddress ( );
-
-        /// returns the port this request came from
-        int GetPort ( );
-
-        /// returns true if the client is disconnected
-        int ClientDisconnected ( );
-
+        friend class EHSConnection;
+        friend class EHS;
 };
 
 

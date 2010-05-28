@@ -84,7 +84,7 @@ class NetworkAbstraction {
         virtual InitResult Init ( int inPort ) = 0;
 
         /// destructor
-        virtual ~NetworkAbstraction ( ) {};
+        virtual ~NetworkAbstraction ( ) { }
 
         /// returns the FD/Socket for the socket on which we're listening
         virtual int GetFd ( ) = 0;
@@ -102,7 +102,7 @@ class NetworkAbstraction {
         virtual NetworkAbstraction * Accept ( ) = 0;
 
         /// returns whether the child class connection is considered secure
-        virtual int IsSecure ( ) = 0;
+        virtual bool IsSecure ( ) = 0;
 
 };
 

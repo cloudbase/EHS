@@ -42,13 +42,13 @@ class FormValue {
     public:
 
         /// for MIME attachments only, normal header information like content-type -- everything except content-disposition, which is in oContentDisposition
-        StringMap oFormHeaders;
+        StringMap m_oFormHeaders;
 
         /// everything in the content disposition line
-        ContentDisposition oContentDisposition; 
+        ContentDisposition m_oContentDisposition; 
 
         /// the body of the value.  For non-MIME-style attachments, this is the only part used.
-        std::string sBody; 
+        std::string m_sBody; 
 
         /// Default constructor
         FormValue ( );

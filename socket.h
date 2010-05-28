@@ -67,6 +67,12 @@
 /// plain socket implementation of NetworkAbstraction
 class Socket : public NetworkAbstraction {
 
+    private:
+
+        Socket ( const Socket & );
+
+        Socket & operator = ( const Socket & );
+
     public:
 
         /// Registers a PrivilegedBindHelper for use by this instance.
@@ -103,7 +109,7 @@ class Socket : public NetworkAbstraction {
         virtual NetworkAbstraction * Accept ( );
 
         /// Returns false, plain sockets are not secure
-        virtual int IsSecure ( ) { return 0; }
+        virtual bool IsSecure ( ) { return false; }
 
     protected:
 

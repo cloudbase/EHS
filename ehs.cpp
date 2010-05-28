@@ -146,23 +146,25 @@ int EHSServer::RemoveFinishedConnections ( )
 
 EHSConnection::EHSConnection ( NetworkAbstraction * ipoNetworkAbstraction,
         EHSServer * ipoEHSServer ) :
-    m_nDoneReading ( 0 ),
-    m_nDisconnected ( 0 ),
+    m_bDoneReading ( false ),
+    m_bDisconnected ( false ),
     m_poCurrentHttpRequest ( NULL ),
     m_poEHSServer ( ipoEHSServer ),
+    m_nLastActivity ( 0 ),
     m_nRequests ( 0 ),
     m_nResponses ( 0 ),
     m_poNetworkAbstraction ( ipoNetworkAbstraction ),
-    m_nMaxRequestSize ( MAX_REQUEST_SIZE_DEFAULT )
+    m_sBuffer ( "" ),
+    m_oHttpResponseMap ( HttpResponseMap ( ) ),
+    m_oHttpRequestList ( HttpRequestList ( ) ),
+    m_sAddress ( ipoNetworkAbstraction->GetAddress ( ) ),
+    m_nPort ( ipoNetworkAbstraction->GetPort ( ) ),
+    m_nMaxRequestSize ( MAX_REQUEST_SIZE_DEFAULT ),
+    m_oMutex ( pthread_mutex_t ( ) )
 {
     UpdateLastActivity ( );
     // initialize mutex for this object
     pthread_mutex_init ( &m_oMutex, NULL );
-    // get the address and port of the new connection
-    m_sAddress = ipoNetworkAbstraction->GetAddress ( );
-    m_nPort = ipoNetworkAbstraction->GetPort ( );
-    // make sure the buffer is clear
-    m_sBuffer = "";
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Allocated: EHSConnection" << endl;
 #endif
@@ -174,7 +176,13 @@ EHSConnection::~EHSConnection ( )
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Deallocated: EHSConnection" << endl;
 #endif
-    delete m_poNetworkAbstraction;
+    if ( m_poCurrentHttpRequest ) {
+        delete m_poCurrentHttpRequest;
+    }
+    if ( m_poNetworkAbstraction ) {
+        m_poNetworkAbstraction->Close ( );
+        delete m_poNetworkAbstraction;
+    }
 }
 
 
@@ -208,7 +216,7 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
     do {
         // if we need to make a new request object, do that now
         if ( m_poCurrentHttpRequest == NULL ||
-                m_poCurrentHttpRequest->nCurrentHttpParseState == HttpRequest::HTTPPARSESTATE_COMPLETEREQUEST ) {
+                m_poCurrentHttpRequest->m_nCurrentHttpParseState == HttpRequest::HTTPPARSESTATE_COMPLETEREQUEST ) {
             // if we have one already, toss it on the list
             if ( m_poCurrentHttpRequest != NULL ) {
                 m_oHttpRequestList.push_back ( m_poCurrentHttpRequest );
@@ -231,15 +239,15 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
             }
             // create the initial request
             m_poCurrentHttpRequest = new HttpRequest ( ++m_nRequests, this );
-            m_poCurrentHttpRequest->nSecure = m_poNetworkAbstraction->IsSecure ( );
+            m_poCurrentHttpRequest->m_bSecure = m_poNetworkAbstraction->IsSecure ( );
         }
         // parse through the current data
         m_poCurrentHttpRequest->ParseData ( m_sBuffer );
-    } while ( m_poCurrentHttpRequest->nCurrentHttpParseState ==
+    } while ( m_poCurrentHttpRequest->m_nCurrentHttpParseState ==
             HttpRequest::HTTPPARSESTATE_COMPLETEREQUEST );
     AddBufferResult nReturnValue;
     // return either invalid request or ok
-    if ( m_poCurrentHttpRequest->nCurrentHttpParseState == HttpRequest::HTTPPARSESTATE_INVALIDREQUEST ) {
+    if ( m_poCurrentHttpRequest->m_nCurrentHttpParseState == HttpRequest::HTTPPARSESTATE_INVALIDREQUEST ) {
         nReturnValue = ADDBUFFER_INVALIDREQUEST;
     } else {
         nReturnValue = ADDBUFFER_OK;
@@ -249,11 +257,11 @@ EHSConnection::AddBuffer ( char * ipsData, ///< new data to be added
 }
 
 /// call when no more reads will be performed on this object.  inDisconnected is true when client has disconnected
-void EHSConnection::DoneReading ( int inDisconnected )
+void EHSConnection::DoneReading ( bool ibDisconnected )
 {
     pthread_mutex_lock ( &m_oMutex );
-    m_nDoneReading = 1;
-    m_nDisconnected = inDisconnected;
+    m_bDoneReading = true;
+    m_bDisconnected = ibDisconnected;
     pthread_mutex_unlock ( &m_oMutex );
 }
 
@@ -280,7 +288,7 @@ int EHSConnection::CheckDone ( )
         // if we're done with all our responses (-1 because the next (unused) request is already created)
         if ( m_nRequests - 1 <= m_nResponses ) {
             // if we haven't disconnected, do that now
-            if ( !m_nDisconnected) {
+            if ( !m_bDisconnected) {
                 EHS_TRACE ( "Closing connection: .\n", m_nMaxRequestSize );
                 m_poNetworkAbstraction->Close ( );
             }
@@ -298,8 +306,18 @@ int EHSConnection::CheckDone ( )
 EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for request routing
         ) :
     m_nServerRunningStatus ( SERVERRUNNING_NOTRUNNING ),
+    m_sShutdownReason ( "" ),
     m_poTopLevelEHS ( ipoTopLevelEHS ),
+    m_bAcceptedNewConnection ( false ),
+    m_oMutex ( pthread_mutex_t ( ) ),
+    m_oDoneAccepting ( pthread_cond_t ( ) ),
     m_nRequestsPending ( 0 ),
+    m_nAccepting ( 0 ),
+    m_sServerName ( "" ),
+    m_oReadFds ( fd_set ( ) ),
+    m_oEHSConnectionList ( EHSConnectionList ( ) ),
+    m_poNetworkAbstraction ( NULL ),
+    m_nAcceptThreadId ( 0 ),
     m_nIdleTimeout ( 15 ),
     m_nThreads ( 0 )
 {
@@ -307,9 +325,8 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
     //  compare against NULL for 64-bit systems
     assert ( m_poTopLevelEHS != NULL );
 
-    pthread_mutex_init ( &m_oMutex, NULL );
+    pthread_mutex_init ( & m_oMutex, NULL );
     pthread_cond_init ( & m_oDoneAccepting, NULL );
-    m_nAccepting = 0;
     // grab out the parameters for less typing later on
     EHSServerParameters & roEHSServerParameters =
         ipoTopLevelEHS->m_oEHSServerParameters;
@@ -430,6 +447,12 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
 
 EHSServer::~EHSServer ( )
 {
+    delete m_poNetworkAbstraction;
+    // Delete all elements in our connection list
+    while ( ! m_oEHSConnectionList.empty() ) {
+        delete m_oEHSConnectionList.front ( );
+        m_oEHSConnectionList.pop_front ( );
+    }
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Deallocated: EHSServer" << endl;
 #endif		
@@ -489,12 +512,10 @@ int EHSServer::RemoveEHSConnection ( EHSConnection * ipoEHSConnection )
                 throw runtime_error("FATAL ERROR: Deleting a second element in RemoveEHSConnection - EXITING");
             }
             nDeletedOneAlready = 1;
-            // close the FD
-            EHSConnection * poEHSConnection = *i;
-            NetworkAbstraction * poNetworkAbstraction = poEHSConnection->GetNetworkAbstraction ( );
-            poNetworkAbstraction->Close ( );
-            // start back over at the beginning of the list
+            // destroy the connection and remove it from the list
+            delete *i;
             m_oEHSConnectionList.erase ( i );
+            // start back over at the beginning of the list
             i = m_oEHSConnectionList.begin ( );
         } else {
             i++;
@@ -517,16 +538,16 @@ EHS::StartServer ( EHSServerParameters & iroEHSServerParameters )
 {
     StartServerResult nResult = STARTSERVER_INVALID;
     m_oEHSServerParameters = iroEHSServerParameters;
-    if ( poEHSServer != NULL ) {
+    if ( m_poEHSServer != NULL ) {
         EHS_TRACE ( "Warning: Tried to start server that was already running\n" );
         nResult = STARTSERVER_ALREADYRUNNING;
     } else {
         // associate a EHSServer object to this EHS object
-        poEHSServer = new EHSServer ( this  );
-        if ( poEHSServer->m_nServerRunningStatus == EHSServer::SERVERRUNNING_NOTRUNNING ) {
+        m_poEHSServer = new EHSServer ( this  );
+        if ( m_poEHSServer->m_nServerRunningStatus == EHSServer::SERVERRUNNING_NOTRUNNING ) {
             EHS_TRACE ( "Error: Failed to start server\n" );
-            delete poEHSServer;
-            poEHSServer = NULL;
+            delete m_poEHSServer;
+            m_poEHSServer = NULL;
             return STARTSERVER_FAILED;
         }
     }
@@ -548,15 +569,15 @@ void * EHSServer::PthreadHandleData_ThreadedStub ( void * ipParam ///< EHSServer
 void EHS::StopServer ( )
 {
     // make sure we're in a sane state
-    assert ( ( poParent == NULL && poEHSServer != NULL ) ||
-            ( poParent != NULL && poEHSServer == NULL ) );
+    assert ( ( m_poParent == NULL && m_poEHSServer != NULL ) ||
+            ( m_poParent != NULL && m_poEHSServer == NULL ) );
 
-    if ( poParent ) {
-        poParent->StopServer ( );
-    } else if ( poEHSServer ) {
-        poEHSServer->EndServerThread("server stopped");
-        delete poEHSServer;
-        poEHSServer = NULL;
+    if ( m_poParent ) {
+        m_poParent->StopServer ( );
+    } else if ( m_poEHSServer ) {
+        m_poEHSServer->EndServerThread("server stopped");
+        delete m_poEHSServer;
+        m_poEHSServer = NULL;
     }
 }
 
@@ -633,7 +654,7 @@ void EHSServer::HandleData ( int inTimeoutMilliseconds, ///< milliseconds for ti
             pthread_mutex_unlock ( &m_oMutex );
         } else {
             // if no one is accepting, we accept
-            m_nAcceptedNewConnection = 0;
+            m_bAcceptedNewConnection = false;
             // we're now accepting
             m_nAccepting = 1;
             pthread_mutex_unlock ( &m_oMutex );
@@ -686,8 +707,8 @@ void EHSServer::CheckAcceptSocket ( )
         // THIS SHOULD BE NON-BLOCKING OR ELSE A HANG CAN OCCUR IF THEY DISCONNECT BETWEEN WHEN
         //   POLL SEES THE CONNECTION AND WHEN WE ACTUALLY CALL ACCEPT
         NetworkAbstraction * poNewClient = m_poNetworkAbstraction->Accept ( );
-        // not sure what would cause this
         if ( poNewClient == NULL ) {
+            // accept or (in case of SSL, ssl handshake) has failed.
             return;
         }
         // create a new EHSConnection object and initialize it
@@ -700,7 +721,7 @@ void EHSServer::CheckAcceptSocket ( )
         }
         pthread_mutex_lock ( &m_oMutex );
         m_oEHSConnectionList.push_back ( poEHSConnection );
-        m_nAcceptedNewConnection = 1;
+        m_bAcceptedNewConnection = true;
         pthread_mutex_unlock ( &m_oMutex );
     } // end FD_ISSET ( )
 }
@@ -833,13 +854,13 @@ void EHSConnection::SendHttpResponse ( HttpResponse * ipoHttpResponse )
         << "HTTP/1.1 " << ipoHttpResponse->m_nResponseCode
         << " " << GetResponsePhrase ( ipoHttpResponse->m_nResponseCode ) << "\r\n";
     // now go through all the entries in the responseheaders string map
-    StringMap::iterator ith = ipoHttpResponse->oResponseHeaders.begin ( );
-    for ( ; ith != ipoHttpResponse->oResponseHeaders.end ( ); ith++ ) {
+    StringMap::iterator ith = ipoHttpResponse->m_oResponseHeaders.begin ( );
+    for ( ; ith != ipoHttpResponse->m_oResponseHeaders.end ( ); ith++ ) {
         sOutput << ith->first << ": " << ith->second << "\r\n";
     }
     // now push out all the cookies
-    StringList::iterator itl = ipoHttpResponse->oCookieList.begin ( );
-    for ( ; itl != ipoHttpResponse->oCookieList.end ( ); itl++ ) {
+    StringList::iterator itl = ipoHttpResponse->m_oCookieList.begin ( );
+    for ( ; itl != ipoHttpResponse->m_oCookieList.end ( ); itl++ ) {
         sOutput << "Set-Cookie: " << *itl << "\r\n";
     }
     // extra line break signalling end of headers
@@ -852,7 +873,7 @@ void EHSConnection::SendHttpResponse ( HttpResponse * ipoHttpResponse )
 #endif
     // now send the body
     m_poNetworkAbstraction->Send ( ipoHttpResponse->GetBody ( ),
-            atoi ( ipoHttpResponse->oResponseHeaders [ "content-length" ].c_str ( ) ) );
+            atoi ( ipoHttpResponse->m_oResponseHeaders [ "content-length" ].c_str ( ) ) );
 }
 
 /// reason for ending the thread
@@ -875,10 +896,13 @@ void EHSServer::EndServerThread ( const char * ipsReason
 EHS::EHS ( EHS * ipoParent, ///< parent EHS object for routing purposes
         string isRegisteredAs ///< path string for routing purposes
         ) :
-    poParent ( NULL ),
-    poEHSServer ( NULL ),
+    m_oEHSMap ( EHSMap ( ) ),
+    m_poParent ( NULL ),
+    m_sRegisteredAs ( isRegisteredAs ),
+    m_poEHSServer ( NULL ),
     m_poSourceEHS ( NULL ),
-    m_poBindHelper ( NULL )
+    m_poBindHelper ( NULL ),
+    m_oEHSServerParameters ( EHSServerParameters ( ) )
 {
     if ( ipoParent != NULL ) {
         SetParent ( ipoParent, isRegisteredAs );
@@ -892,11 +916,11 @@ EHS::EHS ( EHS * ipoParent, ///< parent EHS object for routing purposes
 EHS::~EHS ( )
 {
     // needs to clean up all its registered interfaces
-    if ( poParent ) {
-        poParent->UnregisterEHS ( (char *)(sRegisteredAs.c_str ( ) ) );
+    if ( m_poParent ) {
+        m_poParent->UnregisterEHS ( (char *)(m_sRegisteredAs.c_str ( ) ) );
     }
-    if ( poEHSServer ) {
-        delete poEHSServer;
+    if ( m_poEHSServer ) {
+        delete m_poEHSServer;
     }
 #ifdef EHS_MEMORY
     cerr << "[EHS_MEMORY] Deallocated: EHS" << endl;
@@ -907,8 +931,8 @@ void EHS::SetParent ( EHS * ipoParent, ///< this is the new parent
         string isRegisteredAs ///< path for routing
         )
 {
-    poParent = ipoParent;
-    sRegisteredAs = isRegisteredAs;
+    m_poParent = ipoParent;
+    m_sRegisteredAs = isRegisteredAs;
 }
 
 EHS::RegisterEHSResult
@@ -917,10 +941,10 @@ EHS::RegisterEHS ( EHS * ipoEHS, ///< new sibling
         )
 {
     ipoEHS->SetParent ( this, ipsRegisterPath );
-    if ( oEHSMap [ ipsRegisterPath ] ) {
+    if ( m_oEHSMap [ ipsRegisterPath ] ) {
         return REGISTEREHSINTERFACE_ALREADYEXISTS;
     }
-    oEHSMap [ ipsRegisterPath ] = ipoEHS;
+    m_oEHSMap [ ipsRegisterPath ] = ipoEHS;
     return REGISTEREHSINTERFACE_SUCCESS;
 }
 
@@ -928,10 +952,10 @@ EHS::UnregisterEHSResult
 EHS::UnregisterEHS ( char * ipsRegisterPath ///< remove object at this path
         )
 {
-    if ( !oEHSMap [ ipsRegisterPath ] ) {
+    if ( !m_oEHSMap [ ipsRegisterPath ] ) {
         return UNREGISTEREHSINTERFACE_NOTREGISTERED;
     }
-    oEHSMap.erase ( ipsRegisterPath );
+    m_oEHSMap.erase ( ipsRegisterPath );
     return UNREGISTEREHSINTERFACE_SUCCESS;
 }
 
@@ -939,18 +963,18 @@ void EHS::HandleData ( int inTimeoutMilliseconds ///< milliseconds for select ti
         )
 {
     // make sure we're in a sane state
-    assert ( ( poParent == NULL && poEHSServer != NULL ) ||
-            ( poParent != NULL && poEHSServer == NULL ) );
-    if ( poParent ) {
-        poParent->HandleData( inTimeoutMilliseconds );
+    assert ( ( m_poParent == NULL && m_poEHSServer != NULL ) ||
+            ( m_poParent != NULL && m_poEHSServer == NULL ) );
+    if ( m_poParent ) {
+        m_poParent->HandleData( inTimeoutMilliseconds );
     } else {
         // if we're in single threaded mode, handle data until there are no more jobs left
-        if ( poEHSServer->m_nServerRunningStatus ==
+        if ( m_poEHSServer->m_nServerRunningStatus ==
                 EHSServer::SERVERRUNNING_SINGLETHREADED ) {
             do {
-                poEHSServer->HandleData( inTimeoutMilliseconds, pthread_self ( ) );
-            } while ( poEHSServer->RequestsPending ( ) ||
-                    poEHSServer->m_nAcceptedNewConnection );
+                m_poEHSServer->HandleData( inTimeoutMilliseconds, pthread_self ( ) );
+            } while ( m_poEHSServer->RequestsPending ( ) ||
+                    m_poEHSServer->m_bAcceptedNewConnection );
         }
     }
 }
@@ -973,7 +997,7 @@ EHS::RouteRequest ( HttpRequest * ipoHttpRequest ///< request info for service
         )
 {
     // get the next path from the URI
-    string sNextPathPart = GetNextPathPart ( ipoHttpRequest->sUri );
+    string sNextPathPart = GetNextPathPart ( ipoHttpRequest->m_sUri );
     EHS_TRACE ( "Info: Trying to route: '%s'\n", sNextPathPart.c_str ( ) );
     // if there is no more path, call HandleRequest on this EHS object with
     //   whatever's left - or if we're not routing
@@ -985,22 +1009,21 @@ EHS::RouteRequest ( HttpRequest * ipoHttpRequest ///< request info for service
             new HttpResponse ( ipoHttpRequest->m_nRequestId,
                     ipoHttpRequest->m_poSourceEHSConnection );
         // get the actual response and return code
-        poHttpResponse->m_nResponseCode =
-            HandleRequest ( ipoHttpRequest, poHttpResponse );
+        poHttpResponse->SetResponseCode ( HandleRequest ( ipoHttpRequest, poHttpResponse ) );
         return poHttpResponse;
     }
     // if the path exists, check it against the map of EHSs
-    if ( oEHSMap [ sNextPathPart ] ) {
+    if ( m_oEHSMap [ sNextPathPart ] ) {
         // if it exists, call RouteRequest with that EHS and the
         //   new shortened path
-        return oEHSMap [ sNextPathPart ]->RouteRequest ( ipoHttpRequest );
+        return m_oEHSMap [ sNextPathPart ]->RouteRequest ( ipoHttpRequest );
     } else {
         // if it doesn't exist, send an error back up saying resource doesn't exist
         EHS_TRACE ( "Info: Routing failed.  Most likely caused by an invalid URL, not internal error\n" );
         // send back a 404 response
         HttpResponse * poHttpResponse = new HttpResponse ( ipoHttpRequest->m_nRequestId,
                 ipoHttpRequest->m_poSourceEHSConnection );
-        poHttpResponse->m_nResponseCode = HTTPRESPONSECODE_404_NOTFOUND;
+        poHttpResponse->SetResponseCode ( HTTPRESPONSECODE_404_NOTFOUND );
         poHttpResponse->SetBody ( "404 - Not Found", strlen ( "404 - Not Found" ) );
         return poHttpResponse;
     }
@@ -1042,11 +1065,3 @@ void EHS::SetPassphraseCallback ( int ( * ) ( char *, int, int, void * ) )
 {
     assert ( 0 );
 }
-
-#ifdef COMPILE_WITH_SSL
-// secure socket static class variables
-DynamicSslLocking * SecureSocket::poDynamicSslLocking = NULL;
-StaticSslLocking * SecureSocket::poStaticSslLocking = NULL;
-SslError * SecureSocket::poSslError = NULL;
-SSL_CTX * SecureSocket::poCtx;
-#endif // COMPILE_WITH_SSL

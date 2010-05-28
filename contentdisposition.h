@@ -43,7 +43,10 @@ class ContentDisposition {
     public:
 
         /// constructor
-        ContentDisposition ( ) {
+        ContentDisposition ( ) :
+            m_oContentDispositionHeaders ( StringMap ( ) ),
+            m_sContentDisposition ( "" )
+        {
 #ifdef EHS_MEMORY
             std::cerr << "[EHS_MEMORY] Allocated: ContentDisposition" << std::endl;
 #endif		
@@ -58,16 +61,17 @@ class ContentDisposition {
 
 #ifdef EHS_MEMORY
         /// this is only for watching memory allocation
-        ContentDisposition ( const ContentDisposition & iroContentDisposition ) {
-            *this = iroContentDisposition;
+        ContentDisposition ( const ContentDisposition & other ) :
+            m_oContentDispositionHeaders ( other.m_oContentDispositionHeaders ),
+            m_sContentDisposition ( other.m_sContentDisposition )
+        {
             std::cerr << "[EHS_MEMORY] Allocated: ContentDisposition (Copy Constructor)" << std::endl;
         }
 #endif		
 
-        StringMap oContentDispositionHeaders; ///< map of headers for this content disposition
-        std::string sContentDisposition; ///< content disposition string for this object
+        StringMap m_oContentDispositionHeaders; ///< map of headers for this content disposition
+        std::string m_sContentDisposition; ///< content disposition string for this object
 
 };
-
 
 #endif // CONTENTDISPOSITION_H

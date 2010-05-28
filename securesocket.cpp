@@ -35,7 +35,14 @@
 
 using namespace std;
 
-SslError g_oSslError;
+static SslError g_oSslError;
+
+// static class variables
+DynamicSslLocking * SecureSocket::poDynamicSslLocking = NULL;
+StaticSslLocking * SecureSocket::poStaticSslLocking = NULL;
+SslError * SecureSocket::poSslError = NULL;
+SSL_CTX * SecureSocket::poCtx = NULL;
+int SecureSocket::refcount = 0;
 
 SecureSocket::SecureSocket ( std::string isServerCertificate,
         std::string isServerCertificatePassphrase) : 
@@ -45,26 +52,71 @@ SecureSocket::SecureSocket ( std::string isServerCertificate,
     m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
     m_pfOverridePassphraseCallback ( NULL )
 { 
+    refcount++;
 #ifdef EHS_DEBUG
     std::cerr << "calling SecureSocket constructor A" << std::endl;
 #endif
 }
 
-
 SecureSocket::SecureSocket ( SSL * ipoAcceptSsl, 
         int inAcceptSocket, 
-        sockaddr_in * ipoInternetSocketAddress,
-        std::string isServerCertificate,
-        std::string isServerCertificatePassphrase ) : 
-    Socket ( inAcceptSocket, ipoInternetSocketAddress),
+        sockaddr_in * ipoInternetSocketAddress ) :
+    Socket ( inAcceptSocket, ipoInternetSocketAddress ),
     m_poAcceptSsl ( ipoAcceptSsl ),
-    m_sServerCertificate ( isServerCertificate ),
-    m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
+    m_sServerCertificate ( "" ),
+    m_sServerCertificatePassphrase ( "" ),
     m_pfOverridePassphraseCallback ( NULL )
 {
+    refcount++;
 #ifdef EHS_DEBUG
     std::cerr << "calling SecureSocket constructor B" << std::endl;
 #endif
+}
+
+SecureSocket::~SecureSocket ( )
+{
+#ifdef EHS_DEBUG
+    std::cerr << "calling SecureSocket destructor" << std::endl;
+#endif
+    Close ( );
+    if ( m_poAcceptSsl ) {
+        SSL_free( m_poAcceptSsl );
+    }
+    if (0 == --refcount) {
+#ifdef EHS_DEBUG
+        std::cerr << "Deleting static members" << std::endl;
+#endif
+        if ( NULL != poCtx ) {
+#ifdef EHS_DEBUG
+            std::cerr << "  poCtx" << std::endl;
+#endif
+            SSL_CTX_free ( poCtx );
+        }
+        if ( NULL != poSslError ) {
+#ifdef EHS_DEBUG
+            std::cerr << "  poSslError" << std::endl;
+#endif
+            delete poSslError;
+        }
+        if ( NULL != poStaticSslLocking ) {
+#ifdef EHS_DEBUG
+            std::cerr << "  poStaticSslLocking" << std::endl;
+#endif
+            delete poStaticSslLocking;
+        }
+        if ( NULL != poDynamicSslLocking ) {
+#ifdef EHS_DEBUG
+            std::cerr << "  poDynamicSslLocking" << std::endl;
+#endif
+            delete poDynamicSslLocking;
+        }
+
+        ERR_free_strings();
+        ERR_remove_state(0);
+        EVP_cleanup();
+        CRYPTO_cleanup_all_ex_data();
+
+    }
 }
 
 NetworkAbstraction::InitResult 
@@ -78,8 +130,6 @@ SecureSocket::Init ( int inPort ///< port on which to listen
     pthread_mutex_t oMutex;
     pthread_mutex_init ( &oMutex, NULL );
     pthread_mutex_lock ( &oMutex );
-
-    // no need to ever clean these up
 
     if ( poDynamicSslLocking == NULL ) {
         poDynamicSslLocking = new DynamicSslLocking;
@@ -105,7 +155,6 @@ SecureSocket::Init ( int inPort ///< port on which to listen
 
     return Socket::Init( inPort );
 }
-
 
 NetworkAbstraction * SecureSocket::Accept ( ) 
 {
@@ -142,7 +191,6 @@ NetworkAbstraction * SecureSocket::Accept ( )
 #ifdef EHS_DEBUG
         string sError;
         g_oSslError.GetError ( sError );
-
         cerr << "SSL_accept failed: " << sError << endl;
 #endif
         SSL_free ( ssl );
@@ -151,17 +199,6 @@ NetworkAbstraction * SecureSocket::Accept ( )
 
     return new SecureSocket ( ssl, fd, &m_oInternetSocketAddress );
 }
-
-// SSL-only function for initializing special random numbers
-int SecureSocket::SeedRandomNumbers ( int inBytes ) {
-
-    if ( !RAND_load_file ( "/dev/random", inBytes ) ) {
-        return 0;
-    }
-
-    return 1;
-}
-
 
 int PeerCertificateVerifyCallback ( int inOk,
         X509_STORE_CTX * ipoStore ) {
@@ -330,8 +367,6 @@ int SecureSocket::Send ( const void * ipMessage, size_t inLength, int )
 void SecureSocket::Close ( )
 {
     Socket::Close ( );
-    if ( m_poAcceptSsl )
-        SSL_free( m_poAcceptSsl );
 }
 
     int 

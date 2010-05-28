@@ -48,6 +48,7 @@ class tester : public EHS
         //   to the client, and a filename to read off to the client
         tester ( string isFilename ) : 
             EHS ( ),
+            m_nDelay ( 0 ),
             infile ( isFilename.c_str ( ) )
     {
         printf ( "loading file '%s'\n", isFilename.c_str ( ) );
@@ -84,7 +85,7 @@ ResponseCode tester::HandleRequest ( HttpRequest * ipoHttpRequest, HttpResponse 
     string sWordCopy = psBody;
 
     strcat ( psBody, "<br>previous word: " );
-    strcat ( psBody, ipoHttpRequest->oCookieMap["ehs_test_cookie"].c_str ( ) );
+    strcat ( psBody, ipoHttpRequest->Cookies ( "ehs_test_cookie" ).c_str ( ) );
 
     ipoHttpResponse->SetBody ( psBody, strlen ( psBody ) );
 
@@ -119,8 +120,6 @@ int main ( int argc, char ** argv )
     fprintf ( stderr, "binding to %d\n", atoi ( argv [ 2 ] ) );
     tester * srv = new tester ( argv [ 3 ] );
 
-
-    srv->m_nDelay = 0;
     if ( argc >= 5 ) {
         srv->m_nDelay = atoi ( argv [ 4 ] );
     }

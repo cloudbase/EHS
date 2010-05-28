@@ -38,22 +38,22 @@ class TestHarness : public EHS
         ostringstream oss;
         oss
             << "<html><head><title>TestHarness</title></head><body><table><tr>"
-            << "<tr><td>request-method:</td><td>" << request->nRequestMethod << "</td></tr>" << endl
-            << "<tr><td>uri:</td><td>" << request->sUri << "</td></tr>" << endl
-            << "<tr><td>http-version:</td><td>" << request->sHttpVersionNumber << "</td></tr>" << endl
-            << "<tr><td>body-length:</td><td>" << request->sBody.length ( ) << "</td></tr>" << endl
-            << "<tr><td>number-request-headers:</td><td>" << request->oRequestHeaders.size ( ) << "</td></tr>" << endl
-            << "<tr><td>number-form-value-maps:</td><td>" << request->oFormValueMap.size ( ) << "</td></tr>" << endl
+            << "<tr><td>request-method:</td><td>" << request->Method ( ) << "</td></tr>" << endl
+            << "<tr><td>uri:</td><td>" << request->Uri ( ) << "</td></tr>" << endl
+            << "<tr><td>http-version:</td><td>" << request->HttpVersion ( ) << "</td></tr>" << endl
+            << "<tr><td>body-length:</td><td>" << request->Body ( ).length ( ) << "</td></tr>" << endl
+            << "<tr><td>number-request-headers:</td><td>" << request->RequestHeaders().size ( ) << "</td></tr>" << endl
+            << "<tr><td>number-form-value-maps:</td><td>" << request->FormValues().size ( ) << "</td></tr>" << endl
             << "<tr><td>client-address:</td><td>" << request->GetAddress ( ) << "</td></tr>" << endl
             << "<tr><td>client-port:</td><td>" << request->GetPort ( ) << "</td></tr>" << endl;
 
-        for ( StringMap::iterator i = request->oRequestHeaders.begin ( );
-                i != request->oRequestHeaders.end ( ); i++ ) {
+        for ( StringMap::iterator i = request->RequestHeaders().begin ( );
+                i != request->RequestHeaders().end ( ); i++ ) {
             oss << "<tr><td>Request Header:</td><td>" << i->first << " => " << i->second << "</td></tr>" << endl;
         }
 
-        for ( CookieMap::iterator i = request->oCookieMap.begin ( );
-                i != request->oCookieMap.end ( ); i++ ) {
+        for ( CookieMap::iterator i = request->Cookies().begin ( );
+                i != request->Cookies().end ( ); i++ ) {
             oss << "<tr><td>Cookie:</td><td>" << i->first << " => " << i->second << "</td></tr>" << endl;
         }
         oss << "</body></html>";

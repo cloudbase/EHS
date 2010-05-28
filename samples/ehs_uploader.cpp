@@ -42,7 +42,7 @@ class FileUploader : public EHS {
 
 ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse * response )
 {
-    string sUri = request->sUri;
+    string sUri = request->Uri();
     cerr << "Request-URI: " << sUri << endl;
 
     if ( sUri == "/" ) {
@@ -57,9 +57,9 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
     }
 
     if ( sUri == "/upload.html" ) {
-        int nFileSize = request->oFormValueMap [ "file" ].sBody.length ( );
-        string sFileName = request->oFormValueMap [ "file" ].
-            oContentDisposition.oContentDispositionHeaders [ "filename" ];
+        int nFileSize = request->FormValues( "file" ).m_sBody.length ( );
+        string sFileName = request->FormValues ( "file" ).
+            m_oContentDisposition.m_oContentDispositionHeaders [ "filename" ];
         cerr << "nFileSize = " << nFileSize << endl;
         cerr << "sFileName = '" << sFileName << "'" << endl;
         if ( 0 != nFileSize ) {
@@ -69,7 +69,7 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
             if ( !sFileName.empty ( ) ) {
                 cerr << "Writing " << nFileSize << " bytes to file" << endl;
                 ofstream outfile ( sFileName.c_str(), ios::out | ios::trunc | ios::binary );
-                outfile.write( request->oFormValueMap [ "file" ].sBody.c_str(), nFileSize);
+                outfile.write( request->FormValues ( "file" ).m_sBody.c_str(), nFileSize);
                 outfile.close ( );
             } else {
                 cerr << "NO FILENAME FOUND" << endl;

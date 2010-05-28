@@ -68,6 +68,8 @@ using namespace std;
 
     Socket::Socket ( )
   : m_nAcceptSocket ( 0 ),
+    m_oInternetSocketAddress ( sockaddr_in ( ) ),
+    m_oBindAddress ( sockaddr_in ( ) ),
     m_poBindHelper ( NULL )
 {
     memset ( &m_oInternetSocketAddress, 0, sizeof ( m_oInternetSocketAddress ) );
@@ -77,16 +79,21 @@ using namespace std;
 Socket::Socket ( int inAcceptSocket,
         sockaddr_in * ipoInternetSocketAddress ) :
     m_nAcceptSocket ( inAcceptSocket ),
+    m_oInternetSocketAddress ( *ipoInternetSocketAddress ),
+    m_oBindAddress ( sockaddr_in ( ) ),
     m_poBindHelper ( NULL )
 {
     memcpy ( &m_oInternetSocketAddress, 
             ipoInternetSocketAddress,
             sizeof ( m_oInternetSocketAddress ) );
-
+    memset ( &m_oBindAddress, 0, sizeof ( m_oBindAddress ) );
 }
 
 Socket::~Socket ( )
 {
+#ifdef EHS_MEMORY
+    cerr << "[EHS_MEMORY] Deallocated: Socket" << endl;
+#endif		
 }
 
 void Socket::RegisterBindHelper(PrivilegedBindHelper *helper)
