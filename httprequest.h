@@ -134,7 +134,7 @@ class HttpRequest {
         const std::string & Body ( ) { return m_sBody; }
 
         /// retrieves the request headers of this instance.
-        StringMap & RequestHeaders ( ) { return m_oRequestHeaders; }
+        StringMap & Headers ( ) { return m_oRequestHeaders; }
 
         /// retrieves the form value map of this instance.
         FormValueMap  & FormValues ( ) { return m_oFormValueMap; }
@@ -146,6 +146,18 @@ class HttpRequest {
         FormValue & FormValues ( const std::string & name )
         {
             return m_oFormValueMap[ name ];
+        }
+
+        /// retrieves a single request header of this instance.
+        std::string Headers ( const std::string & name )
+        {
+            return m_oRequestHeaders[ name ];
+        }
+
+        /// sets a single request header of this instance.
+        void SetHeader ( const std::string & name , const std::string & value )
+        {
+            m_oRequestHeaders[ name ] = value;
         }
 
         /// retrieves a single cookie value of this instance.

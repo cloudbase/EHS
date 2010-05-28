@@ -74,6 +74,11 @@ class HttpResponse {
         /// Sets the response code for this response
         void SetResponseCode ( ResponseCode code ) { m_nResponseCode = code ; }
 
+        void SetHeader ( const std::string & name, const std::string & value )
+        {
+            m_oResponseHeaders [ name ] = value;
+        }
+
         /// Returns the body of the response
         char * GetBody ( ) { return m_psBody; };
 
