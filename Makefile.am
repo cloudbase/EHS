@@ -1,5 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
+SUBDIRS = . samples
+
 # Build EHS library
 lib_LTLIBRARIES = libehs.la
 libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
@@ -15,43 +17,7 @@ pkginclude_HEADERS = ehs.h networkabstraction.h \
 	ehstypes.h formvalue.h contentdisposition.h
 
 noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
-	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h \
-	samples/btexception.h
-
-# Sample programs to be built but not installed
-noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
-				  ehs_simple ehs_mirror ehs_https ehs_privport \
-				  ehs_exception bindhelper
-
-# Rules for building sample programs
-ehs_formtest_SOURCES = samples/ehs_formtest.cpp
-ehs_formtest_LDADD = libehs.la
-
-ehs_test_SOURCES = samples/ehs_test.cpp
-ehs_test_LDADD = libehs.la
-
-ehs_testharness_SOURCES = samples/ehs_testharness.cpp
-ehs_testharness_LDADD=libehs.la
-
-ehs_uploader_SOURCES = samples/ehs_uploader.cpp
-ehs_uploader_LDADD = libehs.la
-
-ehs_simple_SOURCES = samples/ehs_simple.cpp
-ehs_simple_LDADD = libehs.la
-
-ehs_mirror_SOURCES = samples/ehs_mirror.cpp
-ehs_mirror_LDADD = libehs.la
-
-ehs_https_SOURCES = samples/ehs_https.cpp
-ehs_https_LDADD = libehs.la
-
-ehs_privport_SOURCES = samples/ehs_privport.cpp
-ehs_privport_LDADD = libehs.la
-
-ehs_exception_SOURCES = samples/ehs_exception.cpp samples/btexception.cpp
-ehs_exception_LDADD = libehs.la $(TRACELIBS)
-
-bindhelper_SOURCES = samples/bindhelper.c
+	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h
 
 # Extra stuff to distribute in tarball 
 EXTRA_DIST = $(DX_CONFIG) doc/html ehs_development_guide.txt ehs-stress.pl

@@ -140,5 +140,5 @@ DX_PDF_FEATURE(OFF)
 DX_PS_FEATURE(OFF)
 DX_INIT_DOXYGEN([EHS], [conf/doxygen.cfg], [doc])
 
-AC_CONFIG_FILES([Makefile conf/doxygen.cfg doc/manual.dox])
+AC_CONFIG_FILES([Makefile samples/Makefile conf/doxygen.cfg doc/manual.dox])
 AC_OUTPUT
