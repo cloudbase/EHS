@@ -8,7 +8,7 @@
 int main(int argc, char**argv)
 {
     if (1 == argc) {
-        int sock;
+        unsigned int sock;
         in_addr_t ia;
         unsigned short port;
         if (3 == sscanf(argv[0], "%8x%8x%4hx", &sock, &ia, &port)) {

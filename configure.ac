@@ -27,11 +27,14 @@ AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of t
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
 dnl Replace `main' with a function in -lpcre:
+TRACELIBS=
 AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
-dnl AC_CHECK_LIB(pme,main,,AC_MSG_ERROR(EHS requires libpme from http://xaxxon.slackworks.com/pme/))
-AC_CHECK_LIB(ssl,SSL_library_init)
+AC_CHECK_LIB(ssl, SSL_library_init)
+AC_CHECK_LIB(bfd, bfd_openr, [TRACELIBS="-lbfd"])
+AC_CHECK_LIB(iberty, cplus_demangle, [TRACELIBS="$TRACELIBS -liberty"])
+AC_SUBST(TRACELIBS)
 havessl=$ac_cv_lib_ssl_SSL_library_init
 
 AC_MSG_CHECKING([whether to build with SSL support])
@@ -91,11 +94,15 @@ FE_SVNREV([SVNREV])
 AC_DEFINE_UNQUOTED(SVNREV,"$SVNREV",[SVN revision])
 FE_RCVERSION
 
+dnl Use modern -pthread gcc option if available.
+fe_CHECK_FLAG([C++],[CXXFLAGS],[-pthread])
+
 AC_ARG_ENABLE([warn],
 	AS_HELP_STRING([--enable-warn],
 		[Enable additional warnings (Default: NO)]),
 	[
 		AC_MSG_NOTICE([will enable additional warnings])
+        fe_CHECK_FLAG([C++],[CPPFLAGS],[-pedantic])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wall])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wextra])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wchar-subscripts])
@@ -112,12 +119,26 @@ AC_ARG_ENABLE([warn],
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wctor-dtor-privacy])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wnon-virtual-dtor])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Woverloaded-virtual])
-		fe_CHECK_FLAG([C++],[CXXFLAGS],[-Weffc++])
+        fe_CHECK_FLAG([C++],[CXXFLAGS],[-Weffc++])
         CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 	]
 )
+fe_EXCEPTION_PROPAGATION
 LIBVERSION="`echo $VERSION|tr . :`"
 AC_SUBST(LIBVERSION)
 
-AC_CONFIG_FILES([Makefile])
+dnl
+dnl doxygen setup
+dnl
+DX_HTML_FEATURE(ON)
+DX_CHM_FEATURE(OFF)
+DX_CHI_FEATURE(OFF)
+DX_MAN_FEATURE(OFF)
+DX_RTF_FEATURE(OFF)
+DX_XML_FEATURE(OFF)
+DX_PDF_FEATURE(OFF)
+DX_PS_FEATURE(OFF)
+DX_INIT_DOXYGEN([EHS], [conf/doxygen.cfg], [doc])
+
+AC_CONFIG_FILES([Makefile conf/doxygen.cfg doc/manual.dox])
 AC_OUTPUT

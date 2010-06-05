@@ -59,12 +59,6 @@ static const char * const EHSconfig = "EHS_CONFIG:SSL="
 #else
 "0"
 #endif
-",MEM="
-#ifdef EHS_MEMORY
-"1"
-#else
-"0"
-#endif
 ",VERSION=" VERSION ",RELEASE=" SVNREV ",BUILD=" __DATE__ " " __TIME__;
 
 const char * getEHSconfig()
@@ -222,7 +216,7 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
         return ADDBUFFER_INVALID;
     }
     // make sure the buffer doesn't grow too big
-    if ( (m_sBuffer.length ( ) + inSize) > m_nMaxRequestSize ) {
+    if ((m_sBuffer.length() + inSize) > m_nMaxRequestSize) {
         EHS_TRACE("AddBuffer: MaxRequestSize (%lu) exceeded.\n", m_nMaxRequestSize);
         return ADDBUFFER_TOOBIG;
     }
@@ -442,9 +436,6 @@ EHSServer::~EHSServer ( )
         delete m_oEHSConnectionList.front ( );
         m_oEHSConnectionList.pop_front ( );
     }
-#ifdef EHS_MEMORY
-    cerr << "[EHS_MEMORY] Deallocated: EHSServer" << endl;
-#endif		
 }
 
 HttpRequest * EHSServer::GetNextRequest()
@@ -516,11 +507,13 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
 
 bool EHS::ThreadInitHandler()
 {
+    EHS_TRACE("EHS::ThreadInitHandler\n");
     return true;
 }
 
 void EHS::ThreadExitHandler()
 {
+    EHS_TRACE("EHS::ThreadExitHandler\n");
 }
 
 const std::string EHS::GetPassphrase(bool /* twice */)
@@ -765,6 +758,10 @@ void EHSServer::CheckClientSockets ( )
                 // if add buffer failed, don't read from this connection anymore
                 if (nAddBufferResult == EHSConnection::ADDBUFFER_INVALIDREQUEST ||
                         nAddBufferResult == EHSConnection::ADDBUFFER_TOOBIG) {
+                    // Immediately send a 400 response, then close the connection
+                    HttpResponse *tmperr = HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i);
+                    (*i)->SendHttpResponse(tmperr);
+                    delete tmperr;
                     // done reading but did not receieve disconnect
                     EHS_TRACE("Done reading because we got a bad request\n");
                     (*i)->DoneReading(false);

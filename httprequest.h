@@ -40,9 +40,7 @@ enum RequestMethod {
     REQUESTMETHOD_DELETE, ///< not implemented
     REQUESTMETHOD_TRACE, ///< not implemented
     REQUESTMETHOD_CONNECT, ///< not implemented
-    REQUESTMETHOD_LAST, ///< must be the last valid entry
-    REQUESTMETHOD_UNKNOWN, ///< used until we find the method
-    REQUESTMETHOD_INVALID ///< must be the last entry
+    REQUESTMETHOD_UNKNOWN ///< used until we find the method
 };
 
 /**
@@ -204,7 +202,7 @@ class HttpRequest {
             HTTPPARSESTATE_HEADERS,
             HTTPPARSESTATE_BODY,
             HTTPPARSESTATE_COMPLETEREQUEST,
-            HTTPPARSESTATE_INVALIDREQUEST,
+            HTTPPARSESTATE_INVALIDREQUEST
         };
 
         /// Enumeration of error codes for ParseMultipartFormDataResult
@@ -220,13 +218,16 @@ class HttpRequest {
             PARSESUBBODY_SUCCESS,
             PARSESUBBODY_INVALIDSUBBODY, // no blank line?
             PARSESUBBODY_FAILED // other reason
-
         };
 
         /// treats the body as if it's a multipart form data as specified in RFC not sure what the number is and I'll probably forget to look it up
         ParseMultipartFormDataResult ParseMultipartFormData();
 
-        /// goes through a subbody and parses out elements
+        /**
+         * Goes through a subbody and parses out elements.
+         * @param sSubBody The string in which to look for subbody stuff
+         * @return A ParseSubbodyResult reflecting the result.
+         */
         ParseSubbodyResult ParseSubbody(std::string sSubBody);
 
         /// this function is given data that is read from the client and it deals with it
@@ -278,10 +279,20 @@ class HttpRequest {
 
 // GLOBAL HELPER FUNCTIONS
 
-/// removes the next line from irsBuffer and returns it in irsLine
-void GetNextLine ( std::string & irsLine, std::string & irsBuffer );
+/**
+ * Extracts the next line (separated by CRLF) from a buffer.
+ * @param buffer The input buffer to work on. Upon return, the extracted
+ *   line is removed from this buffer.
+ * @return The extracted line (including the CRLF delimiter) or an empty
+ * string if no more lines ar available.
+ */
+std::string GetNextLine(std::string & buffer);
 
-/// gets the RequestMethod enumeration based on isRequestMethod
-RequestMethod GetRequestMethodFromString ( const std::string & isRequestMethod );
+/**
+ * Retrieves the enum equivalent of a supplied HTTP request method.
+ * @param method The HTTP request method to lookup
+ * @return The corresponding numeric value, or REQUESTMETHOD_UNKNOW, if there was no match.
+ */
+RequestMethod GetRequestMethodFromString(const std::string & method);
 
 #endif // HTTPREQUEST_H

@@ -45,7 +45,7 @@
 
 extern "C" {
     const char * getEHSconfig();
-};
+}
 
 /**
  * Helper class for binding of sockets to privileged ports.

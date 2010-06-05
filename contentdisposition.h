@@ -41,8 +41,8 @@ class ContentDisposition {
          * Default constructor.
          */
         ContentDisposition() :
-            m_oContentDispositionHeaders ( StringMap ( ) ),
-            m_sContentDisposition ( "" )
+            m_oContentDispositionHeaders(StringCaseMap()),
+            m_sContentDisposition ("")
         {
         }
 
@@ -51,7 +51,7 @@ class ContentDisposition {
         }
 
         /// Map of headers for this content disposition.
-        StringMap m_oContentDispositionHeaders;
+        StringCaseMap m_oContentDispositionHeaders;
 
         /// Content disposition string for this object
         std::string m_sContentDisposition;

@@ -66,6 +66,15 @@ class HttpResponse {
         /**
          * Constructs a new standardized error response.
          * @param code The HTTP error code.
+         * @param inResponseId A unique Id (normally derived from the corresponding requset Id).
+         * @param ipoEHSConnection The connection, on which this response should be sent.
+         * @return The new response.
+         */
+        static HttpResponse *Error(ResponseCode code, int inResponseId, EHSConnection * ipoEHSConnection);
+
+        /**
+         * Constructs a new standardized error response.
+         * @param code The HTTP error code.
          * @param request The http request to which this response refers.
          *   (Used for initializing the Id and the outgoing connection).
          * @return The new response.

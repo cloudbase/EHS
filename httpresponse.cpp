@@ -68,14 +68,10 @@ HttpResponse::HttpResponse ( int inResponseId,
     m_psBody ( NULL )
 
 {
-#ifdef EHS_MEMORY
-    cerr << "[EHS_MEMORY] Allocated: HttpResponse" << endl;
-#endif   
-
     // General Header Fields (HTTP 1.1 Section 4.5)
     time_t t = time ( NULL );
-    SetDate ( t );
-    SetLastModified ( t );
+    SetDate(t);
+    SetLastModified(t);
     m_oResponseHeaders [ "Cache-Control" ] = "no-cache";
     m_oResponseHeaders [ "Content-Type" ] = "text/html";
     m_oResponseHeaders [ "Content-Length" ] = "0";
@@ -83,9 +79,6 @@ HttpResponse::HttpResponse ( int inResponseId,
 
 HttpResponse::~HttpResponse ( )
 {
-#ifdef EHS_MEMORY
-    cerr << "[EHS_MEMORY] Deallocated: HttpResponse" << endl;
-#endif
     delete [] m_psBody;
 }
 
@@ -109,15 +102,20 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
     return (responsePhrase.end() == i) ? "INVALID" : i->second;
 }
 
-HttpResponse *HttpResponse::Error (ResponseCode code, HttpRequest *request)
+HttpResponse *HttpResponse::Error(ResponseCode code, int inResponseId, EHSConnection * ipoEHSConnection)
 {
-    HttpResponse *ret = new HttpResponse(request->Id(), request->Connection());
+    HttpResponse *ret = new HttpResponse(inResponseId, ipoEHSConnection);
     ret->SetResponseCode(code);
     ostringstream oss;
     oss << "<html><head><title>" << code << " " << GetPhrase(code)
         << "</title><body>"  << code << " " << GetPhrase(code) << "</body></html>";
     ret->SetBody(oss.str().c_str(), oss.str().length());
     return ret;
+}
+
+HttpResponse *HttpResponse::Error (ResponseCode code, HttpRequest *request)
+{
+    return Error(code, request->Id(), request->Connection());
 }
 
 void HttpResponse::SetDate ( time_t stamp )

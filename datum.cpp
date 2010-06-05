@@ -69,7 +69,7 @@ Datum & Datum::operator= ( int inInt )
 Datum & Datum::operator= ( double inDouble )
 {
     char psBuffer [ 100 ];
-    sprintf ( psBuffer, "%lf", inDouble );
+    sprintf ( psBuffer, "%f", inDouble );
     sDatum = psBuffer;
     return *this;
 }

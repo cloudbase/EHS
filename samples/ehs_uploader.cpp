@@ -31,6 +31,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <cstdlib>
 
 using namespace std;
@@ -47,42 +48,57 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
     cerr << "Request-URI: " << sUri << endl;
 
     if ( sUri == "/" ) {
-        string sBody = "<html><head><title>ehs uploader</title></head><body>";
-        sBody += "<form method=\"POST\" action=";
-        sBody += "/upload.html enctype=\"multipart/form-data\">Upload file:<br />";
-        sBody += "<input type=\"file\" name=\"file\"><br />";
-        sBody += "<input type=\"submit\" value=\"submit\"></form></body></html>";
-
-        response->SetBody ( sBody.c_str(), sBody.length ( ) );
+        string sMsg  = request->Cookies("ehs_upload_status");
+        ostringstream oss;
+        oss << "<html><head><title>ehs uploader</title></head>" << endl << "<body>" << endl
+            << "  <form method=\"POST\" action=\"/upload.html\" enctype=\"multipart/form-data\">" << endl
+            << "    Upload file:<br />" << endl
+            << "    <input type=\"file\" name=\"file\"><br />" << endl
+            << "    <input type=\"submit\" value=\"submit\">" << endl
+            << "  </form>" << endl;
+        if (!sMsg.empty()) {
+            oss << "  <p>Status: " << sMsg << "<br />" << endl;
+        }
+        oss << "</body></html>" << endl;
+        response->SetBody(oss.str().c_str(), oss.str().length());
         return HTTPRESPONSECODE_200_OK;
     }
 
-    if ( sUri == "/upload.html" ) {
-        int nFileSize = request->FormValues( "file" ).m_sBody.length ( );
-        string sFileName = request->FormValues ( "file" ).
-            m_oContentDisposition.m_oContentDispositionHeaders [ "filename" ];
+    if (sUri == "/upload.html") {
+        int nFileSize = request->FormValues("file").m_sBody.length();
+        string sFileName = request->FormValues("file").
+            m_oContentDisposition.m_oContentDispositionHeaders["filename"];
         cerr << "nFileSize = " << nFileSize << endl;
         cerr << "sFileName = '" << sFileName << "'" << endl;
-        if ( 0 != nFileSize ) {
+        CookieParameters statusCookie;
+        statusCookie["name"] = "ehs_upload_status";
+        statusCookie["value"] = "";
+        if (0 != nFileSize) {
             size_t lastSlash = sFileName.find_last_of("/\\");
             sFileName = sFileName.substr(lastSlash + 1);
             cerr << "stripped sFileName = '" << sFileName << "'" << endl;
-            if ( !sFileName.empty ( ) ) {
-                cerr << "Writing " << nFileSize << " bytes to file" << endl;
-                ofstream outfile ( sFileName.c_str(), ios::out | ios::trunc | ios::binary );
-                outfile.write( request->FormValues ( "file" ).m_sBody.c_str(), nFileSize);
-                outfile.close ( );
+            if (!sFileName.empty()) {
+                // For safety reasons, we do not allow writing to existing files.
+                if (0 != access(sFileName.c_str(), F_OK)) {
+                    cerr << "Writing " << nFileSize << " bytes to file" << endl;
+                    ofstream outfile(sFileName.c_str(), ios::out | ios::trunc | ios::binary );
+                    outfile.write(request->FormValues("file").m_sBody.c_str(), nFileSize);
+                    outfile.close();
+                    statusCookie["value"] = "Uploaded file successfully.";
+                } else {
+                    statusCookie["value"] = "No permission to overwrite a file.";
+                }
             } else {
+                statusCookie["value"] = "No filename received.";
                 cerr << "NO FILENAME FOUND" << endl;
             }
-            response->SetBody ( "", 0 );
-            return HTTPRESPONSECODE_200_OK;
         } else {
-            string msg = "<http><body>Must upload file</body></http>";
-            // there was nothing sent in as a file
-            response->SetBody ( msg.c_str(), msg.length() );
-            return HTTPRESPONSECODE_200_OK;
+            statusCookie["value"] = "No content received.";
         }
+        response->SetCookie(statusCookie);
+        response->SetBody("", 0);
+        response->SetHeader("Location", "/");
+        return HTTPRESPONSECODE_301_MOVEDPERMANENTLY;
     }
 
     return HTTPRESPONSECODE_404_NOTFOUND;
