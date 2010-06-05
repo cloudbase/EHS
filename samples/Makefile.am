@@ -1,3 +1,5 @@
+AM_CPPFLAGS = -I$(top_srcdir)
+
 # Sample programs to be built but not installed
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \

@@ -36,9 +36,7 @@ MOSTLYCLEANFILES = $(DX_CLEANFILES)
 bootstrap:
 	autoreconf -if
 
-doc: conf/doxygen.cfg doc/manual.dox doxygen-doc
-
-dist-hook: doc
+doc/html: doc/manual.dox $(noinst_HEADERS) doxygen-doc
 
 # Next ifdef is really tricky:
 #  We want to be able to run make -f Makefile.am without having make
