@@ -56,93 +56,96 @@
  */
 #define CIPHER_LIST "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
 
+class PassphraseHandler;
 
 /// Secure socket implementation used for HTTPS
 class SecureSocket : public Socket 
 {
     private:
-
         SecureSocket ( const SecureSocket & );
 
         SecureSocket & operator = ( const SecureSocket & );
 
     public:
 
-        /// initializes OpenSSL and this socket object
-        virtual InitResult Init ( int inPort );
+        virtual InitResult Init(int port);
 
-        /// Constructor for listener socket
-        SecureSocket ( std::string isServerCertificate = "",
-                std::string isServerCertificatePassphrase = "" );
+        /**
+         * Constructs a new listener socket.
+         * @param isServerCertificate The filename of the server certificate to use.
+         * @param handler The PassphraseHandler to use.
+         */
+        SecureSocket (std::string isServerCertificate = "",
+                PassphraseHandler * handler = NULL);
 
-        /// destructor
-        virtual ~SecureSocket ( );
+        /// Destructor
+        virtual ~SecureSocket();
 
-        /// accepts on secure socket
-        virtual NetworkAbstraction * Accept ( );
+        virtual NetworkAbstraction * Accept();
 
-        /// returns true because this socket is considered secure
-        virtual bool IsSecure ( ) { return true; }
+        /// Determines, whether the underlying socket is secure.
+        /// @return true because this socket is considered secure.
+        virtual bool IsSecure() const { return true; }
 
-        /// does OpenSSL read
-        virtual int Read ( void * ipBuffer, int ipBufferLength );
+        virtual int Read(void *ipBuffer, int ipBufferLength);
 
-        /// does OpenSSL send
-        virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
+        virtual int Send(const void *ipMessage, size_t inLength, int inFlags = 0);
 
-        /// closes OpenSSL connectio
         virtual void Close ( );
-
-        /// default callback that just uses m_sServerCertificatePassphrase member
-        static int DefaultCertificatePassphraseCallback ( char * ipsBuffer,
-                int inSize,
-                int inRWFlag,
-                void * ipUserData );
-
-        /// sets a callback for loading a certificate
-        void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
 
     private:
 
-        /// Constructor for accepted socket
-        SecureSocket ( SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in * );
+        /**
+         * Passphrase callback for OpenSSL.
+         * Our implementation uses userdata for obtaining an instance pointer and then
+         * simply invokes the GetPassphrase method of our PassphraseHandler. 
+         * @param buf The buffer that shall be filled with the passphrase.
+         * @param bufsize Maximum size of the buffer.
+         * @param rwflag Set to nonzero, if the request is for encryption. This implies
+         *   asking the user for a passphrase twice.
+         * @param userdata An opaque pointer to user data.
+         */
+        static int PassphraseCallback(char * buf, int bufsize, int rwflag, void * userdata);
+
+        /**
+         * Constructs a new Socket, connected to a client.
+         * @param ipoAcceptSsl The OpenSSL context, associated with this instance.
+         * @param inAcceptSocket The socket descriptor of this connection.
+         * @param peer The peer address of this socket
+         */
+        SecureSocket(SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in *peer);
 
         /// Initializes the SSL context and provides it with certificates.
-        SSL_CTX * InitializeCertificates ( );
+        SSL_CTX * InitializeCertificates();
 
     protected:
 
-        /// the SSL object associated with this SSL connectio
+        /// The OpenSSL context associated with this instance.
         SSL * m_poAcceptSsl;
 
-        /// filename for certificate file
+        /// The filename of the certificate file
         std::string m_sServerCertificate;
 
-        /// passphrase for certificate
-        std::string m_sServerCertificatePassphrase; 
-
-        /// pointer to callback function
-        int (*m_pfOverridePassphraseCallback)(char*, int, int, void*);
+        /// The PassPhraseHandler to use for retrieving certificate passphrases.
+        PassphraseHandler * m_poPassphraseHandler;
 
     private:
 
-        /// dynamic portion of SSL locking mechanism
+        /// Dynamic portion of the SSL locking mechanism.
         static DynamicSslLocking * poDynamicSslLocking;
 
-        /// static portion of SSL locking mechanism
+        /// Static portion of the SSL locking mechanism.
         static StaticSslLocking * poStaticSslLocking;
 
-        /// error object for getting openssl error messages
+        /// Error object for getting openssl error messages
         static SslError * poSslError;
 
-        /// certificate information
+        /// Internal OpenSSL context
         static SSL_CTX * poCtx;
 
+        /// Internal reference countr for releasing OpenSSL ressources.
         static int refcount;
 };
-
-/// global error object
-//extern SslError g_oSslError;
 
 #endif
 

@@ -28,9 +28,9 @@
 #endif
 
 #include "ehs.h"
+#include "ehsconnection.h"
 
 #include <pcrecpp.h>
-#include <cassert>
 #include <string>
 #include <algorithm>
 #include <iostream>
@@ -145,25 +145,23 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody ( string isSubbody ///
 
 }
 
-
-
-
-
     HttpRequest::ParseMultipartFormDataResult
 HttpRequest::ParseMultipartFormData ( )
 {
-    assert ( !m_oRequestHeaders [ "content-type" ].empty ( ) );
+    if ( m_oRequestHeaders [ "Content-Type" ].empty ( ) ) {
+        throw runtime_error ( "HttpRequest::ParseMultipartFormData: No Content-Type" );
+    }
 
     // find the boundary string
     pcrecpp::RE re ( "multipart/[^;]+;[ ]*boundary=([^\"]+)$" );
 
 #ifdef EHS_DEBUG
-    cerr << "looking for boundary in '" << m_oRequestHeaders [ "content-type" ] << "'" << endl;
+    cerr << "looking for boundary in '" << m_oRequestHeaders [ "Content-Type" ] << "'" << endl;
 #endif	
 
     // if ( ( nMatchResult = oMultipartFormDataContentTypeValueRegex.match ( oRequestHeaders [ "content-type" ] ) ) )
     string sBoundaryString;
-    if ( re.FullMatch( m_oRequestHeaders [ "content-type" ], &sBoundaryString ) )
+    if ( re.FullMatch( m_oRequestHeaders [ "Content-Type" ], &sBoundaryString ) )
     {
         // the actual boundary has two dashes prepended to it
         string sActualBoundary = string ("--") + sBoundaryString;
@@ -194,7 +192,9 @@ HttpRequest::ParseMultipartFormData ( )
 #ifdef EHS_DEBUG
             cerr << "[EHS_DEBUG] Info: Found subbody from pos 0 to " << nNextPartPosition << endl;
 #endif
-            assert ( (unsigned int) sRemainingBody.length ( ) >= sActualBoundary.length ( ) );
+            if ( sRemainingBody.length ( ) >= sActualBoundary.length ( ) ) {
+                throw runtime_error ( "HttpRequest::ParseMultipartFormData: Subpart body exceeds main body length" );
+            }
             ParseSubbody ( sRemainingBody.substr ( 0, nNextPartPosition ) );
             // skip past the boundary at the end and look for the next one
             nNextPartPosition += sActualBoundary.length ( );
@@ -231,8 +231,6 @@ int HttpRequest::ParseCookieData ( string & irsData )
     return ccount;
 }
 
-
-
 // takes data and tries to figure out what it is.  it will loop through 
 //   irsData as many times as it can as long as it gets a full line each time.
 //   Depending on how much data it's gotten already, it will handle a line 
@@ -265,7 +263,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // if we got a line, look for a request line
 
                     // everything must be uppercase according to rfc2616
-                    pcrecpp::RE re ( "^(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT) ([^ ]*) HTTP/([^ ]+)\\r\\n$" );
+                    pcrecpp::RE_Options opt(PCRE_DOTALL);
+                    pcrecpp::RE re ( "^(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT) ([^ ]+) HTTP/(\\d+\\.\\d+)\\r\\n$" , opt);
                     string muri;
                     string mver;
                     string mreq;
@@ -306,7 +305,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // check to see if we're done with headers
 
                     // if content length is found
-                    if ( m_oRequestHeaders.find ( "content-length" ) !=
+                    if ( m_oRequestHeaders.find ( "Content-Length" ) !=
                             m_oRequestHeaders.end ( ) ) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_BODY;
                     } else {
@@ -315,9 +314,11 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
 
                     // if this is an HTTP/1.1 request, then it had better have a Host: header
                     if ( m_sHttpVersionNumber == "1.1" && 
-                            m_oRequestHeaders [ "host" ].length ( ) == 0 ) {
+                            m_oRequestHeaders [ "Host" ].length ( ) == 0 ) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                     }
+
+                    ParseCookieData ( m_oRequestHeaders [ "cookie" ] );
 
                 } else if ( reHeader.FullMatch ( sLine, &sName, &sValue ) ) {
                     // else if there is still data
@@ -327,11 +328,6 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         // TODO: Implement chunked encoding    
                         cerr << "EHS DOES NOT SUPPORT CHUNKED ENCODING" << endl;
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
-                    }
-
-                    sName = mytolower ( sName );
-                    if ( sName == "cookie" ) {
-                        ParseCookieData ( sValue );
                     }
                     m_oRequestHeaders [ sName ] = sValue;
                 } else {
@@ -351,7 +347,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
 
                     // if a content length wasn't specified, we can't be here (we 
                     //   don't know chunked encoding)
-                    if ( m_oRequestHeaders.find ( "content-length" ) == 
+                    if ( m_oRequestHeaders.find ( "Content-Length" ) == 
                             m_oRequestHeaders.end ( ) ) {
 
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
@@ -361,7 +357,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
 
                     // get the content length
                     unsigned int nContentLength = 
-                        atoi ( m_oRequestHeaders [ "content-length" ].c_str ( ) );
+                        atoi ( m_oRequestHeaders [ "Content-Length" ].c_str ( ) );
 
                     // else if we haven't gotten all the data we're looking for,
                     //   just hold off and try again when we get more
@@ -380,7 +376,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         irsData = irsData.substr ( nContentLength );
 
                         // if we're dealing with multi-part form attachments
-                        if ( m_oRequestHeaders [ "content-type" ].substr ( 0, 9 ) == 
+                        if ( m_oRequestHeaders [ "Content-Type" ].substr ( 0, 9 ) == 
                                 "multipart" ) {
                             // handle the body as if it's multipart form data
                             if ( ParseMultipartFormData ( ) == 
@@ -414,7 +410,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
 #ifdef EHS_DEBUG
                 cerr << "[EHS_DEBUG] Critical error: Invalid internal state: " << m_nCurrentHttpParseState << endl;
 #endif
-                assert ( 0 );
+                throw runtime_error ( "HttpRequest::ParseData: Invalid parsing state" );
                 break;
         }
     }
@@ -431,7 +427,7 @@ HttpRequest::HttpRequest ( int inRequestId,
     m_sHttpVersionNumber ( "" ),
     m_sBody ( "" ),
     m_bSecure ( false ),
-    m_oRequestHeaders ( StringMap ( ) ),
+    m_oRequestHeaders ( StringCaseMap ( ) ),
     m_oFormValueMap ( FormValueMap ( ) ),
     m_oCookieMap ( CookieMap ( ) ),
     m_nRequestId ( inRequestId ),
@@ -462,29 +458,22 @@ HttpRequest::~HttpRequest ( )
 //   and shrinks the buffer by the size of the line and sets ipnBufferLength to 
 //   the new size
 
-// returns 1 if it got a line, 0 otherwise
-int GetNextLine ( string & irsLine, ///< line removed from *ippsBuffer
+void GetNextLine ( string & irsLine, ///< line removed from *ippsBuffer
         string & irsBuffer ///< buffer from which to remove a line
         )
 {
-    int nResult = 0;
-    // TODO:
-    // Find out the original author's intention about
-    // nResult. (Currently it is always returned as 0,
-    //  - any side-effects in changing/removing it?)
-
-    // can't use split, because we lose our \r\n
     pcrecpp::RE_Options opt(PCRE_MULTILINE|PCRE_DOTALL);
     pcrecpp::RE re( "^([^\\r]*\\r\\n)(.*)$", opt );
     string mbuf;
     if ( re.FullMatch ( irsBuffer, &irsLine, &mbuf ) ) {
         irsBuffer = mbuf;
+    } else {
+        irsLine.clear();
     }
-    return nResult;
 }
 
 /// List of possible HTTP request methods
-const char * RequestMethodStrings [] = {
+static const char * RequestMethodStrings [] = {
     "OPTIONS", "GET", "HEAD", "POST", 
     "PUT", "DELETE", "TRACE", "CONNECT", "*"
 };
@@ -501,26 +490,18 @@ RequestMethod GetRequestMethodFromString ( const string & isRequestMethod  ///< 
     return ( RequestMethod ) i;
 }
 
-string & mytolower (string & s ///< string to make lowercase
-        ) 
-{ 
-    transform ( s.begin(), s.end(), s.begin(), ptr_fun<int, int>(tolower));
-    return s;
-}
-
-
-string HttpRequest::GetAddress ( )
+string HttpRequest::Address()
 {
-    return m_poSourceEHSConnection->GetAddress ( );
+    return m_poSourceEHSConnection->GetAddress();
 }
 
-int HttpRequest::GetPort ( )
+int HttpRequest::Port()
 {
-    return m_poSourceEHSConnection->GetPort ( );
+    return m_poSourceEHSConnection->GetPort();
 }
 
 
-bool HttpRequest::ClientDisconnected ( )
+bool HttpRequest::ClientDisconnected()
 { 
-    return m_poSourceEHSConnection->Disconnected ( ); 
+    return m_poSourceEHSConnection->Disconnected(); 
 }

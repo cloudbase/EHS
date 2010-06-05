@@ -28,7 +28,6 @@
 
 #include <openssl/crypto.h>
 #include <openssl/ssl.h>
-#include <assert.h>
 
 #include <pthread.h>
 

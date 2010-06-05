@@ -32,21 +32,33 @@
 #include <openssl/err.h>
 #include <string>
 
-/// wrapper for the OpenSSL error mechanism
+/**
+ * A wrapper for the OpenSSL error mechanism.
+ */
 class SslError 
 {
 
     public:
 
-        /// gets info about the previous error and removes from SSL error queue returns 0 when no error available on queue
-        int GetError ( std::string & irsReport, bool inPeek = false );
+        /**
+         * Retrieves info about the last OpenSSL error and optionally
+         * removes that info from the OpenSSL error queue.
+         * @param irsReport Gets filled with the OpenSSL error info.
+         * @param inPeek If true, the info is removed from the OpenSSL error queue.
+         * @return The OpenSSL error code (0 == no error).
+         */
+        int GetError(std::string & irsReport, bool inPeek = false);
 
-        /// gets info about the previous error and leaves it on SSL error queue returns 0 when no error available on queue
-        int PeekError ( std::string & irsReport );
+        /**
+         * Retrieves info about the last OpenSSL error and leaves it on OpenSSL error queue.
+         * @param irsReport Gets filled with the OpenSSL error info.
+         * @return The OpenSSL error code (0 == no error).
+         */
+        int PeekError(std::string & irsReport);
 
     protected:
 
-        /// represents whether the error strings have been loaded
+        /// Flag: Represents whether the OpenSSL error strings have been loaded.
         static bool bMessagesLoaded;
 };
 

@@ -36,6 +36,12 @@
 #define strcasecmp stricmp
 #endif
 
+Datum & Datum::operator = ( const Datum & other )
+{
+    sDatum = other.sDatum;
+    return *this;
+}
+
 Datum & Datum::operator= ( unsigned long inUL )
 {
     char psBuffer [ 100 ];
@@ -83,12 +89,6 @@ Datum & Datum::operator= ( char * ipsString )
 Datum & Datum::operator= ( const char * ipsString )
 {
     sDatum = ipsString;
-    return *this;
-}
-
-Datum & Datum::operator= ( void * ipVoid )
-{
-    pDatum = ipVoid;
     return *this;
 }
 

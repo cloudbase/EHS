@@ -46,10 +46,10 @@
 #endif
 #endif // sun
 
+#include "ehs.h"
 #include "socket.h"
 
 #ifndef _WIN32
-#include <assert.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -63,6 +63,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <stdexcept>
 
 using namespace std;
 
@@ -91,9 +92,7 @@ Socket::Socket ( int inAcceptSocket,
 
 Socket::~Socket ( )
 {
-#ifdef EHS_MEMORY
-    cerr << "[EHS_MEMORY] Deallocated: Socket" << endl;
-#endif		
+    Close();
 }
 
 void Socket::RegisterBindHelper(PrivilegedBindHelper *helper)
@@ -118,14 +117,12 @@ Socket::Init ( int inPort ///< port on which to listen
 
     WORD wVersionRequested;
     WSADATA wsaData;
-    int err;
-
     wVersionRequested = MAKEWORD( 2, 2 );
 
-    err = WSAStartup( wVersionRequested, &wsaData );
-
     // Found a usable winsock dll?
-    assert( err == 0 );
+    if ( 0 != WSAStartup( wVersionRequested, &wsaData ) ) {
+        throw runtime_error ( "Socket::Init: WSAStartup() returned an error" );
+    }
 
     /* Confirm that the WinSock DLL supports 2.2.*/
     /* Note that if the DLL supports versions greater    */
@@ -146,7 +143,7 @@ Socket::Init ( int inPort ///< port on which to listen
         cerr << "[EHS_DEBUG] Critical Error: Couldn't find useable Winsock DLL.  Must be at least 2.2.  Aborting" << endl;
 #endif
 
-        assert( false ); 
+        throw runtime_error ( "Socket::Init: Could not find a suitable (v 2.2) Winsock DLL" );
     }
 
     /* The WinSock DLL is acceptable. Proceed. */
@@ -154,12 +151,12 @@ Socket::Init ( int inPort ///< port on which to listen
 #endif // End WIN32-specific network initialization code
 
     // need to create a socket for listening for new connections
-#ifdef EHS_DEBUG
     if ( m_nAcceptSocket != 0 ) {
+#ifdef EHS_DEBUG
         cerr << "[EHS_DEBUG] m_nAcceptSocket = " << m_nAcceptSocket << endl;
-        assert ( m_nAcceptSocket == 0 );
-    }
 #endif
+        throw runtime_error ( "Socket::Init: Socket already initialized" );
+    }
 
     m_nAcceptSocket = socket ( AF_INET, SOCK_STREAM, 0 );
     if ( m_nAcceptSocket == -1 ) {
@@ -172,10 +169,8 @@ Socket::Init ( int inPort ///< port on which to listen
     }
 
 #ifdef _WIN32
-
     u_long MyTrueVar = 1;
     ioctlsocket ( m_nAcceptSocket, FIONBIO, &MyTrueVar );
-
 #else
     int MyTrueVar = 1;
     ioctl ( m_nAcceptSocket, FIONBIO, &MyTrueVar );
@@ -221,13 +216,13 @@ Socket::Init ( int inPort ///< port on which to listen
 }
 
 
-int Socket::Read ( void * ipBuffer, int ipBufferLength )
+int Socket::Read(void *ipBuffer, int ipBufferLength)
 {
 
     //return read ( m_nAcceptSocket, ipBuffer, ipBufferLength );
-    return recv ( m_nAcceptSocket, 
+    return recv(m_nAcceptSocket, 
 #ifdef _WIN32
-            (char *) ipBuffer,
+            (char *)ipBuffer,
 #else
             ipBuffer, 
 #endif
@@ -250,7 +245,7 @@ void Socket::Close ( )
 #ifdef _WIN32
     closesocket ( m_nAcceptSocket );
 #else
-    close ( m_nAcceptSocket );
+    close(m_nAcceptSocket);
 #endif
 }
 
@@ -285,7 +280,7 @@ NetworkAbstraction * Socket::Accept ( )
 
 }
 
-string Socket::GetAddress ( )
+string Socket::GetAddress() const
 {
     struct in_addr in;
     memcpy (&in, &m_oInternetSocketAddress.sin_addr.s_addr, sizeof(in));
@@ -293,7 +288,7 @@ string Socket::GetAddress ( )
 }
 
 
-int Socket::GetPort ( )
+int Socket::GetPort() const
 {
-    return ntohs ( m_oInternetSocketAddress.sin_port );
+    return ntohs(m_oInternetSocketAddress.sin_port);
 }

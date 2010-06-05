@@ -29,80 +29,101 @@
 #include <string>
 #include <cstdlib>
 
+class PrivilegedBindHelper;
+
 /**
- * This abstracts an interface to an external bind helper
- * program which facilitates binding of ports < 1024.
- * Instead of doing it the apache way (do the bind() running as root
- * and then dropping privileges) we run as unprivileged user and
- * use that helper (setuid program) to temporarily elevate privileges
- * for the bind() call. IMHO, this is safer, because that helper is
- * VERY simple and does exactly ONE task: binding. NOTHING else.
- */
-class PrivilegedBindHelper {
-
-    public:
-
-        /// Binds a socket to a privileged port/address. Returns true on success
-        virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port) = 0;
-
-        virtual ~PrivilegedBindHelper ( ) { }
-
-};
-
-/// Abstracts different socket types
-/**
- * this abstracts the differences between normal sockets and ssl sockets
- *   Socket is the standard socket class and SecureSocket is the SSL
- *   implementation
+ * Abstracts different socket types.
+ * This interface abstracts the differences between normal
+ * sockets and SSL sockets. There are two implementations:
+ * <ul>
+ *  <li>Socket is the standard socket<br>
+ *  <li>SecureSocket is the SSL implementation<br>
+ * </ul>
  */
 class NetworkAbstraction {
 
     public:
 
-        /// Registers a PrivilegedBindHelper for use by this instance.
-        virtual void RegisterBindHelper(PrivilegedBindHelper *) = 0;
+        /**
+         * Registers a PrivilegedBindHelper for use by this instance.
+         * @param helper The PrivilegedBindHelper to be used by this instance.
+         */
+        virtual void RegisterBindHelper(PrivilegedBindHelper *helper) = 0;
 
-        /// sets the bind address of the socket
-        virtual void SetBindAddress ( const char * bindAddress ) = 0;
+        /**
+         * Sets the bind address of the socket.
+         * @param bindAddress The address to bind to in quad-dotted format.
+         */
+        virtual void SetBindAddress(const char * bindAddress) = 0;
 
-        /// returns the address of the connection
-        virtual std::string GetAddress ( ) = 0;
+        /**
+         * Retrieves the peer address.
+         * @return The address of the connected peer in quad-dotted format.
+         */
+        virtual std::string GetAddress() const = 0;
 
-        /// returns the port of the connection
-        virtual int GetPort ( ) = 0;
+        /**
+         * Retrieves the peer's port of a connection.
+         * @return The peer port.
+         */
+        virtual int GetPort() const = 0;
 
         /// Enumeration of error results for InitSocketsResults
-        enum InitResult { INITSOCKET_INVALID,
+        enum InitResult {
+            INITSOCKET_INVALID,
             INITSOCKET_SOCKETFAILED,
             INITSOCKET_BINDFAILED,
             INITSOCKET_LISTENFAILED,
             INITSOCKET_FAILED,
             INITSOCKET_CERTIFICATE,
-            INITSOCKET_SUCCESS };
+            INITSOCKET_SUCCESS
+        };
 
-        /// Initialize sockets
-        virtual InitResult Init ( int inPort ) = 0;
+        /**
+         * Initializes a listening socket.
+         * If listening should be restricted to a specific address, SetBindAddress
+         * has to be called in advance.
+         * @param port The port to listen on.
+         * @return An InitResult, describing the result of the initialization.
+         */
+        virtual InitResult Init(int port) = 0;
 
-        /// destructor
-        virtual ~NetworkAbstraction ( ) { }
+        /// Destructor
+        virtual ~NetworkAbstraction() { }
 
-        /// returns the FD/Socket for the socket on which we're listening
-        virtual int GetFd ( ) = 0;
+        /**
+         * Retrieves the underlying file descriptor.
+         * @return The FD/Socket of the listening socket.
+         */
+        virtual int GetFd() const = 0;
 
-        /// pure virtual read function to be overloaded in child classes
-        virtual int Read ( void * ipBuffer, int ipBufferLength ) = 0;
+        /**
+         * Performs a read from the underlying socket.
+         * @param ipBuffer Pointer to a buffer that receives the incoming data.
+         * @param ipBufferLength The maximum number of bytes to read.
+         * @return The actual number of bytes that have been received or -1 if an error occured.
+         */
+        virtual int Read(void * ipBuffer, int ipBufferLength) = 0;
 
-        /// pure virtual send function to be overloaded in child class
-        virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 ) = 0;
+        /**
+         * Performs a send on the underlying socket.
+         * @param ipMessage Pointer to the data to be sent.
+         * @param inLength The number of bytes to send.
+         * @param inFlags Additional flags for the system call.
+         * @return The actual number of byte that have been sent or -1 if an error occured.
+         */
+        virtual int Send(const void * ipMessage, size_t inLength, int inFlags = 0) = 0;
 
-        /// pure virtual close function to be overloaded in child class
-        virtual void Close ( ) = 0;
+        /// Closes the underlying socket.
+        virtual void Close() = 0;
 
-        /// pure virtual accept function to be overloaded in child class
-        virtual NetworkAbstraction * Accept ( ) = 0;
+        /// Waits for an incoming connection.
+        /// @return A new NetworkAbstraction instance which represents the client connetion.
+        virtual NetworkAbstraction * Accept() = 0;
 
-        /// returns whether the child class connection is considered secure
-        virtual bool IsSecure ( ) = 0;
+        /// Determines, whether the underlying socket is socure.
+        /// @return true, if SSL is used; false otherwise.
+        virtual bool IsSecure() const = 0;
 
 };
 

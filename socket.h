@@ -40,7 +40,6 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <time.h>
-#include <assert.h>
 
 // make stricmp sound like strcasecmp
 #define strcasecmp stricmp
@@ -73,59 +72,56 @@ class Socket : public NetworkAbstraction {
 
         Socket & operator = ( const Socket & );
 
+    protected:
+        /**
+         * Constructs a new Socket, connected to a client.
+         * @param inAcceptSocket The socket descriptor of this connection.
+         * @param peer The peer address of this socket
+         */
+        Socket(int inAcceptSocket, sockaddr_in *peer);
+
     public:
 
-        /// Registers a PrivilegedBindHelper for use by this instance.
-        virtual void RegisterBindHelper(PrivilegedBindHelper *);
+        /**
+         * Default constructor
+         */
+        Socket();
 
-        /// sets up socket stuff (mostly for win32) and then listens on specified port
-        virtual InitResult Init ( int inPort );
+        virtual void RegisterBindHelper(PrivilegedBindHelper *helper);
 
-        /// default constructor
-        Socket ( );
+        virtual InitResult Init(int inPort);
 
-        /// client socket constructor
-        Socket ( int inAcceptSocket, sockaddr_in * );
+        virtual ~Socket();
 
-        /// destructor
-        virtual ~Socket ( );
+        virtual void SetBindAddress(const char * bindAddress);
 
-        /// Sets the bind address of the socket
-        virtual void SetBindAddress ( const char * bindAddress );
+        virtual int GetFd() const { return m_nAcceptSocket; }
 
-        /// returns the FD associated with this socket
-        virtual int GetFd ( ) { return m_nAcceptSocket; };
+        virtual int Read(void * ipBuffer, int ipBufferLength);
 
-        /// implements standard FD read
-        virtual int Read ( void * ipBuffer, int ipBufferLength );
+        virtual int Send(const void * ipMessage, size_t inLength, int inFlags = 0);
 
-        /// implements standard FD send
-        virtual int Send ( const void * ipMessage, size_t inLength, int inFlags = 0 );
+        virtual void Close();
 
-        /// implements standard FD close
-        virtual void Close ( );
+        virtual NetworkAbstraction * Accept();
 
-        /// implements standard FD accept
-        virtual NetworkAbstraction * Accept ( );
-
-        /// Returns false, plain sockets are not secure
-        virtual bool IsSecure ( ) { return false; }
+        /// Determines, whether the underlying socket is secure.
+        /// @return false, because this instance does not use SSL.
+        virtual bool IsSecure() const { return false; }
 
     protected:
 
-        /// returns the port of the incoming connection
-        int GetPort ( );
+        int GetPort() const;
 
-        /// returns the address of the incoming connection
-        std::string GetAddress ( );
+        std::string GetAddress() const;
 
-        /// Socket on which this connection came in
+        /// The file descriptor of the socket on which this connection came in
         int m_nAcceptSocket;
 
-        /// stores the address of the current connection
+        /// Stores the peer address of the current connection
         sockaddr_in m_oInternetSocketAddress;
 
-        /// stores the bind address
+        /// Stores the bind address
         sockaddr_in m_oBindAddress;
 
         /// Our bind helper

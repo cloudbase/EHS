@@ -35,33 +35,33 @@ using namespace std;
 
 bool SslError::bMessagesLoaded = false;
 
-int SslError::GetError ( string & irsReport, bool inPeek )
+int SslError::GetError(string & irsReport, bool inPeek)
 {
 	// get the error code
-	unsigned long nError = inPeek ? ERR_peek_error ( ) : ERR_get_error ( );
+	unsigned long nError = inPeek ? ERR_peek_error() : ERR_get_error();
 
 	// if there is no error, or we don't want full text, return the error
 	//   code now
-	if ( nError == 0 || irsReport == "noreport" ) {
+	if (nError == 0 || irsReport == "noreport") {
 		irsReport.clear();
 		return nError;
 	}
 
 	// do we need to load the strings?
-	if ( !bMessagesLoaded ) {
-		SSL_load_error_strings ( );
+	if (!bMessagesLoaded) {
+		SSL_load_error_strings();
 		bMessagesLoaded = true;
 	}
 
-	char psBuffer [ 256 ];
-	ERR_error_string_n ( nError, psBuffer, 256 );
-	irsReport = psBuffer;
+	char psBuffer[256];
+	ERR_error_string_n(nError, psBuffer, 256);
+	irsReport.assign(psBuffer);
 	return nError;
 }
 
-int SslError::PeekError ( string & irsReport )
+int SslError::PeekError(string & irsReport)
 {
-	return GetError ( irsReport, true );
+	return GetError(irsReport, true);
 }
 
 

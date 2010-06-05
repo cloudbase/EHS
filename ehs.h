@@ -1,5 +1,4 @@
-/* $Id$ */
-/** \mainpage EHS
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -27,11 +26,6 @@
 #ifndef EHS_H
 #define EHS_H
 
-///////////////////////////////////
-#ifdef _WIN32 // windows headers //
-///////////////////////////////////
-
-
 // Pragma'ing away nasty MS 255-char-name problem.  Otherwise
 // you will get warnings on many template names that
 //	"identifier was truncated to '255' characters in the debug information".
@@ -39,31 +33,11 @@
 # pragma warning(disable : 4786)
 #endif
 
-// to use winsock2.h instead of winsock.h
-#define _WIN32_WINNT 0x0400
-#include <winsock2.h>
-#include <windows.h>
-
-#include <time.h>
-#include <assert.h>
-
-// make windows sleep act like UNIX sleep
-#define sleep(seconds) (Sleep(seconds * 1000))
-
-///////////////////////////////////
-#else // unix headers go here    //
-///////////////////////////////////
-
-///////////////////////////////////
-#endif // end platform headers   //
-///////////////////////////////////
-
 // EHS headers
 
 #include <formvalue.h>
 #include <ehstypes.h>
 #include <datum.h>
-#include <networkabstraction.h>
 #include <httpresponse.h>
 #include <httprequest.h>
 
@@ -73,369 +47,274 @@ extern "C" {
     const char * getEHSconfig();
 };
 
-class EHSServer;
+/**
+ * Helper class for binding of sockets to privileged ports.
+ * This class abstracts an interface to an external bind helper
+ * program which facilitates binding of privileged ports (< 1024).
+ * Instead of doing it the apache way (do the bind() while running as <b>root</b>
+ * and <b>then</b> dropping privileges), we run as <b>unprivileged</b> user <b>in the
+ * first place</b> and later use that helper (an external setuid program) to temporarily
+ * elevate privileges for the bind() call. IMHO, this is safer, because that helper is
+ * <b>very</b> simple and does exactly <b>one</b> task: binding. <b>Nothing</b> else.
+ */
+class PrivilegedBindHelper {
+
+    public:
+
+        /**
+         * Binds a socket to a privileged port/address.
+         * @param socket The socket to be bound.
+         * @param addr The address to bind to in dot-qad format.
+         * @param port The port number to bind do.
+         * @return true on success.
+         */
+        virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port) = 0;
+
+        virtual ~PrivilegedBindHelper ( ) { }
+
+};
+
+/**
+ * This interface describes a handler for retrieving passphrases.
+ * When using SSL, this interface is used to fetch passphrases for
+ * the server certificates. EHS implements a simple default handler
+ * which provides the passphrase that has been provided via the
+ * server parameters.
+ */
+class PassphraseHandler {
+
+    public:
+
+        /**
+         * Retrieves a passphrase.
+         * @param twice If true, this passphrase should be requested twice
+         *   in order to prevent typing errors.
+         * @return A std::string holding the passphrase.
+         */
+        virtual const std::string GetPassphrase(bool twice) = 0;
+
+        /// Destructor
+        virtual ~PassphraseHandler ( ) { }
+};
 
 /// this is to protect from people being malicious or really stupid
 #define MAX_REQUEST_SIZE_DEFAULT (256 * 1024)
 
-/// EHSConnection abstracts the concept of a connection to an EHS application
 /**
- * EHSConnection abstracts the concept of a connection to an EHS application.  
- * It stores file descriptor information, unhandled data, and the current 
- * state of the request
+ * EHS provides HTTP server functionality to a child class.
+ * The child class must inherit from it and then override the
+ * HandleRequest method.
  */
-class EHSConnection {
+class EHS : public PassphraseHandler {
 
     private:
+        /**
+         * Disabled copy constructor.
+         */
+        EHS(const EHS &);
 
-        EHSConnection ( const EHSConnection & );
-
-        EHSConnection & operator = ( const EHSConnection & );
+        /**
+         * Disabled assignment operator.
+         */
+        EHS & operator=(const EHS &);
 
     protected:
 
-        bool m_bDoneReading; ///< we're never reading from this again
-
-        bool m_bDisconnected; ///< client has closed connection on us
-
-        HttpRequest * m_poCurrentHttpRequest; ///< request we're currently parsing
-
-        EHSServer * m_poEHSServer; ///< server with which this is associated
-
-        time_t m_nLastActivity; ///< time at which the last activity occured
-
-        int m_nRequests; ///< holds id of last request received
-
-        int m_nResponses; ///< holds id of last response sent
-
-        /// file descriptor associated with this client
-        NetworkAbstraction * m_poNetworkAbstraction;	
-
-        /// raw data received from client that doesn't comprise a full request
-        std::string m_sBuffer;
-
-        /// holds out-of-order httpresponses that aren't ready to go out yet
-        HttpResponseMap m_oHttpResponseMap;
-
-        /// holds pending requests
-        HttpRequestList m_oHttpRequestList;
-
-        /// address from which the connection originated
-        std::string m_sAddress;
-
-        /// remote port from which the connection originated
-        int m_nPort;
-
-        size_t m_nMaxRequestSize;
-
-    public:
-
-        /// Constructor
-        EHSConnection ( NetworkAbstraction * ipoNetworkAbstraction,
-                EHSServer * ipoEHSServer );
-
-        /// destructor
-        ~EHSConnection ( );
-
-        pthread_mutex_t m_oMutex; ///< mutex protecting entire object
-
-        /// updates the last activity to the current time
-        void UpdateLastActivity ( ) { m_nLastActivity = time ( NULL ); }
-
-        /// returns the time of last activity
-        time_t LastActivity ( ) { return m_nLastActivity; }
-
-        /// returns whether we're still reading from this socket -- mutex must be locked
-        bool StillReading ( ) { return !m_bDoneReading; }
-
-        /// returns whether the client has disconnected from us -- mutex must be locked
-        bool Disconnected ( ) { return m_bDisconnected; }
-
-        /// call when no more reads will be performed on this object.
-        ///  ibDisconnected is true when client has disconnected
-        void DoneReading ( bool ibDisconnected );
-
-        /// gets the next request object
-        HttpRequest * GetNextRequest ( );
-
-        /// returns true if object should be deleted
-        int CheckDone ( );
-
-        /// Enumeration result for AddBuffer
-        enum AddBufferResult { ADDBUFFER_INVALID = 0,
-            ADDBUFFER_OK,
-            ADDBUFFER_INVALIDREQUEST,
-            ADDBUFFER_TOOBIG };
-
-        /// adds new data to psBuffer
-        AddBufferResult AddBuffer ( char * ipsData, int inSize );
-
-        /// sends the actual data back to the client
-        void SendHttpResponse ( HttpResponse * ipoHttpResponse);
-
-        /// adds a response to the response list and sends as many responses as are ready -- takes over the memory in ipoHttpResponse
-        void AddResponse ( HttpResponse * ipoHttpResponse );
-
-        /// returns address of connection
-        std::string GetAddress ( ) { return m_sAddress; }
-
-        /// returns client port of connection
-        int GetPort ( ) { return m_nPort; }
-
-        /// returns true of httprequestlist is not empty
-        int RequestsPending ( ) { return !m_oHttpRequestList.empty ( ); }
-
-        /// returns underlying network abstraction
-        NetworkAbstraction * GetNetworkAbstraction ( );
-
-        /// Sets the maximum request size
-        void SetMaxRequestSize ( size_t n ) { m_nMaxRequestSize = n; }
-
-};
-
-class EHSServer;
-
-/// EHS provides HTTP server functionality to a child class
-/**
- * EHS provides HTTP server functionality to a child class.  The child class 
- * must inherit from it and then override HandleRequest ( ).
- */
-class EHS {
-
-    private:
-        EHS ( const EHS & );
-
-        EHS & operator = ( const EHS & );
-
-    protected:
-
-        /// stores path => EHSConnection pairs for path/tree traversal
+        /// Stores path => EHSConnection pairs for path/tree traversal
         EHSMap m_oEHSMap;
 
-        /// points to the EHS object this object was registered with, NULL if top level
-        EHS * m_poParent; 
+        /// Points to the EHS object this object was registered with, NULL if top level
+        EHS *m_poParent; 
 
-        /// the string that this EHS object is regestered as
+        /// The string that this EHS object is regestered as
         std::string m_sRegisteredAs;
 
         /// EHSServer object associated with this EHS object
-        EHSServer * m_poEHSServer;
+        EHSServer *m_poEHSServer;
 
-        /// source EHS object to route requests to for data instead of processing it ourselves
-        EHS * m_poSourceEHS;
+        /// Source EHS object to route requests to for data instead of processing it ourselves
+        EHS *m_poSourceEHS;
 
         /// Our bind helper
         PrivilegedBindHelper *m_poBindHelper;
 
     public:
 
-        /// default constructor that can set a parrent and a path name
-        EHS ( EHS * ipoParent = NULL, std::string isRegisteredAs = "" );
+        /**
+         * Constructs a new instance as child of another EHS instance.
+         * @param parent The parent EHS instance.
+         * @param registerpath The URI path which the new instance should handle.
+         */
+        EHS(EHS *parent = NULL, std::string registerpath = "");
 
-        /// destructor
-        virtual ~EHS ( );
+        /**
+         * Destructor
+         */
+        virtual ~EHS ();
 
-        /// set the certificate file for use in HTTPS transactions
-        void SetCertificateFile ( std::string & irsCertificateFile );
-
-        /// set certificate passphrase
-        void SetCertificatePassphrase ( std::string & irsCertificatePassphrase );
-
-        /// sets a new passphrase callback function
-        void SetPassphraseCallback ( int ( * m_ipfOverridePassphraseCallback ) ( char *, int, int, void * ) );
-
-        /// sets the poParent member of this class to the specified EHS.  This is how an EHS object can unregister itself on destruction
-        void SetParent ( EHS * ipoParent, std::string isRegisteredAs );
-
+        /**
+         * Default PassphraseHandler implementation. Takes passphrase from
+         * server parameters without prompting.
+         * @param twice If true, an interactive implementation should ask
+         *   twice for a passphrase in order to eliminate typing errors.
+         * @return A std::string holding the passphrase.
+         */
+        virtual const std::string GetPassphrase(bool twice);
 
         /// Enumeration for error results for RegisterEHSResult
-        enum RegisterEHSResult { REGISTEREHSINTERFACE_INVALID = 0,
+        enum RegisterEHSResult {
+            REGISTEREHSINTERFACE_INVALID = 0,
             REGISTEREHSINTERFACE_ALREADYEXISTS,
-            REGISTEREHSINTERFACE_SUCCESS };
-
-        /// this associates an EHS object with this EHS object under the path ipsRegisterPath
-        RegisterEHSResult
-            RegisterEHS ( EHS * ipoEHS,
-                    const char * ipsRegisterPath );
+            REGISTEREHSINTERFACE_SUCCESS
+        };
 
         /// Enumeration for error results for UnregisterEHSResult
-        enum UnregisterEHSResult { UNREGISTEREHSINTERFACE_INVALID = 0,
+        enum UnregisterEHSResult {
+            UNREGISTEREHSINTERFACE_INVALID = 0,
             UNREGISTEREHSINTERFACE_NOTREGISTERED,
-            UNREGISTEREHSINTERFACE_SUCCESS };
+            UNREGISTEREHSINTERFACE_SUCCESS
+        };
 
-        /// Unregister an EHS object from the specified path
-        UnregisterEHSResult
-            UnregisterEHS ( char * ipsRegisterPath );
+        /**
+         * Instructs this EHS instance to invoke HandleRequest of another EHS instance
+         * whenever a specific URI is requested.
+         * @param child The foreign EHS instance which shall handle the requests.
+         * @param uripath The relative URI path, that shall be handled by the child.
+         * @return RegisterEHSResult reflecting the outcome.
+         **/
+        RegisterEHSResult RegisterEHS(EHS *child, const char *uripath);
 
-        /// this is responsible for routing a request through the EHS tree and sending the request to the final destination.  It returns the HttpResponse object to be sent back to the client
-        HttpResponse * RouteRequest ( HttpRequest * ipoHttpRequest );
+        /**
+         * Removes a previously registered path registration.
+         * @param uripath The URI path to be removed.
+         * @return UnregisterEHSResult reflecting the outcome.
+         */
+        UnregisterEHSResult UnregisterEHS (char *uripath);
 
-        /// This function should be defined by the subclass
-        virtual ResponseCode HandleRequest ( HttpRequest * ipoHttpRequest,
-                HttpResponse * ipoHttpResponse );
+        /**
+         * Routes a request to the appropriate instance.
+         * @param request The HTTP request to be routed.
+         * @return A pointer to the HttpResponse object, to be sent back to the client.
+         */
+        HttpResponse * RouteRequest(HttpRequest *request);
 
-        /// makes this EHS object get its data from another EHS -- useful for having secure and normal connections share same data
-        void SetSourceEHS ( EHS & iroSourceEHS );
+        /**
+         * Main request handler.
+         * Reimplement this method in a derived class in order to implement the
+         * actual functionality.
+         * @param request Pointer to the HTTP request that triggered invocation of this method.
+         * @param response Pointer to the HTTP response that is going to be sent to the client.
+         *   In derived methods, populate the HttpResponse with your data.
+         * @returns The HTTP response code to be sent to the client.
+         */
+        virtual ResponseCode HandleRequest(HttpRequest *request, HttpResponse *response);
 
+        /**
+         * Establishes this EHS instance as request handler of another EHS instance.
+         * Any HTTP request received by the other EHS instance will be handled by this
+         * instance's HandleRequest method.
+         * @param source A reference to the source EHS instance.
+         */
+        void SetSourceEHS (EHS & source);
 
-        /// result codes for StartServer and StartSErver_Threaded
-        enum StartServerResult { STARTSERVER_INVALID = 0,
+        /**
+         * Result codes for StartServer
+         */
+        enum StartServerResult {
+            STARTSERVER_INVALID = 0,
             STARTSERVER_SUCCESS,
             STARTSERVER_NODATASPECIFIED,
             STARTSERVER_ALREADYRUNNING,
             STARTSERVER_SOCKETSNOTINITIALIZED,
             STARTSERVER_THREADCREATIONFAILED,
-            STARTSERVER_FAILED };
+            STARTSERVER_FAILED
+        };
 
-
-
-        /// stores a map with server parameters
+        /// Stores a map with server parameters
         EHSServerParameters m_oEHSServerParameters;
 
-        /// do everything needed to start server
-        StartServerResult StartServer ( EHSServerParameters & iroEHSServerParameters );
+        /**
+         * Starts up this instance. If configured to run in threaded mode,
+         * the main listener thread as well as all worker threads are started.
+         * @param params An EHSServerParameters map used for configuring this instance.
+         * @return A StartServerResult reflecting the outcome.
+         */
+        StartServerResult StartServer(EHSServerParameters &params);
 
+        /**
+         * Shuts down this instance. If running in threaded mode, all associated threads
+         * are stopped. Stopping threads is a blocking operation. This method returns,
+         * if all relevant threads are terminated.
+         */
+        void StopServer();
 
-        /// brings down socket stuff.  If StartServer_Threaded() was called it also stops that by setting the nServerStopped variable
-        void StopServer ( );
+        /**
+         * Dispatches incoming data.
+         */ 
+        void HandleData(int timeout = 0);
 
-        /// This looks for incoming connections in EHSServer.
-        void HandleData ( int inTimeoutMilliseconds = 0 );
-
-        /// Called at the start of a thread routine.
-        /// Should return true, if everything is OK, false otherwise.
+        /**
+         * Hook for thread startup.
+         * Called at the start of a thread routine.
+         * Reimplement this method in a derived class, if you need to
+         * perform any task (like setting up thread-local storage) at
+         * the start of a thread.
+         * @return true, if everything is OK, false otherwise.
+         */
         virtual bool ThreadInitHandler();
 
-        /// Called at exit of a thread routine
+        /**
+         * Hook for thread shutdown.
+         * Called at exit of a thread routine.
+         * Reimplement this method in a derived class, if you need to
+         * perform any task (like some cleanup) just before the thread
+         * is terminating.
+         */
         virtual void ThreadExitHandler();
 
-        /// Sets a PrivilegedBindHelper for use by the network abstraction layer.
+        /**
+         * Hook for handling exceptions in threads.
+         * Called, when an exception was thrown from within a thread.
+         * Reimplement this method in a derived class, if you want to handle your
+         * own exceptions. The default implementation prints the exception's
+         * message on cerr and returns NULL. If returning NULL, you still should
+         * invoke StopServer in order to terminate the server's remaining threads.
+         * @param tid The thread ID of the thread that has thrown the exception.
+         * @param request The current HTTP request that was active wile the exception was thrown.
+         * @param ex The exception that was thrown. Any C-Style exceptions are
+         *   thrown as runtime_exception("unspecified").
+         * @return NULL if the thread should exit; an appropriate
+         *   HTTP response, if the thread should continue.
+         */
+        virtual HttpResponse *HandleThreadException(pthread_t tid, HttpRequest *request, std::exception & ex);
+
+        /**
+         * Retrieve the server's exception status.
+         * @return true if the server should terminate.
+         */
+        bool ShouldTerminate() const;
+
+        /**
+         * Sets a PrivilegedBindHelper for use by the network abstraction layer.
+         * @param helper A pointer to a PrivilegedBindHelper instance, implementing
+         *   the bind operation to a privileged port. Without this helper, an instance
+         *   cannot bind to privileged ports (ports < 1024) unless running as root.
+         *   The BindPrivilegedPort method will only be called for ports < 1024.
+         */
         void SetBindHelper(PrivilegedBindHelper *helper)
         {
             m_poBindHelper = helper;
         }
 
-        /// Retieves our PrivilegedBindHelper.
-        PrivilegedBindHelper * GetBindHelper()
+        /**
+         * Retieves our PrivilegedBindHelper.
+         * @return The current helper, or NULL if no helper was set.
+         */
+        PrivilegedBindHelper * GetBindHelper() const
         {
             return m_poBindHelper;
         }
-};
 
-/// EHSServer contains all the network functionality for EHS
-/**
- * EHSServer has all the network related services for EHS.  It is responsible
- *   for accepting new connections and getting EHSConnection objects set up
- */
-class EHSServer {
-
-    private:
-
-        EHSServer ( const EHSServer & );
-
-        EHSServer & operator = ( const EHSServer & );
-
-    public:
-
-        /// consturctor for an EHSServer -- takes parameters out of ipoTopLevelEHS->m_oEHSServerParameters;
-        EHSServer ( EHS * ipoTopLevelEHS );
-        virtual ~EHSServer ( );
-
-        /// removes the specified EHSConnection object, returns true if it actually found something to remove
-        int RemoveEHSConnection ( EHSConnection * ipoEHSConnection );
-
-        /// disconnects idle connections
-        int ClearIdleConnections ( );
-
-        /// removes all connections from the server that are no longer active
-        int RemoveFinishedConnections ( );
-
-        /// sets default http response headers, such as date, and content type
-        void InitHttpResponse ( HttpResponse * ipoHttpResponse );
-
-        /// stops the server
-        void EndServerThread ( const char * ipsReason );
-
-        /// main function that deals with client connections and getting data
-        void HandleData ( int inTimeoutMilliseconds, pthread_t inThreadId = NULL ); 
-
-        /// check clients that are already connected
-        void CheckClientSockets ( );
-
-        /// check the listen socket for a new connection
-        void CheckAcceptSocket ( );
-
-        /// Enumeration on the current running status of the EHSServer
-        enum ServerRunningStatus { SERVERRUNNING_INVALID = 0,
-            SERVERRUNNING_NOTRUNNING,
-            SERVERRUNNING_SINGLETHREADED,
-            SERVERRUNNING_THREADPOOL,
-            SERVERRUNNING_ONETHREADPERREQUEST
-        };
-
-        /// Current running status of the EHSServer
-        ServerRunningStatus m_nServerRunningStatus;
-
-        /// reason for shutting down
-        std::string m_sShutdownReason;
-
-        /// this runs in a loop until told to stop by StopServer() -- runs off it's own thread created by StartServer_Threaded
-        void HandleData_Threaded ( );
-
-        /// pointer back up to top-most level EHS object
-        EHS * m_poTopLevelEHS;
-
-        /// gets a pending request
-        HttpRequest * GetNextRequest ( );
-
-        /// whether we accepted a new connection last time through
-        bool m_bAcceptedNewConnection;
-
-        /// returns number of requests pending
-        int RequestsPending ( ) { return m_nRequestsPending; }
-
-        /// increments the number of pending requests
-        void IncrementRequestsPending ( ) { m_nRequestsPending++; }
-
-        /// mutex for controlling who is accepting or processing jobs
-        pthread_mutex_t m_oMutex;
-
-        /// condition for when a thread is done accepting and there may be more jobs to process
-        pthread_cond_t m_oDoneAccepting;
-
-        /// static method for starting threaded mode -- pthreads can't start a thread on a normal member function, only static
-        static void * PthreadHandleData_ThreadedStub ( void * ipData );
-
-    protected:
-
-        /// number of requests waiting to be processed
-        int m_nRequestsPending;
-
-        /// number of threads currently accepting (0 or 1)
-        int m_nAccepting;
-
-        /// this is the server name sent out in the response headers
-        std::string m_sServerName;
-
-        /// creates the poll array with the accept socket and any connections present
-        int CreateFdSet ( );
-
-        /// this is the read set for sending to select(2)
-        fd_set m_oReadFds;
-
-        /// List of all connections currently attached to the server
-        EHSConnectionList m_oEHSConnectionList;
-
-        /// the network abstraction this server is listening on
-        NetworkAbstraction * m_poNetworkAbstraction;
-
-        /// pthread identifier for the accept thread -- only used when started in threaded mode
-        pthread_t m_nAcceptThreadId;
-
-        /// number of seconds a connection can be idle before disconnect
-        int m_nIdleTimeout;
-
-        int m_nThreads;
 };
 
 #endif // EHS_H

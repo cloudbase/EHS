@@ -32,28 +32,25 @@
 #endif
 
 #include "httpresponse.h"
+#include "formvalue.h"
+#include "httprequest.h"
 #include "datum.h"
-#include <cassert>
 #include <ctime>
 #include <clocale>
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using namespace std;
 
-string CreateHttpTime ( )
+string HttpResponse::HttpTime ( time_t stamp )
 {
-    // 30 is a magic number that is the length of the http
-    //   time format + 1 for NULL terminator
-
     char buf[30];
-    time_t t = time ( NULL );
     char *ol = setlocale(LC_TIME, "C"); // We want english (C)
-    strftime ( buf, 30, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
-    setlocale(LC_TIME, ol);
+    strftime ( buf, 30, "%a, %d %b %Y %H:%M:%S GMT", gmtime( &stamp ));
+    setlocale(LC_TIME, ol); // restore locale
     return string(buf);
-
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -64,7 +61,7 @@ string CreateHttpTime ( )
 HttpResponse::HttpResponse ( int inResponseId,
         EHSConnection * ipoEHSConnection ) :
     m_nResponseCode ( HTTPRESPONSECODE_INVALID ),	
-    m_oResponseHeaders ( StringMap ( ) ),
+    m_oResponseHeaders ( StringCaseMap ( ) ),
     m_oCookieList ( StringList ( ) ),
     m_poEHSConnection ( ipoEHSConnection ),
     m_nResponseId ( inResponseId ),
@@ -75,13 +72,13 @@ HttpResponse::HttpResponse ( int inResponseId,
     cerr << "[EHS_MEMORY] Allocated: HttpResponse" << endl;
 #endif   
 
-    string httpTime = CreateHttpTime ( );
     // General Header Fields (HTTP 1.1 Section 4.5)
-    m_oResponseHeaders [ "date" ] = httpTime;
-    m_oResponseHeaders [ "cache-control" ] = "no-cache";
-    m_oResponseHeaders [ "last-modified" ] = httpTime;
-    m_oResponseHeaders [ "content-type" ] = "text/html";
-    m_oResponseHeaders [ "content-length" ] = "0";
+    time_t t = time ( NULL );
+    SetDate ( t );
+    SetLastModified ( t );
+    m_oResponseHeaders [ "Cache-Control" ] = "no-cache";
+    m_oResponseHeaders [ "Content-Type" ] = "text/html";
+    m_oResponseHeaders [ "Content-Length" ] = "0";
 }
 
 HttpResponse::~HttpResponse ( )
@@ -92,7 +89,48 @@ HttpResponse::~HttpResponse ( )
     delete [] m_psBody;
 }
 
-// sets informatino regarding the body of the HTTP response
+///< HTTP response code to get text version of
+const char *HttpResponse::GetPhrase(ResponseCode code)
+{
+    static map<int, const char *> responsePhrase;
+    static bool init = true;
+    if (init) {
+        init = false;
+        responsePhrase[HTTPRESPONSECODE_200_OK] = "OK";
+        responsePhrase[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
+        responsePhrase[HTTPRESPONSECODE_302_FOUND] = "FOUND";
+        responsePhrase[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
+        responsePhrase[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
+        responsePhrase[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
+        responsePhrase[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
+        responsePhrase[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
+    }
+    map<int, const char *>::const_iterator i = responsePhrase.find(code);
+    return (responsePhrase.end() == i) ? "INVALID" : i->second;
+}
+
+HttpResponse *HttpResponse::Error (ResponseCode code, HttpRequest *request)
+{
+    HttpResponse *ret = new HttpResponse(request->Id(), request->Connection());
+    ret->SetResponseCode(code);
+    ostringstream oss;
+    oss << "<html><head><title>" << code << " " << GetPhrase(code)
+        << "</title><body>"  << code << " " << GetPhrase(code) << "</body></html>";
+    ret->SetBody(oss.str().c_str(), oss.str().length());
+    return ret;
+}
+
+void HttpResponse::SetDate ( time_t stamp )
+{
+    m_oResponseHeaders [ "Date" ] = HttpTime( stamp );
+}
+
+void HttpResponse::SetLastModified ( time_t stamp )
+{
+    m_oResponseHeaders [ "Last-Modified" ] = HttpTime( stamp );
+}
+
+// sets information regarding the body of the HTTP response
 //   sent back to the client
 void HttpResponse::SetBody ( const char * ipsBody, ///< body to return to user
         int inBodyLength ///< length of the body
@@ -102,15 +140,16 @@ void HttpResponse::SetBody ( const char * ipsBody, ///< body to return to user
         delete [] m_psBody;
     }
     m_psBody = new char [ inBodyLength + 1 ];
-    assert ( m_psBody != NULL );
+    if ( NULL == m_psBody ) {
+        throw runtime_error ( "HttpResponse::SetBody: Could not allocate m_psBody" ); 
+    }
     memset ( m_psBody, 0, inBodyLength + 1 );
     memcpy ( m_psBody, ipsBody, inBodyLength );
 
     ostringstream oss;
     oss << inBodyLength;
-    m_oResponseHeaders [ "content-length" ] = oss.str();
+    m_oResponseHeaders [ "Content-Length" ] = oss.str();
 }
-
 
 // this will send stuff if it's not valid.. 
 void HttpResponse::SetCookie ( CookieParameters & iroCookieParameters )

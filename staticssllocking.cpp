@@ -30,7 +30,9 @@
 #ifdef COMPILE_WITH_SSL
 
 #include "staticssllocking.h"
+#include <stdexcept>
 
+using namespace std;
 
 // deal with static variables
 pthread_mutex_t * StaticSslLocking::poMutexes;
@@ -59,7 +61,9 @@ StaticSslLocking::StaticSslLocking ( )
     // allocate the needed number of locks
     StaticSslLocking::poMutexes = new pthread_mutex_t [ CRYPTO_num_locks ( ) ];
 
-    assert ( StaticSslLocking::poMutexes != NULL );
+    if ( NULL == StaticSslLocking::poMutexes ) {
+        throw runtime_error ( "StaticSslLocking::StaticSslLocking: Could not allocate poMutexes" ) ;
+    }
 
     // initialize the mutexes
     for ( int i = 0; i < CRYPTO_num_locks ( ); i++ ) {
@@ -72,7 +76,9 @@ StaticSslLocking::StaticSslLocking ( )
 
 StaticSslLocking::~StaticSslLocking ( )
 {
-    assert ( StaticSslLocking::poMutexes != NULL );
+    if ( NULL == StaticSslLocking::poMutexes ) {
+        throw runtime_error ( "StaticSslLocking::~StaticSslLocking: poMutexes is NULL" ) ;
+    }
 
     CRYPTO_set_id_callback ( NULL );
     CRYPTO_set_locking_callback ( NULL );

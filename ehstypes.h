@@ -27,9 +27,11 @@
 #define EHSTYPES_H
 
 #include <string>
+#include <cstring>
 #include <map>
 #include <list>
 
+class EHSServer;
 class EHSConnection;
 class EHS;
 class Datum;
@@ -37,16 +39,35 @@ class FormValue;
 class HttpResponse;
 class HttpRequest;
 
+/**
+ * Caseless Compare class for case insensitive map
+ */
+struct __caseless
+{
+    /**
+     * case-insensitive comparator
+     */
+    bool operator() ( const std::string & s1, const std::string & s2 ) const
+    {
+        return strcasecmp( s1.c_str(), s2.c_str() ) < 0;
+    }
+};
+
+/// @file ehstypes.h
+
 /// generic std::string => std::string map used by many things
 typedef std::map < std::string, std::string > StringMap;
+
+/// std::string => std::string map with case-insensitive search
+typedef std::map < std::string, std::string, __caseless > StringCaseMap;
 
 /// generic list of std::strings
 typedef std::list < std::string > StringList;
 
-/// Define a list of EHSConnection objects to handle all current connections
+/// list of EHSConnection objects to handle all current connections
 typedef std::list < EHSConnection * > EHSConnectionList;
 
-// map for registered EHS objects on a path
+/// map for registered EHS objects on a path
 typedef std::map < std::string, EHS * > EHSMap;
 
 /// map type for storing EHSServer parameters

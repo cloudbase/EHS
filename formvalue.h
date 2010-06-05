@@ -31,11 +31,10 @@
 #include "ehstypes.h"
 #include "contentdisposition.h"
 
-/// This is how data is passed in from the client has to be more complicated because of metadata associated with MIME-style attachments
 /**
- * This is how data is passed in from the client has to be more complicated because of metadata 
- *   associated with MIME-style attachments.  Each element of a form is put into a ContentDisposition
- *   object which can be looked at in HandleRequest to see what data might have been sent in.
+ * This class handles form data sent from the client in GET and POST requests.
+ * Metadata within MIME-style attachments is decoded and stored into members of this class.
+ * Each element of a form is put into a ContentDisposition object for later retrieval.
  */
 class FormValue {
 

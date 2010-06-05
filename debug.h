@@ -30,14 +30,6 @@
 # include <iostream>
 #endif
 
-#define EHS_ASSERT assert
-
-#ifdef EHS_DEBUG
-# define EHS_VERIFY(test) EHS_ASSERT(test)
-#else
-# define EHS_VERIFY(test)	test
-#endif
-
 inline void EHS_TRACE( const char* szFormat ... )
 {
 #ifdef EHS_DEBUG

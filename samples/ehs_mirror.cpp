@@ -26,16 +26,17 @@
 #include <ehs.h>
 #include <iostream>
 #include <sstream>
+#include <cstdlib>
 
 using namespace std;
 
 class MyEHS : public EHS { 
-	
+
 	ResponseCode HandleRequest ( HttpRequest * request, HttpResponse * response ) {
 
         ostringstream oss;
         oss << "ehs_mirror: Secure - " << (request->Secure() ? "yes" : "no") << endl
-            << request->GetAddress() << ":" << request->GetPort() << endl;
+            << request->Address() << ":" << request->Port() << endl;
 		response->SetBody ( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
 	}

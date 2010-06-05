@@ -40,19 +40,15 @@ class Datum {
         /// holds the data in string form
         std::string sDatum;
 
-        /// holds the data in pointer form
-        void * pDatum;
-
-    private:
-        Datum & operator = ( const Datum & );
-
-        // Datum ( const Datum & );
-
     public:
+        /// Default constructor
+        Datum ( ) : sDatum ( "" ) { }
 
-        Datum ( ) : sDatum ( "" ), pDatum ( NULL ) { }
+        /// Copy constructor
+        Datum ( const Datum & other ) : sDatum( other.sDatum ) { }
 
-        Datum ( const Datum & other ) : sDatum( other.sDatum ), pDatum( other.pDatum ) { }
+        /// Assignment operator
+        Datum & operator=( const Datum & other );
 
         /// assignment operator for unsigned long
         Datum & operator= ( unsigned long inUL );

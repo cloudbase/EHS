@@ -30,12 +30,17 @@
 #ifdef COMPILE_WITH_SSL
 
 #include "dynamicssllocking.h"
+#include <stdexcept>
+
+using namespace std;
 
 CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char *, int )
 {
 	CRYPTO_dynlock_value * poDynlock = new CRYPTO_dynlock_value;
 
-	assert ( poDynlock != NULL );
+    if ( NULL == poDynlock ) {
+        throw runtime_error ( "DynamicSslLocking::DynamicLockCreateCallback: Could not allocate poDynlock" );
+    }
 
 	pthread_mutex_init ( &poDynlock->oMutex, NULL );
 	return poDynlock;

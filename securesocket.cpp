@@ -27,6 +27,7 @@
 # include "config.h"
 #endif
 
+#include "ehs.h"
 #include "securesocket.h"
 
 #ifdef COMPILE_WITH_SSL
@@ -44,13 +45,12 @@ SslError * SecureSocket::poSslError = NULL;
 SSL_CTX * SecureSocket::poCtx = NULL;
 int SecureSocket::refcount = 0;
 
-SecureSocket::SecureSocket ( std::string isServerCertificate,
-        std::string isServerCertificatePassphrase) : 
-    Socket ( ),
-    m_poAcceptSsl ( NULL ),
-    m_sServerCertificate ( isServerCertificate ),
-    m_sServerCertificatePassphrase ( isServerCertificatePassphrase ),
-    m_pfOverridePassphraseCallback ( NULL )
+SecureSocket::SecureSocket (std::string isServerCertificate,
+        PassphraseHandler *handler) : 
+    Socket(),
+    m_poAcceptSsl(NULL),
+    m_sServerCertificate (isServerCertificate),
+    m_poPassphraseHandler(handler)
 { 
     refcount++;
 #ifdef EHS_DEBUG
@@ -58,14 +58,13 @@ SecureSocket::SecureSocket ( std::string isServerCertificate,
 #endif
 }
 
-SecureSocket::SecureSocket ( SSL * ipoAcceptSsl, 
+SecureSocket::SecureSocket (SSL * ipoAcceptSsl, 
         int inAcceptSocket, 
-        sockaddr_in * ipoInternetSocketAddress ) :
-    Socket ( inAcceptSocket, ipoInternetSocketAddress ),
-    m_poAcceptSsl ( ipoAcceptSsl ),
-    m_sServerCertificate ( "" ),
-    m_sServerCertificatePassphrase ( "" ),
-    m_pfOverridePassphraseCallback ( NULL )
+        sockaddr_in * ipoInternetSocketAddress) :
+    Socket(inAcceptSocket, ipoInternetSocketAddress),
+    m_poAcceptSsl(ipoAcceptSsl),
+    m_sServerCertificate(""),
+    m_poPassphraseHandler(NULL)
 {
     refcount++;
 #ifdef EHS_DEBUG
@@ -78,7 +77,7 @@ SecureSocket::~SecureSocket ( )
 #ifdef EHS_DEBUG
     std::cerr << "calling SecureSocket destructor" << std::endl;
 #endif
-    Close ( );
+    Close();
     if ( m_poAcceptSsl ) {
         SSL_free( m_poAcceptSsl );
     }
@@ -271,40 +270,15 @@ SecureSocket::InitializeCertificates ( ) {
     }
 #endif
 
-    // if no callback is specified, use the default one
-    if ( m_pfOverridePassphraseCallback == NULL ) {
-#ifdef EHS_DEBUG
-        cerr << "setting passphrase callback to default";
-#endif
-        m_pfOverridePassphraseCallback = SecureSocket::DefaultCertificatePassphraseCallback;
-    } else {
-#ifdef EHS_DEBUG
-        cerr << "NOT setting passphrase callback to default" << endl;
-#endif
-    }
+    // set the callback
+    SSL_CTX_set_default_passwd_cb(poCtx, PassphraseCallback);
+    // set the data
+    SSL_CTX_set_default_passwd_cb_userdata(poCtx, reinterpret_cast<void *>(this));
 
-    if ( m_sServerCertificatePassphrase != "" ) {
-#ifdef EHS_DEBUG
-        cerr << "default callback is at " << hex
-            << reinterpret_cast<void *>(SecureSocket::DefaultCertificatePassphraseCallback) << endl;
-
-        cerr
-            << "setting callback to '"
-            << hex << m_pfOverridePassphraseCallback
-            << "' and passphrase = '" << m_sServerCertificatePassphrase << "'" << endl;
-#endif
-        // set the callback
-        SSL_CTX_set_default_passwd_cb ( poCtx, 
-                m_pfOverridePassphraseCallback );
-        // set the data
-        SSL_CTX_set_default_passwd_cb_userdata ( poCtx, 
-                (void *) &m_sServerCertificatePassphrase );
-    }
-
-    if ( m_sServerCertificate != "" ) {
-        if ( SSL_CTX_use_certificate_chain_file ( poCtx, m_sServerCertificate.c_str ( ) ) != 1 ) {
+    if (m_sServerCertificate != "") {
+        if (SSL_CTX_use_certificate_chain_file(poCtx, m_sServerCertificate.c_str()) != 1) {
             string sError;
-            g_oSslError.GetError ( sError );
+            g_oSslError.GetError(sError);
 #ifdef EHS_DEBUG
             cerr
                 << "Error loading server certificate '" << m_sServerCertificate
@@ -314,10 +288,7 @@ SecureSocket::InitializeCertificates ( ) {
             poCtx = NULL;
             return NULL;
         }
-    }
-
-    if ( m_sServerCertificate != "" ) {
-        if ( SSL_CTX_use_PrivateKey_file ( poCtx, m_sServerCertificate.c_str ( ), SSL_FILETYPE_PEM ) != 1 ) {
+        if (SSL_CTX_use_PrivateKey_file(poCtx, m_sServerCertificate.c_str(), SSL_FILETYPE_PEM) != 1) {
 #ifdef EHS_DEBUG
             cerr << "Error loading private key" << endl;
 #endif
@@ -327,17 +298,17 @@ SecureSocket::InitializeCertificates ( ) {
         }
     }
 
-    SSL_CTX_set_verify ( poCtx, 0//SSL_VERIFY_PEER 
+    SSL_CTX_set_verify( poCtx, 0//SSL_VERIFY_PEER 
             //| SSL_VERIFY_FAIL_IF_NO_PEER_CERT
             ,
-            PeerCertificateVerifyCallback );
+            PeerCertificateVerifyCallback);
 
-    //SSL_CTX_set_verify_depth ( poCtx, 4 );
+    //SSL_CTX_set_verify_depth(poCtx, 4);
 
     // set all workarounds for buggy clients and turn off SSLv2 because it's insecure
-    SSL_CTX_set_options ( poCtx, SSL_OP_ALL | SSL_OP_NO_SSLv2 );
+    SSL_CTX_set_options(poCtx, SSL_OP_ALL | SSL_OP_NO_SSLv2);
 
-    if ( SSL_CTX_set_cipher_list ( poCtx, CIPHER_LIST ) != 1 ) {
+    if (SSL_CTX_set_cipher_list(poCtx, CIPHER_LIST) != 1) {
 #ifdef EHS_DEBUG
         cerr << "Error setting ciper list (no valid ciphers)" << endl;
 #endif
@@ -350,43 +321,43 @@ SecureSocket::InitializeCertificates ( ) {
 }
 
 
-int SecureSocket::Read ( void * ipBuffer, int ipBufferLength )
+int SecureSocket::Read(void * ipBuffer, int ipBufferLength)
 {
-    int nReadResult = SSL_read (m_poAcceptSsl, ipBuffer, ipBufferLength );
+    int nReadResult = SSL_read(m_poAcceptSsl, ipBuffer, ipBufferLength);
     // TODO: should really handle errors here
     return nReadResult;
 }
 
-int SecureSocket::Send ( const void * ipMessage, size_t inLength, int )
+int SecureSocket::Send (const void * ipMessage, size_t inLength, int)
 {
-    int nWriteResult = SSL_write ( m_poAcceptSsl, ipMessage, inLength );
+    int nWriteResult = SSL_write(m_poAcceptSsl, ipMessage, inLength);
     // TODO: should really handle errors here
     return nWriteResult;
 }
 
-void SecureSocket::Close ( )
+void SecureSocket::Close()
 {
-    Socket::Close ( );
+    Socket::Close();
 }
 
     int 
-SecureSocket::DefaultCertificatePassphraseCallback ( char * ipsBuffer,
-        int ,
-        int ,
-        void * ipUserData )
+SecureSocket::PassphraseCallback(char * buf, int bufsize, int rwflag, void * userdata)
 {
 #ifdef EHS_DEBUG
-    cerr << "Using default certificate passphrase callback function" << endl;
+    cerr << "Invoking certificate passphrase callback" << endl;
 #endif
-    strcpy ( ipsBuffer, ((string *)ipUserData)->c_str ( ) );
-    int nLength = ((string *)ipUserData)->length ( );
-    return nLength;
-}
-
-    void 
-SecureSocket::SetPassphraseCallback ( int ( * ipfOverridePassphraseCallback ) ( char *, int, int, void * ) )
-{
-    m_pfOverridePassphraseCallback = ipfOverridePassphraseCallback;
+    SecureSocket *s = reinterpret_cast<SecureSocket *>(userdata);
+    int ret = 0;
+    if (NULL != s->m_poPassphraseHandler) {
+        string passphrase = s->m_poPassphraseHandler->GetPassphrase((1 == rwflag));
+        ret = passphrase.length();
+        if (ret > 0) {
+            ret = ((bufsize - 1) < ret) ? (bufsize - 1): ret;
+            strncpy ( buf, passphrase.c_str ( ), ret );
+            buf[ret + 1] = 0;
+        }
+    }
+    return ret;
 }
 
 #endif // COMPILE_WITH_SSL

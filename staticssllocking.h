@@ -30,7 +30,6 @@
 
 #include <openssl/crypto.h>
 #include <openssl/ssl.h>
-#include <cassert>
 
 #include <pthread.h>
 

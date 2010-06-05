@@ -25,166 +25,173 @@
 
 #include <ehs.h>
 
+#include <iostream>
 #include <fstream>
 #include <cassert>
 #include <cstring>
+#include <cstdlib>
 
 using namespace std;
 
 class tester : public EHS
 {
+    protected:
+        /**
+         * Our new request handler.
+         */
+        virtual ResponseCode HandleRequest(HttpRequest *, HttpResponse *);
+
     public:
 
+        /**
+         * Constructor
+         * @param file The file to serve.
+         */
+        tester(string file, int delay = 0):
+            EHS(), m_nDelay(delay), m_oInfile(file.c_str())
+        {
+            cout << "loading file '" << file << "'" << endl;
+            assert (m_oInfile);
+        }
+
+    private:
+        // delay
         int m_nDelay;
 
-    protected:
-
-        // override the HandleRequest method of EHS -- it's called once for each request received
-        virtual ResponseCode HandleRequest ( HttpRequest * ipoHttpRequest, HttpResponse * ipoHttpResponse );
-
-    public:
-
-        // constructor that takes a port to bind to, a server name (sent in the "Server:" header back 
-        //   to the client, and a filename to read off to the client
-        tester ( string isFilename ) : 
-            EHS ( ),
-            m_nDelay ( 0 ),
-            infile ( isFilename.c_str ( ) )
-    {
-        printf ( "loading file '%s'\n", isFilename.c_str ( ) );
-        assert ( infile );
-    }
-
-        // stores the filename
-        ifstream infile;
-
+        // our source file
+        ifstream m_oInfile;
 };
 
-ResponseCode tester::HandleRequest ( HttpRequest * ipoHttpRequest, HttpResponse * ipoHttpResponse )
+static int nRequests = 0;
+static pthread_mutex_t oRequestMutex = PTHREAD_MUTEX_INITIALIZER;
+
+ResponseCode tester::HandleRequest(HttpRequest *request, HttpResponse *response)
 {
 
-    pthread_mutex_t oMutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&oRequestMutex);
+    int nMyRequest = ++nRequests;
+    pthread_mutex_unlock(&oRequestMutex);
 
-    static int nRequests = 0;
-
-    pthread_mutex_lock ( & oMutex );
-    nRequests++;
-    int nMyRequest = nRequests;
-    pthread_mutex_unlock ( & oMutex );
-    if ( nMyRequest % 1000 == 0 ) {
-        fprintf ( stderr, "[%d]\n", nMyRequest );
+    if (0 == (nMyRequest % 1000)) {
+        cerr << "[" << nMyRequest << "]" << endl;
     }
 
-    char psBody [ 5000 ];
+    char buf[5000];
 
-    sleep ( m_nDelay );
+    sleep (m_nDelay);
+    m_oInfile.getline(buf, 4999);
+    if (m_oInfile.eof()) {
+        // At end of file start from beginning
+        m_oInfile.seekg(0);
+    }
 
-    // this no longer has to be dynamically allocated
-    infile.getline ( psBody, 4999 );
+    string sCopy(buf);
+    string sBody(buf);
 
-    string sWordCopy = psBody;
-
-    strcat ( psBody, "<br>previous word: " );
-    strcat ( psBody, ipoHttpRequest->Cookies ( "ehs_test_cookie" ).c_str ( ) );
-
-    ipoHttpResponse->SetBody ( psBody, strlen ( psBody ) );
+    sBody.append("<br>previous line: ").append(request->Cookies("ehs_test_cookie"));
+    response->SetBody(sBody.c_str(), sBody.length());
 
     // throw in a cookie here, just to show how it's done
     CookieParameters oCP;
     oCP["name"] = "ehs_test_cookie";
-    oCP["value"] = sWordCopy;
+    oCP["value"] = sCopy;
+    response->SetCookie(oCP);
+
     // more attributes can go here
-    ipoHttpResponse->SetCookie ( oCP );
 
     return HTTPRESPONSECODE_200_OK;
-
 }
 
-int main ( int argc, char ** argv )
+string basename(const string & s)
+{
+    string ret(s);
+    size_t pos = ret.rfind("/");
+    if (pos != ret.npos)
+        ret.erase(0, pos);
+    return ret;
+}
+
+int main(int argc, char **argv)
 {
 
-    if ( argc < 4 ) {
-        fprintf ( stderr, "Usage: %s [mode] [port] [file] <delay> <threadcount> <norouterequest>)\n", argv[0] );
-        fprintf ( stderr, "\tModes: 1 - Single Threaded (last parameter ignored)\n" );
-        fprintf ( stderr, "\tModes: 2 - Multithreaded, fixed number of threads\n" );
-        fprintf ( stderr, "\tModes: 3 - Multithreaded, one thread per request (last parameter ignored)\n" );
-        fprintf ( stderr, "\tnorouterequest: if anything is specified, requests will not be routed\n" );
-
-
-        exit ( 0 );
+    if (argc < 4) {
+        string cmd = basename(argv[0]);
+        cerr << "Usage: " << cmd << " [mode] [port] [file] <delay> <threadcount> <norouterequest>)" << endl;
+        cerr << "\tModes: 1 - Single Threaded (last parameter ignored)" << endl;
+        cerr << "\tModes: 2 - Multithreaded, fixed number of threads" << endl;
+        cerr << "\tModes: 3 - Multithreaded, one thread per request (last parameter ignored)" << endl;
+        cerr << "\tnorouterequest: if anything is specified, requests will not be routed" << endl;
+        exit(0);
     }
 
-    int nMode = atoi ( argv [ 1 ] );
-
-
-    fprintf ( stderr, "binding to %d\n", atoi ( argv [ 2 ] ) );
-    tester * srv = new tester ( argv [ 3 ] );
-
-    if ( argc >= 5 ) {
-        srv->m_nDelay = atoi ( argv [ 4 ] );
-    }
-
+    int nDelay = 0;
     int nThreadCount = 1;
-    if ( argc >= 6 ) {
-        nThreadCount = atoi ( argv [ 5 ] );
+    int nMode = atoi(argv[1]);
+
+    if (argc >= 5) {
+        nDelay = atoi(argv[4]);
     }
-
-
-    printf ( "Delay set to %d seconds\n", srv->m_nDelay );
-
-    if ( nMode == 2 ) {
-        printf ( "Starting %d threads\n", nThreadCount );
+    if (argc >= 6) {
+        nThreadCount = atoi(argv[5]);
     }
 
     EHSServerParameters oSP;
-    oSP["port"] = argv [ 2 ];
-
-    if ( argc >= 7 ) {
-        oSP [ "norouterequest" ] = 1;
+    oSP["port"] = argv[2];
+    if (argc >= 7) {
+        oSP["norouterequest"] = 1;
     }
-
-    if ( nMode == 1 ) {
-        printf ( "Running in single threaded mode\n" );
-        oSP [ "mode" ] = "singlethreaded";
-    } else if ( nMode == 2 ) {
-        printf ( "Running with a thread pool of %d threads\n", nThreadCount );
-        oSP [ "mode" ] = "threadpool";
-        oSP["threadcount"] = nThreadCount;
-    } else if ( nMode == 3 ) {
-        printf ( "Running with one thread per request\n" );
-        oSP [ "mode" ] = "onethreadperrequest";
-    } else {
-        printf ( "Invalid mode specified: must be 1, 2, or 3\n" );
-        exit ( 0 );
+    switch (nMode) {
+        case 1:
+            cout << "Running in single threaded mode" << endl;
+            oSP["mode"] = "singlethreaded";
+        case 2:
+            cout << "Running with a thread pool of " << nThreadCount << " threads" << endl;
+            oSP["mode"] = "threadpool";
+            oSP["threadcount"] = nThreadCount;
+        case 3:
+            cout << "Running with one thread per request" << endl;
+            oSP["mode"] = "onethreadperrequest";
+        default:
+            cerr << "Invalid mode specified: must be 1, 2, or 3" << endl;
+            exit(0);
     }
+    cout << "binding to " << argv[2] << endl;
+    cout << "Delay set to " << nDelay << " seconds" << endl;
 
-    srv->StartServer ( oSP );
 
-    tester a ( argv [ 3 ] );
-    tester b ( argv [ 3 ] );
+    tester srv(argv[3], nDelay);
+    srv.StartServer(oSP);
 
-    srv->RegisterEHS ( &a, "a" );
-    srv->RegisterEHS ( &b, "b" );
+    tester a(argv[3]);
+    // Handles URIs like http://localhost/a
+    srv.RegisterEHS(&a, "a");
 
-    tester aa ( argv [ 3 ] );
-    a.RegisterEHS ( &aa, "a" );
+    tester b(argv[3]);
+    // Handles URIs like http://localhost/b
+    srv.RegisterEHS(&b, "b");
 
-    tester ab ( argv [ 3 ] );
-    a.RegisterEHS ( &ab, "b" );
+    tester aa(argv[3]);
+    // Handles URIs like http://localhost/a/a
+    a.RegisterEHS(&aa, "a");
 
-    while ( 1 ) {
-        // normally your program would be doing useful things here...
-        sleep ( 1 );
+    tester ab(argv[3]);
+    // Handles URIs like http://localhost/a/b
+    a.RegisterEHS(&ab, "b");
 
-        // if in single threaded mode, must handle data explicitly
-        if ( nMode == 1 ) {
-            srv->HandleData ( );
+
+    // if in single threaded mode,
+    // we must handle data explicitly.
+    if (1 == nMode) {
+        while (true) {
+            // normally your program would be doing useful things here...
+            sleep (1);
+            srv.HandleData();
         }
-
+    } else {
+        cout << "Press RETURN to terminate the server: "; cout.flush();
+        cin.get();
     }
 
-    srv->StopServer ( );
-
+    srv.StopServer();
     return 0;
-
 }

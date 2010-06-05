@@ -29,23 +29,22 @@
 #include <ehstypes.h>
 
 /// different response codes and their corresponding phrases -- defined in EHS.cpp
-enum ResponseCode { HTTPRESPONSECODE_INVALID = 0,
+enum ResponseCode {
+    HTTPRESPONSECODE_INVALID = 0,
     HTTPRESPONSECODE_200_OK = 200,
     HTTPRESPONSECODE_301_MOVEDPERMANENTLY = 301,
     HTTPRESPONSECODE_302_FOUND = 302,
+    HTTPRESPONSECODE_400_BADREQUEST = 400,
     HTTPRESPONSECODE_401_UNAUTHORIZED = 401,
     HTTPRESPONSECODE_403_FORBIDDEN = 403,
     HTTPRESPONSECODE_404_NOTFOUND = 404,
-    HTTPRESPONSECODE_500_INTERNALSERVERERROR = 500 };
+    HTTPRESPONSECODE_500_INTERNALSERVERERROR = 500
+};
 
-/// Holds strings corresponding to the items in the ResponseCode enumeration
-extern const char * ResponsePhrase [ ]; 
-
-
-/// This defines what is sent back to the client
 /**
- * This defines what is sent back to the client.  It contains the actual body, any
- *   headers specified, and the response code.
+ * This class represents what is sent back to the client.
+ * It contains the actual body, any headers specified,
+ * and the response code.
  */
 class HttpResponse {
 
@@ -57,30 +56,88 @@ class HttpResponse {
 
     public:
 
-        /// constructor
-        HttpResponse ( int inResponseId, EHSConnection * ipoEHSConnection );
+        /**
+         * Constructs a new instance.
+         * @param inResponseId A unique Id (normally derived from the corresponding requset Id).
+         * @param ipoEHSConnection The connection, on which this response should be sent.
+         */
+        HttpResponse(int inResponseId, EHSConnection * ipoEHSConnection);
 
-        /// destructor
+        /**
+         * Constructs a new standardized error response.
+         * @param code The HTTP error code.
+         * @param request The http request to which this response refers.
+         *   (Used for initializing the Id and the outgoing connection).
+         * @return The new response.
+         */
+        static HttpResponse *Error(ResponseCode code, HttpRequest *request);
+
+        /**
+         * Helper function for translating response codes into
+         * the corresponding text message.
+         * @param code The HTTP result code to be translated.
+         * @return The text message, representing the provided result code.
+         */
+        static const char *GetPhrase(ResponseCode code);
+
+        /// Destructor
         ~HttpResponse ( );
 
-        /// sets information about the body of the response being sent back to the client.
-        void SetBody ( const char * ipsBody, ///< body to be sent to client
-                int inBodyLength ///< length of body to be sent to client
-                );
+        /**
+         * Sets the body of this instance.
+         * @param ipsBody The content to set.
+         * @param inBodyLength The length of the body. This parameter also
+         *   sets the value of the Content-Length HTTP header.
+         */
+        void SetBody(const char *ipsBody, int inBodyLength);
 
-        /// sets cookies for the response
-        void SetCookie ( CookieParameters & iroCookieParameters );
+        /**
+         * Sets cookies for this response.
+         * @param iroCookieParameters The cookies to set.
+         */
+        void SetCookie(CookieParameters & iroCookieParameters);
 
-        /// Sets the response code for this response
-        void SetResponseCode ( ResponseCode code ) { m_nResponseCode = code ; }
+        /**
+         * Sets the response code for this response.
+         * @param code The desired HTTP response code.
+         */
+        void SetResponseCode(ResponseCode code) { m_nResponseCode = code; }
 
-        void SetHeader ( const std::string & name, const std::string & value )
+        /**
+         * Sets an HTTP header.
+         * @param name The name of the HTTP header to set.
+         * @param value The value of the HTTP header to set.
+         */
+        void SetHeader(const std::string & name, const std::string & value)
         {
-            m_oResponseHeaders [ name ] = value;
+            m_oResponseHeaders[name] = value;
         }
 
-        /// Returns the body of the response
-        char * GetBody ( ) { return m_psBody; };
+        /**
+         * retrieves the body of this response.
+         * @return The current content of the body.
+         */
+        char * GetBody() { return m_psBody; };
+
+        /**
+         * Sets the HTTP Date header.
+         * @param stamp A UNIX timestamp, representing the desired time.
+         */
+        void SetDate(time_t stamp);
+
+        /**
+         * Sets the HTTP Last-Modified header.
+         * @param stamp A UNIX timestamp, representing the desired time.
+         */
+        void SetLastModified(time_t stamp);
+
+        /**
+         * Utility function for converting a UNIX timestamp into an RFC-conformant
+         * HTTP time string.
+         * @param stamp A UNIX timestamp, representing the desired time.
+         * @return A string, containing the HTTP time.
+         */
+        std::string HttpTime(time_t stamp);
 
     private:
 
@@ -89,7 +146,7 @@ class HttpResponse {
 
         /// these are the headers sent back to the client in the http response.
         /// Things like content-type and content-length
-        StringMap m_oResponseHeaders;
+        StringCaseMap m_oResponseHeaders;
 
         /// cookies waiting to be sent
         StringList m_oCookieList;
