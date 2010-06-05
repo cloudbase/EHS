@@ -32,7 +32,7 @@
 #include "contentdisposition.h"
 
 /**
- * This class handles form data sent from the client in GET and POST requests.
+ * This class stores form data sent from the client in GET and POST requests.
  * Metadata within MIME-style attachments is decoded and stored into members of this class.
  * Each element of a form is put into a ContentDisposition object for later retrieval.
  */
@@ -50,18 +50,20 @@ class FormValue {
         std::string m_sBody; 
 
         /// Default constructor
-        FormValue ( );
+        FormValue();
 
-        /// Constructor 
-        FormValue ( std::string & irsBody, ///< body for the form value
-                ContentDisposition & ioContentDisposition ///< content disposition type string
-                );
+        /**
+         * Constructs a new instance.
+         * @param irsBody The body content of the form element.
+         * @param ioContentDisposition The content disposition type string.
+         */
+        FormValue(std::string & irsBody, ContentDisposition & ioContentDisposition);
 
         /// Copy constructor
-        FormValue ( const FormValue & iroFormValue );
+        FormValue(const FormValue & iroFormValue);
 
-        /// destructor
-        virtual ~FormValue ( );
+        /// Destructor
+        virtual ~FormValue();
 };
 
 #endif // FORMVALUE_H

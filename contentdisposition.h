@@ -27,51 +27,34 @@
 #define CONTENTDISPOSITION_H
 
 #include <string>
-#ifdef EHS_MEMORY
-# include <iostream>
-#endif
-
 #include <ehstypes.h>
 
-/// This stores the content disposition of a subbody
 /**
- * This stores the content disposition of a subbody.  This is used for
- *   multi-part form data.
+ * This class stores the content disposition of a subbody.
+ * It is used for multi-part form data.
  */
 class ContentDisposition {
 
     public:
 
-        /// constructor
-        ContentDisposition ( ) :
+        /**
+         * Default constructor.
+         */
+        ContentDisposition() :
             m_oContentDispositionHeaders ( StringMap ( ) ),
             m_sContentDisposition ( "" )
         {
-#ifdef EHS_MEMORY
-            std::cerr << "[EHS_MEMORY] Allocated: ContentDisposition" << std::endl;
-#endif		
         }
 
-        /// destructor
+        /// Destructor
         ~ContentDisposition ( ) {
-#ifdef EHS_MEMORY
-            std::cerr << "[EHS_MEMORY] Deallocated: ContentDisposition" << std::endl;
-#endif		
         }
 
-#ifdef EHS_MEMORY
-        /// this is only for watching memory allocation
-        ContentDisposition ( const ContentDisposition & other ) :
-            m_oContentDispositionHeaders ( other.m_oContentDispositionHeaders ),
-            m_sContentDisposition ( other.m_sContentDisposition )
-        {
-            std::cerr << "[EHS_MEMORY] Allocated: ContentDisposition (Copy Constructor)" << std::endl;
-        }
-#endif		
+        /// Map of headers for this content disposition.
+        StringMap m_oContentDispositionHeaders;
 
-        StringMap m_oContentDispositionHeaders; ///< map of headers for this content disposition
-        std::string m_sContentDisposition; ///< content disposition string for this object
-
+        /// Content disposition string for this object
+        std::string m_sContentDisposition;
 };
 
 #endif // CONTENTDISPOSITION_H
