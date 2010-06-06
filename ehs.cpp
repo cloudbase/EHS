@@ -36,12 +36,7 @@
 #include "debug.h"
 
 #include <pcrecpp.h>
-
-#ifdef HAVE_DLFCN_H
-# include <dlfcn.h>
-#endif
 #include <pthread.h>
-
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

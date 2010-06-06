@@ -27,14 +27,16 @@ AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of t
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
 dnl Replace `main' with a function in -lpcre:
-TRACELIBS=
+BFDLIB1=
+BFDLIB2=
+DWLIB=
 AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
 AC_CHECK_LIB(ssl, SSL_library_init)
-AC_CHECK_LIB(bfd, bfd_openr, [TRACELIBS="-lbfd"])
-AC_CHECK_LIB(iberty, cplus_demangle, [TRACELIBS="$TRACELIBS -liberty"])
-AC_SUBST(TRACELIBS)
+AC_CHECK_LIB(dw, dwfl_begin, DWLIB="-ldw")
+AC_CHECK_LIB(bfd, bfd_openr, [BFDLIB1="-lbfd"])
+AC_CHECK_LIB(iberty, cplus_demangle, [BFDLIB2="-liberty"])
 havessl=$ac_cv_lib_ssl_SSL_library_init
 
 AC_MSG_CHECKING([whether to build with SSL support])
@@ -78,7 +80,34 @@ esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h demangle.h dwarf.h])
+
+DW_CPPFLAGS=
+AC_CHECK_HEADERS([libdwfl.h])
+if test "$ac_cv_header_libdwfl_h" = "no" ; then
+    AC_CHECK_HEADERS([elfutils/libdwfl.h],[DW_CPPFLAGS="-I/usr/include/elfutils"])
+fi
+
+if test -n "$DWLIB" ; then
+    TRACE_LIBS="$DWLIB"
+    TRACE_CPPFLAGS="$DW_CPPFLAGS"
+    AC_DEFINE_UNQUOTED([USE_DWARF],1,[Define, if using libdw for resolving symbols])
+    AC_MSG_NOTICE([Using DWARF for resolving symbols])
+    if test -n "$BFDLIB2" ; then
+        TRACE_LIBS="$DWLIB $BFDLIB2"
+        AC_DEFINE_UNQUOTED([HAVE_LIBIBERTY],1,[Define, if libiberty is available])
+    fi
+else
+    if test -n "$BFDLIB1" -a -n "$BFDLIB2" ; then
+        TRACE_LIBS="$BFDLIB1 $BFDLIB2"
+        AC_DEFINE_UNQUOTED([USE_BFD],1,[Define, if using bfd for resolving symbols])
+        AC_MSG_NOTICE([Using BFD for resolving symbols])
+    else
+        AC_MSG_NOTICE([Disabling backtracing])
+    fi
+fi
+AC_SUBST(TRACE_LIBS)
+AC_SUBST(TRACE_CPPFLAGS)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -89,6 +118,10 @@ AC_C_CONST
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([memset select setlocale socket strcasecmp strtoul])
+tmp_LIBS="$LIBS"
+LIBS="$LIBS $BFDLIB1 $BFDLIB2"
+AC_CHECK_FUNCS([bfd_demangle])
+LIBS="$tmp_LIBS"
 
 FE_SVNREV([SVNREV])
 AC_DEFINE_UNQUOTED(SVNREV,"$SVNREV",[SVN revision])

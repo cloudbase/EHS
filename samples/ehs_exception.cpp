@@ -23,6 +23,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <ehs.h>
 #include <sstream>
 #include <iostream>
@@ -88,7 +92,7 @@ int main (int argc, char **argv)
 {
     if (argc != 2) {
         cerr << "Usage: " << argv[0] << " [port]" << endl;
-        exit (0);
+        return 0;
     }
 
     cerr << "binding to " << atoi(argv[1]) << endl;

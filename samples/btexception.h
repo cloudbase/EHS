@@ -3,6 +3,18 @@
 
 namespace tracing {
 
+    class dummy_tracer
+    {
+        public:
+            dummy_tracer(int) { }
+
+            std::string trace(int) const
+            {
+                return "Tracing disabled";
+            }
+    };
+
+#ifdef USE_BFD
     class bfd_tracer
     {
         public:
@@ -10,7 +22,7 @@ namespace tracing {
 
             ~bfd_tracer();
 
-            std::string trace(int skip) const;
+            const std::string & trace(int skip) const;
 
             bfd_tracer(const bfd_tracer &);
 
@@ -21,6 +33,27 @@ namespace tracing {
             int frames;
             void **tbuf;
     };
+#endif
+#ifdef USE_DWARF
+    class dwarf_tracer
+    {
+        public:
+            dwarf_tracer(int _maxframes);
+
+            ~dwarf_tracer();
+
+            const std::string & trace(int skip) const;
+
+            dwarf_tracer(const dwarf_tracer &);
+
+            dwarf_tracer & operator = (const dwarf_tracer &);
+
+        private:
+            int maxframes;
+            int frames;
+            void **tbuf;
+    };
+#endif
 
     /**
      * An exception, which can generate a backtrace
@@ -42,7 +75,16 @@ namespace tracing {
             virtual const char* where() const throw();
 
         private:
+#ifdef USE_BFD
             bfd_tracer tracer;
+#else
+# ifdef USE_DWARF
+            dwarf_tracer tracer;
+# else
+# warning Neither libbfd nor libdwarf are available, so no backtracing enabled
+            dummy_tracer tracer;
+# endif
+#endif
     };
 
     class runtime_error : public exception

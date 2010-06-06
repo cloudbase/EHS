@@ -33,7 +33,8 @@ ehs_privport_SOURCES = ehs_privport.cpp
 ehs_privport_LDADD = $(top_builddir)/libehs.la
 
 ehs_exception_SOURCES = ehs_exception.cpp btexception.cpp
-ehs_exception_LDADD = $(top_builddir)/libehs.la $(TRACELIBS)
+ehs_exception_CPPFLAGS = $(AM_CPPFLAGS) $(TRACE_CPPFLAGS)
+ehs_exception_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
 
 bindhelper_SOURCES = bindhelper.c
 

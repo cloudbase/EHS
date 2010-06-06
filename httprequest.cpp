@@ -235,7 +235,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                 sLine = GetNextLine(irsData);
 
                 // if we got a line, parse out the data..
-                if (sLine.empty()) {
+                if (sLine.empty() || sLine == "\r\n") {
                     bDone = true;
                 } else {
                     // if we got a line, look for a request line
