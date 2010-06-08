@@ -588,6 +588,7 @@ void EHSServer::HandleData_Threaded()
         do {
             bool catched = false;
             HttpResponse *eResponse = NULL;
+
             try {
                 HandleData(1000, self); // 1000ms select timeout
 #if 0
@@ -641,7 +642,7 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, ///< milliseconds for tim
         // handle the request and post it back to the connection object
         mutex.Unlock();
         // route the request
-        HttpResponse *response = m_poTopLevelEHS->RouteRequest(m_poCurrentRequest);
+        HttpResponse *response = m_poTopLevelEHS->RouteRequest(m_poCurrentRequest).release();
         response->m_poEHSConnection->AddResponse(response);
         mutex.Lock();
         delete m_poCurrentRequest;
@@ -754,9 +755,8 @@ void EHSServer::CheckClientSockets ( )
                 if (nAddBufferResult == EHSConnection::ADDBUFFER_INVALIDREQUEST ||
                         nAddBufferResult == EHSConnection::ADDBUFFER_TOOBIG) {
                     // Immediately send a 400 response, then close the connection
-                    HttpResponse *tmperr = HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i);
-                    (*i)->SendHttpResponse(tmperr);
-                    delete tmperr;
+                    auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
+                    (*i)->SendHttpResponse(tmp);
                     // done reading but did not receieve disconnect
                     EHS_TRACE("Done reading because we got a bad request\n");
                     (*i)->DoneReading(false);
@@ -778,8 +778,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
         HttpResponseMap::iterator i = m_oHttpResponseMap.find(m_nResponses + 1);
         if (m_oHttpResponseMap.end() != i) {
             found = true;
-            SendHttpResponse(i->second);
-            delete i->second;
+            SendHttpResponse(auto_ptr<HttpResponse>(i->second));
             m_oHttpResponseMap.erase(i);
             m_nResponses++;
             // set last activity to the current time for idle purposes
@@ -799,7 +798,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
     } while (found);
 }
 
-void EHSConnection::SendHttpResponse(HttpResponse *response)
+void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
 {
     // only send it if the client isn't disconnected
     if (Disconnected()) {
@@ -933,24 +932,26 @@ string GetNextPathPart(string &irsUri ///< URI to look for next path part in
     return "";
 }
 
-HttpResponse *
+auto_ptr<HttpResponse>
 EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {
     // get the next path from the URI
     string sNextPathPart = GetNextPathPart(request->m_sUri);
     EHS_TRACE ("Info: Trying to route: '%s'\n", sNextPathPart.c_str());
-    HttpResponse *response = NULL;
+    // We use an auto_ptr here, so that in case of an exception, the
+    // target gets deleted.
+    auto_ptr<HttpResponse> response(0);
     // if there is no more path, call HandleRequest on this EHS object with
     //   whatever's left - or if we're not routing
     if (sNextPathPart.empty() ||
             m_oEHSServerParameters.find("norouterequest") !=
             m_oEHSServerParameters.end()) {
         // create an HttpRespose object for the client
-        response = new HttpResponse(request->m_nRequestId,
-                request->m_poSourceEHSConnection);
+        response = auto_ptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
+                request->m_poSourceEHSConnection));
         // get the actual response and return code
-        response->SetResponseCode(HandleRequest(request, response));
+        response->SetResponseCode(HandleRequest(request, response.get()));
     } else {
         // if the path exists, check it against the map of EHSs
         if (m_oEHSMap[sNextPathPart]) {
@@ -960,7 +961,7 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
             // if it doesn't exist, send an error back up saying resource doesn't exist
             EHS_TRACE("Info: Routing failed. Most likely caused by an invalid URL, not internal error\n");
             // send back a 404 response
-            response = HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request);
+            response = auto_ptr<HttpResponse>(HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request));
         }
     }
     return response;

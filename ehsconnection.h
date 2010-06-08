@@ -131,10 +131,10 @@ class EHSConnection {
         AddBufferResult AddBuffer(char * ipsData, int inSize);
 
         /// sends the actual data back to the client
-        void SendHttpResponse ( HttpResponse * ipoHttpResponse);
+        void SendHttpResponse(std::auto_ptr<HttpResponse> response);
 
         /// adds a response to the response list and sends as many responses as are ready -- takes over the memory in ipoHttpResponse
-        void AddResponse(HttpResponse * ipoHttpResponse);
+        void AddResponse(HttpResponse *response);
 
         /// returns true of httprequestlist is not empty
         int RequestsPending() { return !m_oHttpRequestList.empty(); }

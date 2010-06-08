@@ -41,6 +41,7 @@
 #include <httpresponse.h>
 #include <httprequest.h>
 
+#include <memory>
 #include <string>
 
 extern "C" {
@@ -196,7 +197,7 @@ class EHS : public PassphraseHandler {
          * @param request The HTTP request to be routed.
          * @return A pointer to the HttpResponse object, to be sent back to the client.
          */
-        HttpResponse * RouteRequest(HttpRequest *request);
+        std::auto_ptr<HttpResponse> RouteRequest(HttpRequest *request);
 
         /**
          * Main request handler.

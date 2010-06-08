@@ -155,6 +155,7 @@ static bool print_dwarf_function(Dwfl_Module *mod, Dwarf_Addr addr, std::ostring
                     return false;
                 }
                 oss << name << " ";
+                cleanup_dwarf(scopes);
                 return true;
             case DW_TAG_inlined_subroutine:
                 if (NULL == (name = dwarf_diename(&scopes[i]))) {
