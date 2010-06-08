@@ -82,14 +82,13 @@ static int init_backtrace()
     }
     if (!bfd_set_default_target("i686-redhat-linux-gnu"))
         return 0;
-    abfd = bfd_openr ("/proc/self/exe", NULL);
+    abfd = bfd_openr("/proc/self/exe", NULL);
     if (NULL == abfd)
         return 0;
     if (bfd_check_format(abfd, bfd_archive))
         return 0;
-    if (!bfd_check_format_matches(abfd, bfd_object, &matching)) {
+    if (!bfd_check_format_matches(abfd, bfd_object, &matching))
         return 0;
-    }
     fetchsyms(abfd);
     return 1;
 }

@@ -68,13 +68,14 @@ case "$enableval" in
         ;;
 esac
 
-AC_MSG_CHECKING([whether to build with memory tracking information])
+AC_MSG_CHECKING([whether to prefer BFD over DWARF])
 enableval=NO
-AC_ARG_ENABLE(memory,AS_HELP_STRING([--enable-memory],[compile with memory tracking information]))
+PREFER_BFD=NO
+AC_ARG_ENABLE(bfd,AS_HELP_STRING([--enable-bfd],[prefer BFD over DWARF (use for ehs_exception sample only)]))
 AC_MSG_RESULT([$enableval])
 case "$enableval" in
     [[yY][eE][sS]])
-        AC_DEFINE([EHS_MEMORY],[1],[Whether to compile with memory tracking information])
+        PREFER_BFD=YES
         ;;
 esac
 
@@ -82,13 +83,14 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h demangle.h dwarf.h])
 
+dnl DWARF vs. BFD
 DW_CPPFLAGS=
 AC_CHECK_HEADERS([libdwfl.h])
 if test "$ac_cv_header_libdwfl_h" = "no" ; then
     AC_CHECK_HEADERS([elfutils/libdwfl.h],[DW_CPPFLAGS="-I/usr/include/elfutils"])
 fi
 
-if test -n "$DWLIB" ; then
+if test -n "$DWLIB" -a "$PREFER_BFD" = "NO" ; then
     TRACE_LIBS="$DWLIB"
     TRACE_CPPFLAGS="$DW_CPPFLAGS"
     AC_DEFINE_UNQUOTED([USE_DWARF],1,[Define, if using libdw for resolving symbols])
@@ -156,7 +158,6 @@ AC_ARG_ENABLE([warn],
         CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 	]
 )
-dnl fe_EXCEPTION_PROPAGATION
 LIBVERSION="`echo $VERSION|tr . :`"
 AC_SUBST(LIBVERSION)
 
