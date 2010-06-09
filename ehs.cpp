@@ -591,11 +591,6 @@ void EHSServer::HandleData_Threaded()
 
             try {
                 HandleData(1000, self); // 1000ms select timeout
-#if 0
-                EHS_TRACE ( "B1=%d B2=%d TID=%p\n",
-                        (m_nServerRunningStatus == SERVERRUNNING_THREADPOOL), 
-                        (self == m_nAcceptThreadId), self );
-#endif
             } catch (exception &e) {
                 catched = true;
                 eResponse = m_poTopLevelEHS->HandleThreadException(self, m_poCurrentRequest, e);
