@@ -27,6 +27,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include "common.h"
 
 using namespace std;
 
@@ -76,8 +77,11 @@ int main ( int argc, char ** argv )
         poEHS->StartServer ( oSP );
     }
 
-    cout << "Press RETURN to terminate the server: "; cout.flush();
-    cin.get();
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(poMyEHS->ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
+    }
     poMyEHS->StopServer ( );
     delete poMyEHS;
     if (NULL != poEHS) {

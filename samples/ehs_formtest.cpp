@@ -31,6 +31,8 @@
 
 #include <cstdlib>
 
+#include "common.h"
+
 using namespace std;
 
 class FormTester : public EHS {
@@ -87,51 +89,44 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 
 }
 
-void PrintUsage ( int, char ** argv ) {
-    cout << "usage: " << argv[0] << " <port> [<certificate_file> <certificate_passphrase>]" << endl;
-	cout << "\tIf you specify the last 2 parameters, it will run in https mode" << endl;
-	exit ( 0 );
-
-}
-
 // create a multithreaded EHS object with HTTPS support based on command line
 //   options.
-int main ( int argc, char ** argv )
+int main (int argc, char ** argv)
 {
 
-	if ( argc != 2 && argc != 4 ) {
-		PrintUsage ( argc, argv );
-	}
+	if (argc != 2 && argc != 4) {
+        cout << "usage: " << basename(argv[0]) << " <port> [<certificate_file> <certificate_passphrase>]" << endl;
+        cout << "\tIf you specify the last 2 parameters, it will run in https mode" << endl;
+        return 0;
+    }
 
-	FormTester srv;
+    FormTester srv;
 
-	int nUseHttps = 0;
-	if ( argc > 2 ) {
-		nUseHttps = atoi ( argv [ 2 ] );
-	}
-	EHSServerParameters oSP;
-
-
-	oSP["port"] = argv [ 1 ];
-
-	oSP [ "mode" ] = "threadpool";
-
-	// unnecessary because 1 is the default
-	oSP["threadcount"] = 1;
+    int nUseHttps = 0;
+    if (argc > 2) {
+        nUseHttps = atoi(argv[2]);
+    }
+    EHSServerParameters oSP;
 
 
-	if ( argc == 4 ) {
-		cout << "in https mode" << endl;
-		oSP["https"] = 1;
-		oSP["certificate"] = argv [ 2 ];
-		oSP["passphrase"] = argv [ 3 ];
+    oSP["port"] = argv[1];
+    oSP["mode"] = "threadpool";
 
-	}	
+    if (argc == 4) {
+        cout << "in https mode" << endl;
+        oSP["https"] = 1;
+        oSP["certificate"] = argv [ 2 ];
+        oSP["passphrase"] = argv [ 3 ];
 
-	srv.StartServer ( oSP );
-    cout << "Press RETURN to terminate the server: "; cout.flush();
-    cin.get();
-	srv.StopServer ( );
+    }	
+
+    srv.StartServer(oSP);
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
+    }
+    srv.StopServer ( );
 
     return 0;
 }

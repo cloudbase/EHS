@@ -36,6 +36,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "common.h"
+
 using namespace std;
 
 class MyHelper : public PrivilegedBindHelper
@@ -75,32 +77,32 @@ class MyHelper : public PrivilegedBindHelper
 
 pthread_mutex_t MyHelper::mutex = PTHREAD_MUTEX_INITIALIZER;
 
-int main ( int argc, char ** argv )
+int main(int argc, char ** argv)
 {
 
-	if ( argc != 4 ) {
-		cout << "Usage: " << argv [ 0 ] << " <port> <certificate file> <passphrase>" << endl; 
-		exit ( 0 );
+	if (argc != 4) {
+		cout << "Usage: " << basename(argv[0]) << " <port> <certificate file> <passphrase>" << endl; 
+        return 0;
 	}
 
-	EHS * poEHS = new EHS;
-    PrivilegedBindHelper *h = new MyHelper;
-    poEHS->SetBindHelper(h);
+	EHS srv;
+    MyHelper h;
+    srv.SetBindHelper(&h);
 
 	EHSServerParameters oSP;
-	oSP [ "port" ] = argv [ 1 ];
-	oSP [ "https" ] = 1;
-	oSP [ "certificate" ] = argv [ 2 ];
-	oSP [ "passphrase" ] = argv [ 3 ];
-	oSP [ "mode" ] = "threadpool";
+	oSP["port"] = argv[1];
+	oSP["https"] = 1;
+	oSP["certificate"] = argv[2];
+	oSP["passphrase"] = argv[3];
+	oSP["mode"] = "threadpool";
 
-	// unnecessary because 1 is the default
-	oSP [ "threadcount" ] = 1;
-
-	poEHS->StartServer ( oSP );
-    cout << "Press RETURN to terminate the server: "; cout.flush();
-    cin.get();
-	poEHS->StopServer ( );
+	srv.StartServer(oSP);
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
+    }
+	srv.StopServer();
 
     return 0;
 }

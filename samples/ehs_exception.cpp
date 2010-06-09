@@ -34,6 +34,7 @@
 #include <typeinfo>
 #include <cstdlib>
 #include "btexception.h"
+#include "common.h"
 
 using namespace std;
 
@@ -91,7 +92,7 @@ class TestException : public EHS
 int main (int argc, char **argv)
 {
     if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " [port]" << endl;
+        cerr << "Usage: " << basename(argv[0]) << " [port]" << endl;
         return 0;
     }
 
@@ -101,11 +102,14 @@ int main (int argc, char **argv)
     EHSServerParameters oSP;
     oSP["port"] = argv[1];
     oSP["mode"] = "threadpool";
+    oSP["threadcount"] = 10;
 
     srv.StartServer(oSP);
 
-    while (!srv.ShouldTerminate()) {
-        sleep(1);
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
     }
 
     srv.StopServer();

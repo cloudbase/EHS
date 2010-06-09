@@ -5,7 +5,7 @@ noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \
 				  ehs_exception bindhelper
 
-noinst_HEADERS = btexception.h
+noinst_HEADERS = btexception.h common.h
 
 # Rules for building sample programs
 ehs_formtest_SOURCES = ehs_formtest.cpp

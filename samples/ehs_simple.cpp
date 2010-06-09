@@ -26,40 +26,46 @@
 #include <ehs.h>
 #include <iostream>
 #include <cstdlib>
+#include "common.h"
 
 using namespace std;
 
-int main ( int argc, char ** argv )
+int main(int argc, char ** argv)
 {
 
-	if ( argc != 2 && argc != 3 ) {
-        cout << "Usage: " << argv [ 0 ] << " <port> [threaded]" << endl;
-		exit ( 0 );
+	if (argc != 2 && argc != 3) {
+        cout << "Usage: " << basename(argv[0]) << " <port> [threaded]" << endl;
+        return 0;
 	}
 
-	EHS * poEHS = new EHS;
+	EHS srv;
 
 	EHSServerParameters oSP;
-	oSP [ "port" ] = argv [ 1 ];
+	oSP["port"] = argv[1];
 
 	// start in thread pool mode
-	if ( argc == 3 ) {
+	if (3 == argc) {
 		cout << "Starting in threaded mode" << endl;
-		oSP [ "mode" ] = "threadpool";
-		oSP [ "threadcount" ] = 1;
-		
-		poEHS->StartServer ( oSP );
-		while ( 1 ) {
-			sleep ( 1 );
-		}
-	} else {
+		oSP["mode"] = "threadpool";
+		oSP["threadcount"] = 1;
+		srv.StartServer(oSP);
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+            usleep(300000);
+        }
+    } else {
         // start in single threaded mode
 
-		cout << "Starting in single threaded mode" << endl;
-		oSP [ "mode" ] = "singlethreaded";
-		poEHS->StartServer ( oSP );
-		while ( 1 ) {
-			poEHS->HandleData ( 1000 ); // waits for 1 second
-		}
-	}
+        cout << "Starting in single threaded mode" << endl;
+        oSP["mode"] = "singlethreaded";
+        srv.StartServer(oSP);
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+            srv.HandleData(1000); // waits for 1 second
+        }
+    }
+    srv.StopServer();
+    return 0;
 }

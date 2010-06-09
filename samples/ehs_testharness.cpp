@@ -28,6 +28,7 @@
 #include <iostream>
 #include <typeinfo>
 #include <cstdlib>
+#include "common.h"
 
 using namespace std;
 
@@ -72,7 +73,7 @@ class TestHarness : public EHS
 int main (int argc, char **argv)
 {
     if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " [port]" << endl;
+        cerr << "Usage: " << basename(argv[0]) << " [port]" << endl;
         exit (0);
     }
 
@@ -85,8 +86,10 @@ int main (int argc, char **argv)
 
     srv.StartServer(oSP);
 
-    while (!srv.ShouldTerminate()) {
-        sleep(1);
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
     }
 
     srv.StopServer();

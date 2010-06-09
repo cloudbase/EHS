@@ -36,6 +36,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "common.h"
 
 using namespace std;
 
@@ -115,29 +116,30 @@ class MyHelper : public PrivilegedBindHelper
 //   waits for RETURN while the EHS thread does its job.
 int main ( int argc, char ** argv )
 {
-    if ( argc != 2 ) {
-        cerr << "Usage: " << argv[0] << " [port]" << endl;
-        exit ( 0 );
+    if (argc != 2) {
+        cerr << "Usage: " << basename(argv[0]) << " [port]" << endl;
+        return 0;
     }
 
-    cerr << "binding to " << atoi ( argv [ 1 ] ) << endl;
-    TestHarness * srv = new TestHarness;
-    PrivilegedBindHelper *h = new MyHelper;
-    srv->SetBindHelper(h);
+    cerr << "binding to " << atoi(argv[1]) << endl;
+    TestHarness srv;
+    MyHelper h;
+    srv.SetBindHelper(&h);
 
     EHSServerParameters oSP;
-    oSP [ "port" ] = argv [ 1 ];
-    oSP [ "mode" ] = "threadpool";
+    oSP[ "port"] = argv[1];
+    oSP[ "mode"] = "threadpool";
     // oSP [ "bindaddress" ] = "127.0.0.1";
 
-    srv->StartServer ( oSP );
+    srv.StartServer(oSP);
 
-    cout << "Press RETURN to terminate the server: "; cout.flush();
-    cin.get();
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
+    }
 
-    srv->StopServer ( );
-    delete srv;
-    delete h;
+    srv.StopServer();
 
     return 0;
 }

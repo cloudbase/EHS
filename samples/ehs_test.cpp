@@ -30,6 +30,7 @@
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
+#include "common.h"
 
 using namespace std;
 
@@ -102,15 +103,6 @@ ResponseCode tester::HandleRequest(HttpRequest *request, HttpResponse *response)
     return HTTPRESPONSECODE_200_OK;
 }
 
-string basename(const string & s)
-{
-    string ret(s);
-    size_t pos = ret.rfind("/");
-    if (pos != ret.npos)
-        ret.erase(0, pos);
-    return ret;
-}
-
 int main(int argc, char **argv)
 {
 
@@ -181,17 +173,15 @@ int main(int argc, char **argv)
 
     // if in single threaded mode,
     // we must handle data explicitly.
-    if (1 == nMode) {
-        while (true) {
-            // normally your program would be doing useful things here...
-            sleep (1);
-            srv.HandleData();
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        if (1 == nMode) {
+            srv.HandleData(1000); // waits for 1 second
+        } else {
+            usleep(300000);
         }
-    } else {
-        cout << "Press RETURN to terminate the server: "; cout.flush();
-        cin.get();
     }
-
     srv.StopServer();
     return 0;
 }

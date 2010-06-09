@@ -33,6 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include "common.h"
 
 using namespace std;
 
@@ -104,21 +105,24 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
     return HTTPRESPONSECODE_404_NOTFOUND;
 }
 
-int main ( int argc, char ** argv )
+int main(int argc, char ** argv)
 {
-    if ( argc < 2 ) {
-        cout << "usage: " << argv[0] << " <port>" << endl;
-        exit ( 0 );
+    if (argc < 2) {
+        cout << "usage: " << basename(argv[0]) << " <port>" << endl;
+        return 0;
     }
 
     FileUploader srv;
     EHSServerParameters oSP;
-    oSP["port"] = argv [ 1 ];
-    oSP [ "mode" ] = "threadpool";
-    oSP [ "maxrequestsize" ] = 1024 * 1024 * 10;
-    srv.StartServer ( oSP );
-    cout << "Press RETURN to terminate the server: "; cout.flush();
-    cin.get();
-    srv.StopServer ( );
+    oSP["port"] = argv[1];
+    oSP["mode"] = "threadpool";
+    oSP["maxrequestsize"] = 1024 * 1024 * 10;
+    srv.StartServer(oSP);
+    kbdio kbd;
+    cout << "Press q to terminate ..." << endl;
+    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+        usleep(300000);
+    }
+    srv.StopServer();
     return 0;
 }
