@@ -85,21 +85,19 @@ HttpResponse::~HttpResponse ( )
 ///< HTTP response code to get text version of
 const char *HttpResponse::GetPhrase(ResponseCode code)
 {
-    static map<int, const char *> responsePhrase;
-    static bool init = true;
-    if (init) {
-        init = false;
-        responsePhrase[HTTPRESPONSECODE_200_OK] = "OK";
-        responsePhrase[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
-        responsePhrase[HTTPRESPONSECODE_302_FOUND] = "FOUND";
-        responsePhrase[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
-        responsePhrase[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
-        responsePhrase[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
-        responsePhrase[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
-        responsePhrase[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
+    static map<int, const char *> phrases;
+    if (0 == phrases.size()) {
+        phrases[HTTPRESPONSECODE_200_OK] = "OK";
+        phrases[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
+        phrases[HTTPRESPONSECODE_302_FOUND] = "FOUND";
+        phrases[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
+        phrases[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
+        phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
+        phrases[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
+        phrases[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
     }
-    map<int, const char *>::const_iterator i = responsePhrase.find(code);
-    return (responsePhrase.end() == i) ? "INVALID" : i->second;
+    map<int, const char *>::const_iterator i = phrases.find(code);
+    return (phrases.end() == i) ? "INVALID" : i->second;
 }
 
 HttpResponse *HttpResponse::Error(ResponseCode code, int inResponseId, EHSConnection * ipoEHSConnection)

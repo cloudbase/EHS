@@ -546,9 +546,7 @@ string GetNextLine(string & buffer)
 RequestMethod GetRequestMethodFromString(const string &method)
 {
     static map<string, RequestMethod> methods;
-    static bool init = true;
-    if (init) {
-        init = false;
+    if (0 == methods.size()) {
         methods["OPTIONS"] = REQUESTMETHOD_OPTIONS;
         methods["GET"]     = REQUESTMETHOD_GET;
         methods["HEAD"]    = REQUESTMETHOD_HEAD;

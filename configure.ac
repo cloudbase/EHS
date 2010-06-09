@@ -81,7 +81,7 @@ esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h demangle.h dwarf.h])
+AC_CHECK_HEADERS([arpa/inet.h  demangle.h dwarf.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h])
 
 dnl DWARF vs. BFD
 DW_CPPFLAGS=
@@ -115,11 +115,13 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_TYPE_PID_T
 AC_C_CONST
 
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([memset select setlocale socket strcasecmp strtoul])
+AC_FUNC_FORK
+AC_CHECK_FUNCS([inet_ntoa memset select setlocale socket strcasecmp strerror strtoul])
 tmp_LIBS="$LIBS"
 LIBS="$LIBS $BFDLIB1 $BFDLIB2"
 AC_CHECK_FUNCS([bfd_demangle])
