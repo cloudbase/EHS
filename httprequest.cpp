@@ -34,6 +34,7 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
+#include <cstdio>
 #include <stdexcept>
 
 using namespace std;
@@ -103,7 +104,7 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
             cerr
                 << "[EHS_DEBUG] Info: Subbody header found: '"
                 << sName << "' => '" << sValue << "'" << endl;
-#endif				
+#endif
             oStringCaseMap[sName] = sValue;
         }
 
@@ -151,7 +152,7 @@ HttpRequest::ParseMultipartFormDataResult HttpRequest::ParseMultipartFormData ( 
         if (m_sBody.substr(0, blen) != sBoundary) {
 #ifdef EHS_DEBUG
             cerr << "[EHS_DEBUG] Error: Misparsed multi-part form data for unknown reason - first bytes weren't the boundary string" << endl;
-#endif			
+#endif
             return PARSEMULTIPARTFORMDATA_FAILED;
         }
 
@@ -209,10 +210,10 @@ int HttpRequest::ParseCookieData(string & irsData)
     return ccount;
 }
 
-// takes data and tries to figure out what it is.  it will loop through 
+// takes data and tries to figure out what it is.  it will loop through
 //   irsData as many times as it can as long as it gets a full line each time.
-//   Depending on how much data it's gotten already, it will handle a line 
-//   differently.. 
+//   Depending on how much data it's gotten already, it will handle a line
+//   differently..
 HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buffer to look in for more data
         )
 {
@@ -222,7 +223,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
     bool bDone = false;
     pcrecpp::RE reHeader("^([^:]*):\\s+(.*)\\r\\n$");
 
-    while ( ! bDone && 
+    while ( ! bDone &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_INVALIDREQUEST &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_COMPLETEREQUEST &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_INVALID ) {
@@ -261,6 +262,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                             GetFormDataFromString(m_sUri);
                             // Continue parsing the headers
                             m_nCurrentHttpParseState = HTTPPARSESTATE_HEADERS;
+                            m_bChunked = false;
                         }
                     } else {
                         // the regex failed
@@ -282,8 +284,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // check to see if we're done with headers
 
                     // if content length is found
-                    if (m_oRequestHeaders.find("Content-Length") !=
-                            m_oRequestHeaders.end()) {
+                    if ((m_oRequestHeaders.find("Content-Length") !=
+                            m_oRequestHeaders.end()) || m_bChunked) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_BODY;
                     } else {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
@@ -302,9 +304,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // else if there is still data
 
                     if (sName == "Transfer-Encoding" && sValue == "chunked") {
-                        // TODO: Implement chunked encoding    
-                        cerr << "EHS DOES NOT SUPPORT CHUNKED ENCODING" << endl;
-                        m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        m_bChunked = true;
                     }
                     m_oRequestHeaders[sName] = sValue;
                 } else {
@@ -318,19 +318,129 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                 }
                 break;
 
+            case HTTPPARSESTATE_BODYTRAILER:
+                sLine = GetNextLine(irsData);
+                if (sLine.empty()) {
+                    bDone = true;
+                } else {
+                    if (sLine == "\r\n" ) {
+                        // Empty trailer, push CRLF back so that next state
+                        // finds it immediately.
+                        irsData.insert(0, "\r\n");
+                    }
+                    m_nCurrentHttpParseState = HTTPPARSESTATE_BODYTRAILER2;
+                    continue;
+                }
+                break;
+
+            case HTTPPARSESTATE_BODYTRAILER2:
+                sLine = GetNextLine(irsData);
+                if (sLine.empty()) {
+                    bDone = true;
+                } else if (sLine == "\r\n") {
+                    // if we're dealing with multi-part form attachments
+                    if (m_oRequestHeaders["Content-Type"].substr(0, 9) == "multipart") {
+                        // handle the body as if it's multipart form data
+                        if (ParseMultipartFormData() == PARSEMULTIPARTFORMDATA_SUCCESS) {
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
+                        } else {
+#ifdef EHS_DEBUG
+                            cerr << "[EHS_DEBUG] Error: Mishandled multi-part form data for unknown reason" << endl;
+#endif
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        }
+                    } else {
+                        // else the body is just one piece
+                        // check for any form data
+                        GetFormDataFromString(m_sBody);
+#ifdef EHS_DEBUG
+                        cerr << "Done with body, done with entire chunked request" << endl;
+#endif
+                        m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
+                    }
+                } else {
+#ifdef EHS_DEBUG
+                    cerr << "[EHS_DEBUG] Error: junk after chunk trailer" << endl;
+#endif
+                    m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                }
+                bDone = true;
+                break;
+
+            case HTTPPARSESTATE_BODYCHUNK:
+                if (0 == m_nChunkLen) {
+                    // At end of chunk, expect exactly one CRLF
+                    sLine = GetNextLine(irsData);
+                    if (sLine.empty()) {
+                        bDone = true;
+                    } else {
+                        if (sLine == "\r\n") {
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_BODY;
+                        } else {
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        }
+                    }
+                } else {
+                    size_t l = irsData.length();
+                    m_sBody.append(irsData.substr(0, m_nChunkLen));
+                    if (l > m_nChunkLen) {
+                        irsData = irsData.substr(m_nChunkLen);
+                        m_nChunkLen = 0;
+                        continue;
+                    } else {
+                        m_nChunkLen -= l;
+                        bDone = true;
+                    }
+                }
+                break;
 
             case HTTPPARSESTATE_BODY:
-                {
-                    // if a content length wasn't specified, we can't be here (we 
+                if (m_bChunked) {
+                    // get the next line
+                    sLine = GetNextLine(irsData);
+                    if (!sLine.empty()) {
+                        string slen;
+#ifdef EHS_DEBUG
+                        cerr << "[EHS_DEBUG] Look for chunk header in :'" << sLine << "'" << endl;
+#endif
+                        pcrecpp::RE_Options opt(PCRE_CASELESS);
+                        pcrecpp::RE reChunkHeader("^([\\da-f]+)[^\\r]*\\r\\n$", opt);
+                        if (reChunkHeader.FullMatch(sLine, &slen)) {
+                            unsigned long len;
+                            sscanf(slen.c_str(), "%lx", &len);
+                            if (0 == len) {
+                                // Got end of chunked transfer
+#ifdef EHS_DEBUG
+                                cerr << "[EHS_DEBUG] match, last-chunk" << endl;
+#endif
+                                m_nCurrentHttpParseState = HTTPPARSESTATE_BODYTRAILER;
+                                continue;
+                            } else {
+#ifdef EHS_DEBUG
+                                cerr << "[EHS_DEBUG] match, chunklen: " << len << endl;
+#endif
+                                m_nChunkLen = len;
+                                m_nCurrentHttpParseState = HTTPPARSESTATE_BODYCHUNK;
+                                continue;
+                            }
+                        } else {
+#ifdef EHS_DEBUG
+                            cerr << "[EHS_DEBUG] NO MATCH" << endl;
+#endif
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        }
+                    }
+                } else {
+                    // if a content length wasn't specified, we can't be here (we
                     //   don't know chunked encoding)
-                    if (m_oRequestHeaders.find("Content-Length") == 
+                    if (m_oRequestHeaders.find("Content-Length") ==
                             m_oRequestHeaders.end()) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                         continue;
                     }
 
                     // get the content length
-                    unsigned int nContentLength = 
+                    unsigned int nContentLength =
                         atoi(m_oRequestHeaders["Content-Length"].c_str());
 
                     // else if we haven't gotten all the data we're looking for,
@@ -355,7 +465,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                             if (ParseMultipartFormData() == PARSEMULTIPARTFORMDATA_SUCCESS) {
                                 m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
                             } else {
-#ifdef EHS_DEBUG						
+#ifdef EHS_DEBUG
                                 cerr << "[EHS_DEBUG] Error: Mishandled multi-part form data for unknown reason" << endl;
 #endif
                                 m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
@@ -372,8 +482,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         }
 
                     }
-                    bDone = true;
                 }
+                bDone = true;
                 break;
 
 
@@ -401,7 +511,9 @@ HttpRequest::HttpRequest (int inRequestId,
     m_oFormValueMap(FormValueMap()),
     m_oCookieMap(CookieMap()),
     m_nRequestId(inRequestId),
-    m_poSourceEHSConnection(ipoSourceEHSConnection)
+    m_poSourceEHSConnection(ipoSourceEHSConnection),
+    m_bChunked(false),
+    m_nChunkLen(0)
 {
     if (NULL == m_poSourceEHSConnection) {
 #ifdef EHS_DEBUG
@@ -462,6 +574,6 @@ int HttpRequest::Port()
 
 
 bool HttpRequest::ClientDisconnected()
-{ 
-    return m_poSourceEHSConnection->Disconnected(); 
+{
+    return m_poSourceEHSConnection->Disconnected();
 }

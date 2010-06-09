@@ -201,6 +201,9 @@ class HttpRequest {
             HTTPPARSESTATE_REQUEST,
             HTTPPARSESTATE_HEADERS,
             HTTPPARSESTATE_BODY,
+            HTTPPARSESTATE_BODYCHUNK,
+            HTTPPARSESTATE_BODYTRAILER,
+            HTTPPARSESTATE_BODYTRAILER2,
             HTTPPARSESTATE_COMPLETEREQUEST,
             HTTPPARSESTATE_INVALIDREQUEST
         };
@@ -271,6 +274,10 @@ class HttpRequest {
 
         /// connection object from which this request came
         EHSConnection * m_poSourceEHSConnection;
+
+        bool m_bChunked;
+
+        size_t m_nChunkLen;
 
         friend class EHSConnection;
         friend class EHS;
