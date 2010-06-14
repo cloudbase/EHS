@@ -162,35 +162,21 @@ class EHS : public PassphraseHandler {
          */
         virtual const std::string GetPassphrase(bool twice);
 
-        /// Enumeration for error results for RegisterEHSResult
-        enum RegisterEHSResult {
-            REGISTEREHSINTERFACE_INVALID = 0,
-            REGISTEREHSINTERFACE_ALREADYEXISTS,
-            REGISTEREHSINTERFACE_SUCCESS
-        };
-
-        /// Enumeration for error results for UnregisterEHSResult
-        enum UnregisterEHSResult {
-            UNREGISTEREHSINTERFACE_INVALID = 0,
-            UNREGISTEREHSINTERFACE_NOTREGISTERED,
-            UNREGISTEREHSINTERFACE_SUCCESS
-        };
-
         /**
          * Instructs this EHS instance to invoke HandleRequest of another EHS instance
          * whenever a specific URI is requested.
          * @param child The foreign EHS instance which shall handle the requests.
          * @param uripath The relative URI path, that shall be handled by the child.
-         * @return RegisterEHSResult reflecting the outcome.
+         * @throws std:runtime_error, if another instance is already registered with the same path.
          **/
-        RegisterEHSResult RegisterEHS(EHS *child, const char *uripath);
+        void RegisterEHS(EHS *child, const char *uripath);
 
         /**
          * Removes a previously registered path registration.
          * @param uripath The URI path to be removed.
-         * @return UnregisterEHSResult reflecting the outcome.
+         * @throws std:runtime_error, if nothing registered with the given path.
          */
-        UnregisterEHSResult UnregisterEHS (char *uripath);
+        void UnregisterEHS (const char *uripath);
 
         /**
          * Routes a request to the appropriate instance.
@@ -218,19 +204,6 @@ class EHS : public PassphraseHandler {
          */
         void SetSourceEHS (EHS & source);
 
-        /**
-         * Result codes for StartServer
-         */
-        enum StartServerResult {
-            STARTSERVER_INVALID = 0,
-            STARTSERVER_SUCCESS,
-            STARTSERVER_NODATASPECIFIED,
-            STARTSERVER_ALREADYRUNNING,
-            STARTSERVER_SOCKETSNOTINITIALIZED,
-            STARTSERVER_THREADCREATIONFAILED,
-            STARTSERVER_FAILED
-        };
-
         /// Stores a map with server parameters
         EHSServerParameters m_oEHSServerParameters;
 
@@ -238,9 +211,9 @@ class EHS : public PassphraseHandler {
          * Starts up this instance. If configured to run in threaded mode,
          * the main listener thread as well as all worker threads are started.
          * @param params An EHSServerParameters map used for configuring this instance.
-         * @return A StartServerResult reflecting the outcome.
+         * @throws A std:runtime_error if an error happens.
          */
-        StartServerResult StartServer(EHSServerParameters &params);
+        void StartServer(EHSServerParameters &params);
 
         /**
          * Shuts down this instance. If running in threaded mode, all associated threads

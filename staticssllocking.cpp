@@ -43,47 +43,47 @@ void StaticSslLocking::SslStaticLockCallback ( int inMode,
         const char *,
         int )
 {
-    if ( inMode & CRYPTO_LOCK ) {
-        pthread_mutex_lock ( &StaticSslLocking::poMutexes [ inMutex ] );
+    if (inMode & CRYPTO_LOCK) {
+        pthread_mutex_lock(&StaticSslLocking::poMutexes[inMutex]);
     } else {
-        pthread_mutex_unlock ( &StaticSslLocking::poMutexes [ inMutex ] );
+        pthread_mutex_unlock(&StaticSslLocking::poMutexes[inMutex]);
     }
 }
 
 unsigned long StaticSslLocking::SslThreadIdCallback ( )
 {
-    return ( (unsigned long) pthread_self ( ) );
+    return ((unsigned long)pthread_self());
 }
 
 
 StaticSslLocking::StaticSslLocking ( )
 {
     // allocate the needed number of locks
-    StaticSslLocking::poMutexes = new pthread_mutex_t [ CRYPTO_num_locks ( ) ];
+    StaticSslLocking::poMutexes = new pthread_mutex_t[CRYPTO_num_locks()];
 
     if ( NULL == StaticSslLocking::poMutexes ) {
-        throw runtime_error ( "StaticSslLocking::StaticSslLocking: Could not allocate poMutexes" ) ;
+        throw runtime_error("StaticSslLocking::StaticSslLocking: Could not allocate poMutexes") ;
     }
 
     // initialize the mutexes
-    for ( int i = 0; i < CRYPTO_num_locks ( ); i++ ) {
-        pthread_mutex_init ( &StaticSslLocking::poMutexes [ i ], NULL );
+    for (int i = 0; i < CRYPTO_num_locks(); i++) {
+        pthread_mutex_init(&StaticSslLocking::poMutexes[i], NULL);
     }
     // set callbacks
-    CRYPTO_set_id_callback ( StaticSslLocking::SslThreadIdCallback );
-    CRYPTO_set_locking_callback ( StaticSslLocking::SslStaticLockCallback );
+    CRYPTO_set_id_callback(StaticSslLocking::SslThreadIdCallback);
+    CRYPTO_set_locking_callback(StaticSslLocking::SslStaticLockCallback);
 }
 
-StaticSslLocking::~StaticSslLocking ( )
+StaticSslLocking::~StaticSslLocking()
 {
-    if ( NULL == StaticSslLocking::poMutexes ) {
-        throw runtime_error ( "StaticSslLocking::~StaticSslLocking: poMutexes is NULL" ) ;
+    if (NULL == StaticSslLocking::poMutexes) {
+        throw runtime_error("StaticSslLocking::~StaticSslLocking: poMutexes is NULL");
     }
 
-    CRYPTO_set_id_callback ( NULL );
-    CRYPTO_set_locking_callback ( NULL );
-    for ( int i = 0; i < CRYPTO_num_locks ( ); i++ ) {
-        pthread_mutex_destroy ( &StaticSslLocking::poMutexes [ i ] );
+    CRYPTO_set_id_callback(NULL);
+    CRYPTO_set_locking_callback(NULL);
+    for ( int i = 0; i < CRYPTO_num_locks(); i++) {
+        pthread_mutex_destroy(&StaticSslLocking::poMutexes[i]);
     }
     delete [] StaticSslLocking::poMutexes;
     StaticSslLocking::poMutexes = NULL;

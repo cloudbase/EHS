@@ -36,13 +36,12 @@ using namespace std;
 
 CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char *, int )
 {
-	CRYPTO_dynlock_value * poDynlock = new CRYPTO_dynlock_value;
+	CRYPTO_dynlock_value *poDynlock = new CRYPTO_dynlock_value;
 
-    if ( NULL == poDynlock ) {
+    if (NULL == poDynlock) {
         throw runtime_error ( "DynamicSslLocking::DynamicLockCreateCallback: Could not allocate poDynlock" );
     }
-
-	pthread_mutex_init ( &poDynlock->oMutex, NULL );
+	pthread_mutex_init(&poDynlock->oMutex, NULL);
 	return poDynlock;
 
 }
@@ -53,7 +52,7 @@ void DynamicSslLocking::DynamicLockCallback ( int inMode,
 											  int )
 {
 	if ( inMode & CRYPTO_LOCK ) {
-		pthread_mutex_lock ( &ipoDynlock->oMutex );
+		pthread_mutex_lock(&ipoDynlock->oMutex);
 	} else {
 		pthread_mutex_unlock ( &ipoDynlock->oMutex );
 	}
@@ -70,16 +69,16 @@ void DynamicSslLocking::DynamicLockCleanupCallback ( struct CRYPTO_dynlock_value
 
 DynamicSslLocking::DynamicSslLocking ( )
 {
-	CRYPTO_set_dynlock_create_callback ( DynamicLockCreateCallback );
-	CRYPTO_set_dynlock_lock_callback ( DynamicLockCallback );
-	CRYPTO_set_dynlock_destroy_callback ( DynamicLockCleanupCallback );
+	CRYPTO_set_dynlock_create_callback(DynamicLockCreateCallback);
+	CRYPTO_set_dynlock_lock_callback(DynamicLockCallback);
+	CRYPTO_set_dynlock_destroy_callback(DynamicLockCleanupCallback);
 }
 
 DynamicSslLocking::~DynamicSslLocking ( )
 {
-	CRYPTO_set_dynlock_create_callback ( NULL );
-	CRYPTO_set_dynlock_lock_callback ( NULL );
-	CRYPTO_set_dynlock_destroy_callback ( NULL );
+	CRYPTO_set_dynlock_create_callback(NULL);
+	CRYPTO_set_dynlock_lock_callback(NULL);
+	CRYPTO_set_dynlock_destroy_callback(NULL);
 }
 
 #endif // COMPILE WITH SSL

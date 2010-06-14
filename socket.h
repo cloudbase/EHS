@@ -68,17 +68,17 @@ class Socket : public NetworkAbstraction {
 
     private:
 
-        Socket ( const Socket & );
+        Socket(const Socket &);
 
-        Socket & operator = ( const Socket & );
+        Socket & operator=(const Socket &);
 
     protected:
         /**
          * Constructs a new Socket, connected to a client.
-         * @param inAcceptSocket The socket descriptor of this connection.
+         * @param fd The socket descriptor of this connection.
          * @param peer The peer address of this socket
          */
-        Socket(int inAcceptSocket, sockaddr_in *peer);
+        Socket(int fd, sockaddr_in *peer);
 
     public:
 
@@ -89,25 +89,27 @@ class Socket : public NetworkAbstraction {
 
         virtual void RegisterBindHelper(PrivilegedBindHelper *helper);
 
-        virtual InitResult Init(int inPort);
+        virtual void Init(int port);
 
         virtual ~Socket();
 
         virtual void SetBindAddress(const char * bindAddress);
 
-        virtual int GetFd() const { return m_nAcceptSocket; }
+        virtual int GetFd() const { return m_fd; }
 
-        virtual int Read(void * ipBuffer, int ipBufferLength);
+        virtual int Read(void *buf, int bufsize);
 
-        virtual int Send(const void * ipMessage, size_t inLength, int inFlags = 0);
+        virtual int Send(const void *buf, size_t buflen, int flags = 0);
 
         virtual void Close();
 
-        virtual NetworkAbstraction * Accept();
+        virtual NetworkAbstraction *Accept();
 
         /// Determines, whether the underlying socket is secure.
         /// @return false, because this instance does not use SSL.
         virtual bool IsSecure() const { return false; }
+
+        virtual void ThreadCleanup() { }
 
     protected:
 
@@ -116,16 +118,16 @@ class Socket : public NetworkAbstraction {
         std::string GetAddress() const;
 
         /// The file descriptor of the socket on which this connection came in
-        int m_nAcceptSocket;
+        int m_fd;
 
         /// Stores the peer address of the current connection
-        sockaddr_in m_oInternetSocketAddress;
+        sockaddr_in m_peer;
 
         /// Stores the bind address
-        sockaddr_in m_oBindAddress;
+        sockaddr_in m_bindaddr;
 
         /// Our bind helper
-        PrivilegedBindHelper *m_poBindHelper;
+        PrivilegedBindHelper *m_pBindHelper;
 
 };
 

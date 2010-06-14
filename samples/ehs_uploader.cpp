@@ -117,12 +117,16 @@ int main(int argc, char ** argv)
     oSP["port"] = argv[1];
     oSP["mode"] = "threadpool";
     oSP["maxrequestsize"] = 1024 * 1024 * 10;
-    srv.StartServer(oSP);
-    kbdio kbd;
-    cout << "Press q to terminate ..." << endl;
-    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-        usleep(300000);
+    try {
+        srv.StartServer(oSP);
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+            usleep(300000);
+        }
+        srv.StopServer();
+    } catch (exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
     }
-    srv.StopServer();
     return 0;
 }

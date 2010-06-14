@@ -62,36 +62,38 @@ class PassphraseHandler;
 class SecureSocket : public Socket 
 {
     private:
-        SecureSocket ( const SecureSocket & );
+        SecureSocket(const SecureSocket &);
 
-        SecureSocket & operator = ( const SecureSocket & );
+        SecureSocket & operator=(const SecureSocket &);
 
     public:
 
-        virtual InitResult Init(int port);
+        virtual void Init(int port);
 
         /**
          * Constructs a new listener socket.
-         * @param isServerCertificate The filename of the server certificate to use.
-         * @param handler The PassphraseHandler to use.
+         * @param certfile The filename of the server certificate to use.
+         * @param handler The PassphraseHandler implementation to use.
          */
-        SecureSocket (std::string isServerCertificate = "",
-                PassphraseHandler * handler = NULL);
+        SecureSocket(const std::string & certfile = "",
+                PassphraseHandler *handler = NULL);
 
         /// Destructor
         virtual ~SecureSocket();
 
-        virtual NetworkAbstraction * Accept();
+        virtual NetworkAbstraction *Accept();
 
         /// Determines, whether the underlying socket is secure.
         /// @return true because this socket is considered secure.
         virtual bool IsSecure() const { return true; }
 
-        virtual int Read(void *ipBuffer, int ipBufferLength);
+        virtual int Read(void *buf, int bufsize);
 
-        virtual int Send(const void *ipMessage, size_t inLength, int inFlags = 0);
+        virtual int Send(const void *buf, size_t buflen, int flags = 0);
 
-        virtual void Close ( );
+        virtual void Close();
+
+        virtual void ThreadCleanup();
 
     private:
 
@@ -109,22 +111,22 @@ class SecureSocket : public Socket
 
         /**
          * Constructs a new Socket, connected to a client.
-         * @param ipoAcceptSsl The OpenSSL context, associated with this instance.
-         * @param inAcceptSocket The socket descriptor of this connection.
+         * @param ssl The OpenSSL context, associated with this instance.
+         * @param fd The socket descriptor of this connection.
          * @param peer The peer address of this socket
          */
-        SecureSocket(SSL * ipoAcceptSsl, int inAcceptSocket, sockaddr_in *peer);
+        SecureSocket(SSL *ssl, int fd, sockaddr_in *peer);
 
         /// Initializes the SSL context and provides it with certificates.
-        SSL_CTX * InitializeCertificates();
+        SSL_CTX *InitializeCertificates();
 
     protected:
 
-        /// The OpenSSL context associated with this instance.
-        SSL * m_poAcceptSsl;
+        /// The OpenSSL instance associated with this socket instance.
+        SSL *m_pSsl;
 
         /// The filename of the certificate file
-        std::string m_sServerCertificate;
+        std::string m_sCertFile;
 
         /// The PassPhraseHandler to use for retrieving certificate passphrases.
         PassphraseHandler * m_poPassphraseHandler;
@@ -132,19 +134,22 @@ class SecureSocket : public Socket
     private:
 
         /// Dynamic portion of the SSL locking mechanism.
-        static DynamicSslLocking * poDynamicSslLocking;
+        static DynamicSslLocking * s_pDynamicSslLocking;
 
         /// Static portion of the SSL locking mechanism.
-        static StaticSslLocking * poStaticSslLocking;
+        static StaticSslLocking * s_pStaticSslLocking;
 
         /// Error object for getting openssl error messages
-        static SslError * poSslError;
+        static SslError * s_pSslError;
 
         /// Internal OpenSSL context
-        static SSL_CTX * poCtx;
+        static SSL_CTX * s_pSslCtx;
 
-        /// Internal reference countr for releasing OpenSSL ressources.
-        static int refcount;
+        /// Internal reference counter for releasing OpenSSL ressources.
+        static int s_refcount;
+
+        /// Mutex for Init() an s_refcount;
+        static pthread_mutex_t s_mutex;
 };
 
 #endif

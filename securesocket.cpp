@@ -31,42 +31,47 @@
 #include "securesocket.h"
 
 #ifdef COMPILE_WITH_SSL
+#include "mutexhelper.h"
+
 #include <iostream>
 #include <sstream>
+#include <cerrno>
+#include <stdexcept>
 
 using namespace std;
 
-static SslError g_oSslError;
-
 // static class variables
-DynamicSslLocking * SecureSocket::poDynamicSslLocking = NULL;
-StaticSslLocking * SecureSocket::poStaticSslLocking = NULL;
-SslError * SecureSocket::poSslError = NULL;
-SSL_CTX * SecureSocket::poCtx = NULL;
-int SecureSocket::refcount = 0;
+DynamicSslLocking * SecureSocket::s_pDynamicSslLocking = NULL;
+StaticSslLocking * SecureSocket::s_pStaticSslLocking = NULL;
+SslError * SecureSocket::s_pSslError = NULL;
+SSL_CTX * SecureSocket::s_pSslCtx = NULL;
+int SecureSocket::s_refcount = 0;
+pthread_mutex_t SecureSocket::s_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-SecureSocket::SecureSocket (std::string isServerCertificate,
+SecureSocket::SecureSocket (const std::string & certfile,
         PassphraseHandler *handler) : 
     Socket(),
-    m_poAcceptSsl(NULL),
-    m_sServerCertificate (isServerCertificate),
+    m_pSsl(NULL),
+    m_sCertFile(certfile),
     m_poPassphraseHandler(handler)
 { 
-    refcount++;
+    pthread_mutex_lock(&s_mutex);
+    s_refcount++;
+    pthread_mutex_unlock(&s_mutex);
 #ifdef EHS_DEBUG
     std::cerr << "calling SecureSocket constructor A" << std::endl;
 #endif
 }
 
-SecureSocket::SecureSocket (SSL * ipoAcceptSsl, 
-        int inAcceptSocket, 
-        sockaddr_in * ipoInternetSocketAddress) :
-    Socket(inAcceptSocket, ipoInternetSocketAddress),
-    m_poAcceptSsl(ipoAcceptSsl),
-    m_sServerCertificate(""),
+SecureSocket::SecureSocket (SSL *ssl, int fd, sockaddr_in *peer) :
+    Socket(fd, peer),
+    m_pSsl(ssl),
+    m_sCertFile(""),
     m_poPassphraseHandler(NULL)
 {
-    refcount++;
+    pthread_mutex_lock(&s_mutex);
+    s_refcount++;
+    pthread_mutex_unlock(&s_mutex);
 #ifdef EHS_DEBUG
     std::cerr << "calling SecureSocket constructor B" << std::endl;
 #endif
@@ -78,261 +83,224 @@ SecureSocket::~SecureSocket ( )
     std::cerr << "calling SecureSocket destructor" << std::endl;
 #endif
     Close();
-    if ( m_poAcceptSsl ) {
-        SSL_free( m_poAcceptSsl );
+    if (m_pSsl) {
+        SSL_free(m_pSsl);
     }
-    if (0 == --refcount) {
+
+    pthread_mutex_lock(&s_mutex);
+    int rc = --s_refcount;
+    pthread_mutex_unlock(&s_mutex);
+    if (0 == rc) {
 #ifdef EHS_DEBUG
         std::cerr << "Deleting static members" << std::endl;
 #endif
-        if ( NULL != poCtx ) {
-#ifdef EHS_DEBUG
-            std::cerr << "  poCtx" << std::endl;
-#endif
-            SSL_CTX_free ( poCtx );
+        if (NULL != s_pSslCtx) {
+            SSL_CTX_free(s_pSslCtx);
         }
-        if ( NULL != poSslError ) {
-#ifdef EHS_DEBUG
-            std::cerr << "  poSslError" << std::endl;
-#endif
-            delete poSslError;
-        }
-        if ( NULL != poStaticSslLocking ) {
-#ifdef EHS_DEBUG
-            std::cerr << "  poStaticSslLocking" << std::endl;
-#endif
-            delete poStaticSslLocking;
-        }
-        if ( NULL != poDynamicSslLocking ) {
-#ifdef EHS_DEBUG
-            std::cerr << "  poDynamicSslLocking" << std::endl;
-#endif
-            delete poDynamicSslLocking;
-        }
-
-        ERR_free_strings();
-        ERR_remove_state(0);
-        EVP_cleanup();
+        delete s_pSslError;
         CRYPTO_cleanup_all_ex_data();
-
+        EVP_cleanup();
+        delete s_pStaticSslLocking;
+        delete s_pDynamicSslLocking;
     }
 }
 
-NetworkAbstraction::InitResult 
-SecureSocket::Init ( int inPort ///< port on which to listen
-        ) {
-
-    // registers available cyphers and digests.  Absolutely required.
-    SSL_library_init ( );
-
-    // check and see if we need to initialize one-time data structures
-    pthread_mutex_t oMutex;
-    pthread_mutex_init ( &oMutex, NULL );
-    pthread_mutex_lock ( &oMutex );
-
-    if ( poDynamicSslLocking == NULL ) {
-        poDynamicSslLocking = new DynamicSslLocking;
-    }
-
-    if ( poStaticSslLocking == NULL ) {
-        poStaticSslLocking = new StaticSslLocking;
-    }
-
-    // not sure this is needed?
-    if ( poSslError == NULL ) {
-        poSslError = new SslError;
-    }
-
-    if ( poCtx == NULL ) {
-        InitializeCertificates ( );
-    }
-
-    if ( poCtx == NULL ) {
-        return NetworkAbstraction::INITSOCKET_CERTIFICATE;
-    }
-    pthread_mutex_unlock ( &oMutex );
-
-    return Socket::Init( inPort );
-}
-
-NetworkAbstraction * SecureSocket::Accept ( ) 
+void SecureSocket::ThreadCleanup()
 {
-    size_t oInternetSocketAddressLength = sizeof ( m_oInternetSocketAddress );
-    int fd = accept ( m_nAcceptSocket, 
-            (sockaddr *) &m_oInternetSocketAddress,
+    if (s_pSslError)
+        s_pSslError->ThreadCleanup();
+}
+
+void SecureSocket::Init(int port)
+{
+    MutexHelper mh(&s_mutex);
+
+    // Initializes OpenSSL
+    SSL_library_init();
+
+    if (NULL == s_pDynamicSslLocking) {
+        s_pDynamicSslLocking = new DynamicSslLocking;
+    }
+    if (NULL == s_pStaticSslLocking) {
+        s_pStaticSslLocking = new StaticSslLocking;
+    }
+    if (NULL == s_pSslError) {
+        s_pSslError = new SslError;
+    }
+    if (NULL == s_pSslCtx) {
+        s_pSslCtx = InitializeCertificates();
+    }
+
+    return Socket::Init(port);
+}
+
+NetworkAbstraction *SecureSocket::Accept() 
+{
+    string sError;
+    size_t addrlen = sizeof(m_peer);
+retry:
+    int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
-            (int *) &oInternetSocketAddressLength 
+            reinterpret_cast<int *>(&addrlen) 
 #else
-            &oInternetSocketAddressLength 
+            &addrlen 
 #endif
             );
 
 #ifdef EHS_DEBUG
     cerr
         << "Got a connection from " << GetAddress() << ":"
-        << ntohs(m_oInternetSocketAddress.sin_port) << endl;
+        << ntohs(m_peer.sin_port) << endl;
 #endif
-    if ( fd == -1 ) {
-        return NULL;
+    if (-1 == fd) {
+#ifndef _WIN32
+        switch (errno) {
+            case EAGAIN:
+            case EINTR:
+                goto retry;
+                break;
+        }
+#endif
+        sError.assign("accept: ");
+        throw runtime_error(sError.append(strerror(errno)));
     }
 
     // TCP connection is ready. Do server side SSL.
-    SSL * ssl = SSL_new ( poCtx );
-    if ( NULL == ssl ) {
-#ifdef EHS_DEBUG
-        cerr << "SSL_new failed" << endl;
+    SSL *ssl = SSL_new(s_pSslCtx);
+    if (NULL == ssl) {
+        s_pSslError->GetError(sError);
+#ifdef _WIN32
+        closesocket(fd);
+#else
+        close(fd);
 #endif
-        return NULL;
+        throw runtime_error(sError.insert(0, "Error while creating SSL session context: "));
     }
-    SSL_set_fd ( ssl, fd );
-    int ret = SSL_accept ( ssl );
-    if ( 1 != ret ) {
-#ifdef EHS_DEBUG
-        string sError;
-        g_oSslError.GetError ( sError );
-        cerr << "SSL_accept failed: " << sError << endl;
+    SSL_set_fd(ssl, fd);
+    int ret = SSL_accept(ssl);
+    if (1 != ret) {
+        s_pSslError->GetError(sError);
+        SSL_free(ssl);
+#ifdef _WIN32
+        closesocket(fd);
+#else
+        close(fd);
 #endif
-        SSL_free ( ssl );
-        return NULL;
+        throw runtime_error(sError.insert(0, "Error during SSL handshake: "));
     }
 
-    return new SecureSocket ( ssl, fd, &m_oInternetSocketAddress );
+    return new SecureSocket(ssl, fd, &m_peer);
 }
 
-int PeerCertificateVerifyCallback ( int inOk,
-        X509_STORE_CTX * ipoStore ) {
+int PeerCertificateVerifyCallback (int inOk,
+        X509_STORE_CTX *ipoStore) {
 
 #ifdef EHS_DEBUG
-    if ( !inOk ) {
+    if (!inOk) {
         char psBuffer [ 256 ];
-        X509 * poCertificate = X509_STORE_CTX_get_current_cert ( ipoStore );
-        int nDepth = X509_STORE_CTX_get_error_depth ( ipoStore );
-        int nError = X509_STORE_CTX_get_error ( ipoStore );
+        X509 * poCertificate = X509_STORE_CTX_get_current_cert(ipoStore);
+        int nDepth = X509_STORE_CTX_get_error_depth(ipoStore);
+        int nError = X509_STORE_CTX_get_error(ipoStore);
 
         cerr << "Error in certificate at depth: " << nDepth << endl;
-        X509_NAME_oneline ( X509_get_issuer_name ( poCertificate ), psBuffer, 256 );
+        X509_NAME_oneline(X509_get_issuer_name(poCertificate), psBuffer, 256);
         cerr << "  issuer  = '" << psBuffer << "'" << endl;
-        X509_NAME_oneline ( X509_get_subject_name ( poCertificate ), psBuffer, 256 );
+        X509_NAME_oneline(X509_get_subject_name(poCertificate), psBuffer, 256);
         cerr << "  subject = '" << psBuffer << "'" << endl;
-        cerr << "  error " << nError << "," <<  X509_verify_cert_error_string ( nError ) << endl;
+        cerr << "  error " << nError << "," <<  X509_verify_cert_error_string(nError) << endl;
     }
 #endif
 
     return inOk;
 }
 
-SSL_CTX * 
-SecureSocket::InitializeCertificates ( ) {
-
+SSL_CTX *SecureSocket::InitializeCertificates()
+{
+    string sError;
     // set up the CTX object in compatibility mode.
     //   We'll remove SSLv2 compatibility later for security reasons
-    poCtx = SSL_CTX_new ( SSLv23_method ( ) );
-
-    if ( poCtx == NULL ) {
-        string sError;
-        g_oSslError.GetError ( sError );
-#ifdef EHS_DEBUG
-        cerr << "Error creating CTX object: '" << sError << "'" << endl;
-#endif
-        return NULL;
+    SSL_CTX *ret = SSL_CTX_new(SSLv23_method());
+    if (NULL == ret) {
+        s_pSslError->GetError(sError);
+        throw runtime_error(sError.insert(0, "Could not initialize SSL: "));
     }
 
 #ifdef EHS_DEBUG
-    if ( m_sServerCertificate == "" ) {
+    if (m_sCertFile.empty()) {
         cerr << "No filename for server certificate specified" << endl;
     } else {
-        cerr << "Using '" << m_sServerCertificate << "' for certificate" << endl;
+        cerr << "Using '" << m_sCertFile << "' for certificate" << endl;
     }
 #endif
 
 
 #if 0
     // this sets default locations for trusted CA certificates.  This is not
-    //   necessary since we're not dealing with client-side certificat
-    if ( ( m_sCertificateFile != "" ||
-                m_sCertificateDirectory != "" ) ) {
-        if ( SSL_CTX_load_verify_locations ( poCtx, 
-                    m_sCertificateFile.c_str ( ),
-                    m_sCertificateDirectory != "" ? m_sCertificateDirectory.c_str ( ) : NULL ) != 1 ) {
-            string sError;
-            g_oSslError.GetError ( sError );
-            cerr << "Error loading custom certificate file and/or directory: '" << sError << "'" << endl;
+    //   necessary since we're not dealing with client-side certificates
+    if ((!m_sCertFile.empty() || !m_sCertificateDirectory.empty())) {
+        if (SSL_CTX_load_verify_locations(poCtx, 
+                    m_sCertFile.c_str(),
+                    m_sCertificateDirectory.empty() ? NULL : m_sCertificateDirectory.c_str()) != 1 ) {
+            s_pSslError.GetError(sError);
+            cerr << "Error loading trusted certs: '" << sError << "'" << endl;
             delete poCtx;
             return NULL;
-
         }
     }
 
     // Unknown what this does
-    if ( SSL_CTX_set_default_verify_paths ( poCtx ) != 1 ) {
+    if (SSL_CTX_set_default_verify_paths(poCtx) != 1) {
         cerr << "Error loading default certificate file and/or directory" << endl;
         return NULL;
     }
 #endif
 
     // set the callback
-    SSL_CTX_set_default_passwd_cb(poCtx, PassphraseCallback);
+    SSL_CTX_set_default_passwd_cb(ret, PassphraseCallback);
     // set the data
-    SSL_CTX_set_default_passwd_cb_userdata(poCtx, reinterpret_cast<void *>(this));
+    SSL_CTX_set_default_passwd_cb_userdata(ret, reinterpret_cast<void *>(this));
 
-    if (m_sServerCertificate != "") {
-        if (SSL_CTX_use_certificate_chain_file(poCtx, m_sServerCertificate.c_str()) != 1) {
-            string sError;
-            g_oSslError.GetError(sError);
-#ifdef EHS_DEBUG
-            cerr
-                << "Error loading server certificate '" << m_sServerCertificate
-                << "': '" << sError << "'" << endl;
-#endif
-            delete poCtx;
-            poCtx = NULL;
-            return NULL;
+    if (m_sCertFile.empty()) {
+        throw runtime_error("No certificate specified.");
+    } else {
+        if (SSL_CTX_use_certificate_chain_file(ret, m_sCertFile.c_str()) != 1) {
+            s_pSslError->GetError(sError);
+            SSL_CTX_free(ret);
+            throw runtime_error(sError.insert(0, "Error while loading certificate: "));
         }
-        if (SSL_CTX_use_PrivateKey_file(poCtx, m_sServerCertificate.c_str(), SSL_FILETYPE_PEM) != 1) {
-#ifdef EHS_DEBUG
-            cerr << "Error loading private key" << endl;
-#endif
-            delete poCtx;
-            poCtx = NULL;
-            return NULL;
+        if (1 != SSL_CTX_use_PrivateKey_file(ret, m_sCertFile.c_str(), SSL_FILETYPE_PEM)) {
+            s_pSslError->GetError(sError);
+            SSL_CTX_free(ret);
+            throw runtime_error(sError.insert(0, "Error while loading private key: "));
         }
     }
 
-    SSL_CTX_set_verify( poCtx, 0//SSL_VERIFY_PEER 
-            //| SSL_VERIFY_FAIL_IF_NO_PEER_CERT
-            ,
-            PeerCertificateVerifyCallback);
+    SSL_CTX_set_verify(ret, 0, PeerCertificateVerifyCallback);
 
-    //SSL_CTX_set_verify_depth(poCtx, 4);
+    //SSL_CTX_set_verify_depth(s_pSslCtx, 4);
 
-    // set all workarounds for buggy clients and turn off SSLv2 because it's insecure
-    SSL_CTX_set_options(poCtx, SSL_OP_ALL | SSL_OP_NO_SSLv2);
+    // set all workarounds for buggy clients and turn
+    // off SSLv2 because it's insecure.
+    SSL_CTX_set_options(ret, SSL_OP_ALL|SSL_OP_NO_SSLv2);
 
-    if (SSL_CTX_set_cipher_list(poCtx, CIPHER_LIST) != 1) {
-#ifdef EHS_DEBUG
-        cerr << "Error setting ciper list (no valid ciphers)" << endl;
-#endif
-        delete poCtx;
-        poCtx = NULL;
-        return NULL;
+    if (1 != SSL_CTX_set_cipher_list(ret, CIPHER_LIST)) {
+        s_pSslError->GetError(sError);
+        SSL_CTX_free(ret);
+        throw runtime_error(sError.insert(0, "Error while setting cipher list: "));
     }
 
-    return poCtx;
+    return ret;
 }
 
 
-int SecureSocket::Read(void * ipBuffer, int ipBufferLength)
+int SecureSocket::Read(void *buf, int bufsize)
 {
-    int nReadResult = SSL_read(m_poAcceptSsl, ipBuffer, ipBufferLength);
-    // TODO: should really handle errors here
-    return nReadResult;
+    return (bufsize > 0) ? SSL_read(m_pSsl, buf, bufsize) : 0;
 }
 
-int SecureSocket::Send (const void * ipMessage, size_t inLength, int)
+int SecureSocket::Send (const void *buf, size_t buflen, int)
 {
-    int nWriteResult = SSL_write(m_poAcceptSsl, ipMessage, inLength);
-    // TODO: should really handle errors here
-    return nWriteResult;
+    return (buflen > 0) ? SSL_write(m_pSsl, buf, buflen) : 0;
 }
 
 void SecureSocket::Close()
@@ -353,7 +321,7 @@ SecureSocket::PassphraseCallback(char * buf, int bufsize, int rwflag, void * use
         ret = passphrase.length();
         if (ret > 0) {
             ret = ((bufsize - 1) < ret) ? (bufsize - 1): ret;
-            strncpy ( buf, passphrase.c_str ( ), ret );
+            strncpy(buf, passphrase.c_str(), ret);
             buf[ret + 1] = 0;
         }
     }

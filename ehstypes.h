@@ -85,6 +85,9 @@ typedef std::map < std::string, Datum > CookieParameters;
 /// holds respose objects not yet ready to send
 typedef std::map < int, HttpResponse * > HttpResponseMap;
 
+/// holds the currently handled request for each thread
+typedef std::map < pthread_t, HttpRequest * > CurrentRequestMap;
+
 /// holds a list of pending requests
 typedef std::list < HttpRequest * > HttpRequestList;
 

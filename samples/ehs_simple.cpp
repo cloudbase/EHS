@@ -42,30 +42,28 @@ int main(int argc, char ** argv)
 
 	EHSServerParameters oSP;
 	oSP["port"] = argv[1];
-
-	// start in thread pool mode
-	if (3 == argc) {
-		cout << "Starting in threaded mode" << endl;
-		oSP["mode"] = "threadpool";
-		oSP["threadcount"] = 1;
-		srv.StartServer(oSP);
-        kbdio kbd;
-        cout << "Press q to terminate ..." << endl;
-        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-            usleep(300000);
-        }
+    if (3 == argc) {
+        cout << "Starting in threaded mode" << endl;
+        oSP["mode"] = "threadpool";
     } else {
-        // start in single threaded mode
-
         cout << "Starting in single threaded mode" << endl;
         oSP["mode"] = "singlethreaded";
+    }
+
+    try {
         srv.StartServer(oSP);
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-            srv.HandleData(1000); // waits for 1 second
+            if (3 == argc) {
+                usleep(300000);
+            } else {
+                srv.HandleData(1000); // waits for 1 second
+            }
         }
+        srv.StopServer();
+    } catch (exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
     }
-    srv.StopServer();
     return 0;
 }

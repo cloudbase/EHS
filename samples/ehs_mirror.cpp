@@ -47,47 +47,48 @@ class MyEHS : public EHS {
 int main ( int argc, char ** argv )
 {
 
-	if ( ( argc != 2 ) && ( argc != 5 ) ) {
-		cout << "Usage: " << argv [ 0 ] << " <port> [<sslport> <certificate file> <passphrase>]" << endl; 
-		exit ( 0 );
+	if ((argc != 2) && (argc != 5)) {
+        string cmd(basename(argv[0]));
+		cout << "Usage: " << cmd << " <port> [<sslport> <certificate file> <passphrase>]" << endl; 
+        return 0;
 	}
 
-	EHS * poMyEHS = new MyEHS;
-    EHS * poEHS = NULL;
+	MyEHS plainEHS;
+    MyEHS *sslEHS = NULL;
 
 	EHSServerParameters oSP;
-	oSP [ "port" ] = argv [ 1 ];
-	oSP [ "mode" ] = "threadpool";
-	// unnecessary because 1 is the default
-	oSP [ "threadcount" ] = 1;
+	oSP["port"] = argv[1];
+	oSP["mode"] = "threadpool";
 
-	poMyEHS->StartServer ( oSP );
+    try {
+        plainEHS.StartServer(oSP);
+        if (argc == 5) {
+            sslEHS = new MyEHS;
+            oSP["port"] = argv[2];
+            oSP["https"] = 1;
+            oSP["mode"] = "threadpool";
+            oSP["certificate"] = argv[3];
+            oSP["passphrase"] = argv[4];
+            sslEHS->SetSourceEHS(plainEHS);
+            sslEHS->StartServer(oSP);
+        }
 
-    if ( argc == 5 ) {
-        // create a default EHS object, but set poMyEHS as its source EHS object
-        poEHS = new EHS;
-        oSP [ "port" ] = argv [ 2 ];
-        oSP [ "https" ] = 1;
-        oSP [ "mode" ] = "threadpool";
-        oSP [ "threadcount" ] = 1;
-        oSP [ "certificate" ] = argv [ 3 ];
-        oSP [ "passphrase" ] = argv [ 4 ];
-
-        poEHS->SetSourceEHS ( *poMyEHS );
-        poEHS->StartServer ( oSP );
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(plainEHS.ShouldTerminate() ||
+                    (sslEHS && sslEHS->ShouldTerminate()) ||
+                    kbd.qpressed()))
+        {
+            usleep(300000);
+        }
+        plainEHS.StopServer();
+        if (NULL != sslEHS) {
+            sslEHS->StopServer();
+        }
+    } catch (exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
     }
-
-    kbdio kbd;
-    cout << "Press q to terminate ..." << endl;
-    while (!(poMyEHS->ShouldTerminate() || kbd.qpressed())) {
-        usleep(300000);
-    }
-    poMyEHS->StopServer ( );
-    delete poMyEHS;
-    if (NULL != poEHS) {
-        poEHS->StopServer ( );
-        delete poEHS;
-    }
+    delete sslEHS;
 
     return 0;
 }

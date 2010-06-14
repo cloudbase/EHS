@@ -127,19 +127,20 @@ int main ( int argc, char ** argv )
     srv.SetBindHelper(&h);
 
     EHSServerParameters oSP;
-    oSP[ "port"] = argv[1];
-    oSP[ "mode"] = "threadpool";
-    // oSP [ "bindaddress" ] = "127.0.0.1";
+    oSP["port"] = argv[1];
+    oSP["mode"] = "threadpool";
 
-    srv.StartServer(oSP);
-
-    kbdio kbd;
-    cout << "Press q to terminate ..." << endl;
-    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-        usleep(300000);
+    try {
+        srv.StartServer(oSP);
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+            usleep(300000);
+        }
+        srv.StopServer();
+    } catch (exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
     }
-
-    srv.StopServer();
 
     return 0;
 }

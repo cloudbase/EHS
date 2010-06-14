@@ -28,8 +28,6 @@
 
 #ifdef COMPILE_WITH_SSL
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
 #include <string>
 
 /**
@@ -39,6 +37,9 @@ class SslError
 {
 
     public:
+
+        /// Destructor
+        ~SslError();
 
         /**
          * Retrieves info about the last OpenSSL error and optionally
@@ -56,10 +57,12 @@ class SslError
          */
         int PeekError(std::string & irsReport);
 
+        void ThreadCleanup();
+
     protected:
 
         /// Flag: Represents whether the OpenSSL error strings have been loaded.
-        static bool bMessagesLoaded;
+        static bool s_bMessagesLoaded;
 };
 
 #endif // COMPILE_WITH_SSL

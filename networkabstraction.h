@@ -68,25 +68,14 @@ class NetworkAbstraction {
          */
         virtual int GetPort() const = 0;
 
-        /// Enumeration of error results for InitSocketsResults
-        enum InitResult {
-            INITSOCKET_INVALID,
-            INITSOCKET_SOCKETFAILED,
-            INITSOCKET_BINDFAILED,
-            INITSOCKET_LISTENFAILED,
-            INITSOCKET_FAILED,
-            INITSOCKET_CERTIFICATE,
-            INITSOCKET_SUCCESS
-        };
-
         /**
          * Initializes a listening socket.
          * If listening should be restricted to a specific address, SetBindAddress
          * has to be called in advance.
          * @param port The port to listen on.
-         * @return An InitResult, describing the result of the initialization.
+         * @throws A std:runtime_error if initialization fails.
          */
-        virtual InitResult Init(int port) = 0;
+        virtual void Init(int port) = 0;
 
         /// Destructor
         virtual ~NetworkAbstraction() { }
@@ -99,32 +88,36 @@ class NetworkAbstraction {
 
         /**
          * Performs a read from the underlying socket.
-         * @param ipBuffer Pointer to a buffer that receives the incoming data.
-         * @param ipBufferLength The maximum number of bytes to read.
+         * @param buf Pointer to a buffer that receives the incoming data.
+         * @param bufsize The maximum number of bytes to read.
          * @return The actual number of bytes that have been received or -1 if an error occured.
          */
-        virtual int Read(void * ipBuffer, int ipBufferLength) = 0;
+        virtual int Read(void *buf, int bufsize) = 0;
 
         /**
          * Performs a send on the underlying socket.
-         * @param ipMessage Pointer to the data to be sent.
-         * @param inLength The number of bytes to send.
-         * @param inFlags Additional flags for the system call.
+         * @param buf Pointer to the data to be sent.
+         * @param buflen The number of bytes to send.
+         * @param flags Additional flags for the system call.
          * @return The actual number of byte that have been sent or -1 if an error occured.
          */
-        virtual int Send(const void * ipMessage, size_t inLength, int inFlags = 0) = 0;
+        virtual int Send(const void *buf, size_t buflen, int flags = 0) = 0;
 
         /// Closes the underlying socket.
         virtual void Close() = 0;
 
-        /// Waits for an incoming connection.
-        /// @return A new NetworkAbstraction instance which represents the client connetion.
-        virtual NetworkAbstraction * Accept() = 0;
+        /** Waits for an incoming connection.
+         * @return A new NetworkAbstraction instance which represents the client connetion.
+         * @throws A std:runtime_error on failure.
+         */
+        virtual NetworkAbstraction *Accept() = 0;
 
         /// Determines, whether the underlying socket is socure.
         /// @return true, if SSL is used; false otherwise.
         virtual bool IsSecure() const = 0;
 
+        /// Handles thread specific clean up (used by OpenSSL).
+        virtual void ThreadCleanup() = 0;
 };
 
 #endif // NETWORK_ABSTRACTION_H

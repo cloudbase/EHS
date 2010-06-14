@@ -17,7 +17,8 @@ pkginclude_HEADERS = ehs.h networkabstraction.h \
 	ehstypes.h formvalue.h contentdisposition.h
 
 noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
-	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h
+	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h \
+	mutexhelper.h
 
 # Extra stuff to distribute in tarball 
 EXTRA_DIST = $(DX_CONFIG) doc/html ehs_development_guide.txt ehs-stress.pl

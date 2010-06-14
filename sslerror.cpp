@@ -30,10 +30,26 @@
 #ifdef COMPILE_WITH_SSL
 
 #include "sslerror.h"
+#include <iostream>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 using namespace std;
 
-bool SslError::bMessagesLoaded = false;
+bool SslError::s_bMessagesLoaded = false;
+
+SslError::~SslError()
+{
+    if (s_bMessagesLoaded) {
+        ERR_free_strings();
+    }
+    ERR_remove_state(0);
+}
+
+void SslError::ThreadCleanup()
+{
+    ERR_remove_state(0);
+}
 
 int SslError::GetError(string & irsReport, bool inPeek)
 {
@@ -48,9 +64,9 @@ int SslError::GetError(string & irsReport, bool inPeek)
 	}
 
 	// do we need to load the strings?
-	if (!bMessagesLoaded) {
+	if (!s_bMessagesLoaded) {
 		SSL_load_error_strings();
-		bMessagesLoaded = true;
+		s_bMessagesLoaded = true;
 	}
 
 	char psBuffer[256];
@@ -63,6 +79,5 @@ int SslError::PeekError(string & irsReport)
 {
 	return GetError(irsReport, true);
 }
-
 
 #endif // COMPILE_WITH_SSL

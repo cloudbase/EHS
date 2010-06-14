@@ -27,7 +27,7 @@
 
 #include <iostream>
 #include <fstream>
-#include <cassert>
+#include <stdexcept>
 #include <cstring>
 #include <cstdlib>
 #include "common.h"
@@ -52,7 +52,9 @@ class tester : public EHS
             EHS(), m_nDelay(delay), m_oInfile(file.c_str())
         {
             cout << "loading file '" << file << "'" << endl;
-            assert (m_oInfile);
+            if (m_oInfile.fail()) {
+                throw runtime_error("Could not open file");
+            }
         }
 
     private:
@@ -94,7 +96,8 @@ ResponseCode tester::HandleRequest(HttpRequest *request, HttpResponse *response)
 
     // throw in a cookie here, just to show how it's done
     CookieParameters oCP;
-    oCP["name"] = "ehs_test_cookie";
+    string sCookieName("ehs_test_cookie_");
+    oCP["name"] = sCookieName.append(m_sRegisteredAs);
     oCP["value"] = sCopy;
     response->SetCookie(oCP);
 
@@ -113,7 +116,7 @@ int main(int argc, char **argv)
         cerr << "\tModes: 2 - Multithreaded, fixed number of threads" << endl;
         cerr << "\tModes: 3 - Multithreaded, one thread per request (last parameter ignored)" << endl;
         cerr << "\tnorouterequest: if anything is specified, requests will not be routed" << endl;
-        exit(0);
+        return 0;
     }
 
     int nDelay = 0;
@@ -136,52 +139,58 @@ int main(int argc, char **argv)
         case 1:
             cout << "Running in single threaded mode" << endl;
             oSP["mode"] = "singlethreaded";
+            break;
         case 2:
             cout << "Running with a thread pool of " << nThreadCount << " threads" << endl;
             oSP["mode"] = "threadpool";
             oSP["threadcount"] = nThreadCount;
+            break;
         case 3:
             cout << "Running with one thread per request" << endl;
             oSP["mode"] = "onethreadperrequest";
+            break;
         default:
             cerr << "Invalid mode specified: must be 1, 2, or 3" << endl;
-            exit(0);
+            return 0;
     }
     cout << "binding to " << argv[2] << endl;
     cout << "Delay set to " << nDelay << " seconds" << endl;
 
-
     tester srv(argv[3], nDelay);
-    srv.StartServer(oSP);
+    try {
+        srv.StartServer(oSP);
 
-    tester a(argv[3]);
-    // Handles URIs like http://localhost/a
-    srv.RegisterEHS(&a, "a");
+        tester a(argv[3]);
+        // Handles URIs like http://localhost/a
+        srv.RegisterEHS(&a, "a");
 
-    tester b(argv[3]);
-    // Handles URIs like http://localhost/b
-    srv.RegisterEHS(&b, "b");
+        tester b(argv[3]);
+        // Handles URIs like http://localhost/b
+        srv.RegisterEHS(&b, "b");
 
-    tester aa(argv[3]);
-    // Handles URIs like http://localhost/a/a
-    a.RegisterEHS(&aa, "a");
+        tester aa(argv[3]);
+        // Handles URIs like http://localhost/a/a
+        a.RegisterEHS(&aa, "a");
 
-    tester ab(argv[3]);
-    // Handles URIs like http://localhost/a/b
-    a.RegisterEHS(&ab, "b");
+        tester ab(argv[3]);
+        // Handles URIs like http://localhost/a/b
+        a.RegisterEHS(&ab, "b");
 
 
-    // if in single threaded mode,
-    // we must handle data explicitly.
-    kbdio kbd;
-    cout << "Press q to terminate ..." << endl;
-    while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-        if (1 == nMode) {
-            srv.HandleData(1000); // waits for 1 second
-        } else {
-            usleep(300000);
+        // if in single threaded mode,
+        // we must handle data explicitly.
+        kbdio kbd;
+        cout << "Press q to terminate ..." << endl;
+        while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+            if (1 == nMode) {
+                srv.HandleData(1000); // waits for 1 second
+            } else {
+                usleep(300000);
+            }
         }
+        srv.StopServer();
+    } catch (exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
     }
-    srv.StopServer();
     return 0;
 }

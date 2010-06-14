@@ -34,6 +34,7 @@
 #include "socket.h"
 #include "securesocket.h"
 #include "debug.h"
+#include "mutexhelper.h"
 
 #include <pcrecpp.h>
 #include <pthread.h>
@@ -62,43 +63,6 @@ const char * getEHSconfig()
 }
 
 using namespace std;
-
-/**
- * Automatically unlocks a mutex if destroyed.
- */
-class MutexHelper {
-    public:
-        MutexHelper(pthread_mutex_t *mutex, bool locknow = true) :
-            m_pMutex(mutex), m_bLocked(false)
-        {
-            if (locknow)
-                Lock();
-        }
-
-        ~MutexHelper()
-        {
-            if (m_bLocked)
-                pthread_mutex_unlock(m_pMutex);
-        }
-
-        void Lock()
-        {
-            pthread_mutex_lock(m_pMutex);
-            m_bLocked = true;
-        }
-
-        void Unlock()
-        {
-            m_bLocked = false;
-            pthread_mutex_unlock(m_pMutex);
-        }
-    private:
-        pthread_mutex_t *m_pMutex;
-        bool m_bLocked;
-
-        MutexHelper(const MutexHelper &);
-        MutexHelper & operator=(const MutexHelper &);
-};
 
 int EHSServer::CreateFdSet()
 {
@@ -302,8 +266,7 @@ int EHSConnection::CheckDone()
 // EHS SERVER
 ////////////////////////////////////////////////////////////////////
 
-EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for request routing
-        ) :
+EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     m_nServerRunningStatus(SERVERRUNNING_NOTRUNNING),
     m_poTopLevelEHS(ipoTopLevelEHS),
     m_bAcceptedNewConnection(false),
@@ -337,71 +300,70 @@ EHSServer::EHSServer ( EHS * ipoTopLevelEHS ///< pointer to top-level EHS for re
     } else {
         EHS_TRACE("EHSServer running in plain-text mode (no HTTPS)\n");
     }
-    // are we using secure sockets?
-    if (nHttps) {
+    try {
+        // are we using secure sockets?
+        if (nHttps) {
 #ifdef COMPILE_WITH_SSL		
-        EHS_TRACE("Trying to create secure socket with certificate='%s' and passphrase='%s'\n",
-                (const char*)roEHSServerParameters["certificate"],
-                (const char*)roEHSServerParameters["passphrase"]);
-        m_poNetworkAbstraction = new SecureSocket(roEHSServerParameters["certificate"],
-                reinterpret_cast<PassphraseHandler *>(ipoTopLevelEHS));
+            EHS_TRACE("Trying to create secure socket with certificate='%s' and passphrase='%s'\n",
+                    (const char*)roEHSServerParameters["certificate"],
+                    (const char*)roEHSServerParameters["passphrase"]);
+            m_poNetworkAbstraction = new SecureSocket(roEHSServerParameters["certificate"],
+                    reinterpret_cast<PassphraseHandler *>(ipoTopLevelEHS));
 #else // COMPILE_WITH_SSL
-        throw runtime_error("EHSServer::EHSServer: EHS not compiled with SSL support. Cannot create HTTPS server.");
+            throw runtime_error("EHSServer::EHSServer: EHS not compiled with SSL support. Cannot create HTTPS server.");
 #endif // COMPILE_WITH_SSL
-    } else {
-        m_poNetworkAbstraction = new Socket();
-    }
+        } else {
+            m_poNetworkAbstraction = new Socket();
+        }
 
-    // initialize the socket
-    if (roEHSServerParameters["bindaddress"] != "") {
-        m_poNetworkAbstraction->SetBindAddress(roEHSServerParameters["bindaddress"]);
-    }
-    m_poNetworkAbstraction->RegisterBindHelper(m_poTopLevelEHS->GetBindHelper());
-    int nResult = m_poNetworkAbstraction->Init(roEHSServerParameters["port"]); // initialize socket stuff
-    if (nResult != NetworkAbstraction::INITSOCKET_SUCCESS) {
-        EHS_TRACE("Error: Failed to initialize sockets\n");
-        return;
-    }
-    if (roEHSServerParameters["mode"] == "threadpool") {
-        // need to set this here because the thread will check this to make
-        // sure it's supposed to keep running
-        m_nServerRunningStatus = SERVERRUNNING_THREADPOOL;
-        // create a pthread
-        int nResult = -1;
-        int nThreadsToStart = roEHSServerParameters ["threadcount"].GetInt();
-        if (nThreadsToStart <= 0) {
-            nThreadsToStart = 1;
+        // initialize the socket
+        if (roEHSServerParameters["bindaddress"] != "") {
+            m_poNetworkAbstraction->SetBindAddress(roEHSServerParameters["bindaddress"]);
         }
-        EHS_TRACE ("Starting %d threads\n", nThreadsToStart);
-        for (int i = 0; i < nThreadsToStart; i++) {
-            // create new thread and detach so we don't have to join on it
-            nResult = pthread_create(&m_nAcceptThreadId, NULL,
-                    EHSServer::PthreadHandleData_ThreadedStub, (void *)this);
-            EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
-                    m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
-            pthread_detach(m_nAcceptThreadId);
+        m_poNetworkAbstraction->RegisterBindHelper(m_poTopLevelEHS->GetBindHelper());
+        m_poNetworkAbstraction->Init(roEHSServerParameters["port"]); // initialize socket stuff
+        if (roEHSServerParameters["mode"] == "threadpool") {
+            // need to set this here because the thread will check this to make
+            // sure it's supposed to keep running
+            m_nServerRunningStatus = SERVERRUNNING_THREADPOOL;
+            // create a pthread
+            int nResult = -1;
+            int nThreadsToStart = roEHSServerParameters ["threadcount"].GetInt();
+            if (nThreadsToStart <= 0) {
+                nThreadsToStart = 1;
+            }
+            EHS_TRACE ("Starting %d threads\n", nThreadsToStart);
+            for (int i = 0; i < nThreadsToStart; i++) {
+                // create new thread and detach so we don't have to join on it
+                nResult = pthread_create(&m_nAcceptThreadId, NULL,
+                        EHSServer::PthreadHandleData_ThreadedStub, (void *)this);
+                EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
+                        m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
+                pthread_detach(m_nAcceptThreadId);
+            }
+            if (nResult != 0) {
+                m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
+            }
+        } else if (roEHSServerParameters["mode"] == "onethreadperrequest") {
+            m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
+            // spawn off one thread just to deal with basic stuff
+            if (0 == pthread_create(&m_nAcceptThreadId, NULL,
+                        EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
+                EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
+                        m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
+                pthread_detach(m_nAcceptThreadId);
+            } else {
+                m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
+            }
+        } else if (roEHSServerParameters["mode"] == "singlethreaded") {
+            // we're single threaded
+            m_nServerRunningStatus = SERVERRUNNING_SINGLETHREADED;
+        } else {
+            throw runtime_error("EHSServer::EHSServer: invalid mode specified");
         }
-        if (nResult != 0) {
-            m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
-        }
-    } else if (roEHSServerParameters["mode"] == "onethreadperrequest") {
-        m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
-        // spawn off one thread just to deal with basic stuff
-        nResult = pthread_create(&m_nAcceptThreadId, NULL,
-                EHSServer::PthreadHandleData_ThreadedStub, (void *)this);
-        EHS_TRACE ( "created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
-                m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
-        pthread_detach(m_nAcceptThreadId);
-        // check to make sure the thread was created properly
-        if (nResult != 0) {
-            m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
-        }
-    } else if (roEHSServerParameters["mode"] == "singlethreaded") {
-        // we're single threaded
-        m_nServerRunningStatus = SERVERRUNNING_SINGLETHREADED;
-    } else {
-        EHS_TRACE("INVALID 'mode' SPECIFIED.\ntMust be 'singlethreaded', 'threadpool', or 'onethreadperrequest'\n");
-        throw runtime_error("EHSServer::EHSServer: invalid mode specified");
+    } catch (...) {
+        delete m_poNetworkAbstraction;
+        throw;
     }
     switch (m_nServerRunningStatus) {
         case SERVERRUNNING_THREADPOOL:
@@ -516,25 +478,20 @@ const std::string EHS::GetPassphrase(bool /* twice */)
     return m_oEHSServerParameters["passphrase"];
 }
 
-    EHS::StartServerResult
-EHS::StartServer(EHSServerParameters &params)
+void EHS::StartServer(EHSServerParameters &params)
 {
-    StartServerResult nResult = STARTSERVER_INVALID;
     m_oEHSServerParameters = params;
     if (m_poEHSServer != NULL) {
-        EHS_TRACE("Warning: Tried to start server that was already running\n");
-        nResult = STARTSERVER_ALREADYRUNNING;
+        throw runtime_error("EHS::StartServer: already running");
     } else {
         // associate a EHSServer object to this EHS object
-        m_poEHSServer = new EHSServer(this);
-        if (m_poEHSServer->RunningStatus() == EHSServer::SERVERRUNNING_NOTRUNNING) {
-            EHS_TRACE("Error: Failed to start server\n");
+        try {
+            m_poEHSServer = new EHSServer(this);
+        } catch (...) {
             delete m_poEHSServer;
-            m_poEHSServer = NULL;
-            return STARTSERVER_FAILED;
+            throw;
         }
     }
-    return STARTSERVER_SUCCESS;
 }
 
 // this is the function specified to pthread_create under UNIX
@@ -616,6 +573,7 @@ void EHSServer::HandleData_Threaded()
         } while (m_nServerRunningStatus == SERVERRUNNING_THREADPOOL ||
                 self == m_nAcceptThreadId);
         m_poTopLevelEHS->ThreadExitHandler();
+        m_poNetworkAbstraction->ThreadCleanup();
     }
 }
 
@@ -703,11 +661,16 @@ void EHSServer::CheckAcceptSocket ( )
 {
     // see if we got data on this socket
     if (FD_ISSET(m_poNetworkAbstraction->GetFd(), &m_oReadFds)) {
-        // THIS SHOULD BE NON-BLOCKING OR ELSE A HANG CAN OCCUR IF THEY DISCONNECT BETWEEN WHEN
-        //   POLL SEES THE CONNECTION AND WHEN WE ACTUALLY CALL ACCEPT
-        NetworkAbstraction * poNewClient = m_poNetworkAbstraction->Accept();
-        if (poNewClient == NULL) {
-            // accept or (in case of SSL, ssl handshake) has failed.
+        NetworkAbstraction *poNewClient = NULL;
+        try {
+            poNewClient = m_poNetworkAbstraction->Accept();
+        } catch (runtime_error &e) {
+            string emsg(e.what());
+            // SSL handshake errors are acceptable.
+            if (emsg.find("SSL") == string::npos) {
+                throw;
+            }
+            cerr << emsg << endl;
             return;
         }
         // create a new EHSConnection object and initialize it
@@ -715,7 +678,7 @@ void EHSServer::CheckAcceptSocket ( )
         if (m_poTopLevelEHS->m_oEHSServerParameters.find("maxrequestsize") !=
                 m_poTopLevelEHS->m_oEHSServerParameters.end()) {
             unsigned long n = m_poTopLevelEHS->m_oEHSServerParameters["maxrequestsize"];
-            EHS_TRACE ( "Setting connections MaxRequestSize to %lu\n", n );
+            EHS_TRACE("Setting connections MaxRequestSize to %lu\n", n);
             poEHSConnection->SetMaxRequestSize ( n );
         }
         {
@@ -859,38 +822,34 @@ EHS::EHS (EHS *ipoParent, ///< parent EHS object for routing purposes
 
 EHS::~EHS ()
 {
-    // needs to clean up all its registered interfaces
-    if (m_poParent) {
-        m_poParent->UnregisterEHS ( (char *)(m_sRegisteredAs.c_str ( ) ) );
-    }
-    if (m_poEHSServer) {
+    try {
+        if (m_poParent) {
+            // need to clean up all its registered interfaces
+            m_poParent->UnregisterEHS(m_sRegisteredAs.c_str());
+        }
+    } catch (...) {
         delete m_poEHSServer;
+        throw;
     }
+    delete m_poEHSServer;
 }
 
-EHS::RegisterEHSResult
-EHS::RegisterEHS (EHS * ipoEHS, ///< new sibling
-        const char * ipsRegisterPath ///< path for routing
-        )
+void EHS::RegisterEHS(EHS *ipoEHS, const char *ipsRegisterPath)
 {
     ipoEHS->m_poParent = this;
     ipoEHS->m_sRegisteredAs = ipsRegisterPath;
     if (m_oEHSMap[ipsRegisterPath]) {
-        return REGISTEREHSINTERFACE_ALREADYEXISTS;
+        throw runtime_error("EHS::RegisterEHS: Already registered");
     }
     m_oEHSMap[ipsRegisterPath] = ipoEHS;
-    return REGISTEREHSINTERFACE_SUCCESS;
 }
 
-EHS::UnregisterEHSResult
-EHS::UnregisterEHS (char *ipsRegisterPath ///< remove object at this path
-        )
+void EHS::UnregisterEHS (const char *ipsRegisterPath)
 {
     if (!m_oEHSMap[ipsRegisterPath]) {
-        return UNREGISTEREHSINTERFACE_NOTREGISTERED;
+        throw runtime_error("EHS::UnregisterEHS: Not registered");
     }
     m_oEHSMap.erase(ipsRegisterPath);
-    return UNREGISTEREHSINTERFACE_SUCCESS;
 }
 
 void EHS::HandleData(int inTimeoutMilliseconds ///< milliseconds for select timeout
@@ -944,7 +903,7 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
             m_oEHSServerParameters.end()) {
         // create an HttpRespose object for the client
         response = auto_ptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
-                request->m_poSourceEHSConnection));
+                    request->m_poSourceEHSConnection));
         // get the actual response and return code
         response->SetResponseCode(HandleRequest(request, response.get()));
     } else {
