@@ -3,11 +3,13 @@ AM_CPPFLAGS = -I$(top_srcdir)
 # Sample programs to be built but not installed
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \
-				  ehs_exception bindhelper
+				  ehs_exception ehs_chunktest bindhelper
 
 noinst_HEADERS = btexception.h common.h
 
-# Rules for building sample programs
+ehs_chunktest_SOURCES = ehs_chunktest.cpp
+ehs_chunktest_LDADD = $(top_builddir)/libehs.la
+
 ehs_formtest_SOURCES = ehs_formtest.cpp
 ehs_formtest_LDADD = $(top_builddir)/libehs.la
 
