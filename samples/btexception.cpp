@@ -23,6 +23,8 @@ extern "C" {
     extern char *cplus_demangle(const char *, int);
 }
 
+static pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 #ifdef USE_BFD
 # include <bfd.h>
 
@@ -71,28 +73,6 @@ static void findit(bfd *abfd, asection *section, void *data)
                 &state->filename, &state->functionname, &state->line);
 }
 
-static int init_backtrace()
-{
-    static int init = 1;
-    char **matching;
-
-    if (init) {
-        init = 0;
-        bfd_init();
-    }
-    if (!bfd_set_default_target("i686-redhat-linux-gnu"))
-        return 0;
-    abfd = bfd_openr("/proc/self/exe", NULL);
-    if (NULL == abfd)
-        return 0;
-    if (bfd_check_format(abfd, bfd_archive))
-        return 0;
-    if (!bfd_check_format_matches(abfd, bfd_object, &matching))
-        return 0;
-    fetchsyms(abfd);
-    return 1;
-}
-
 static void exit_backtrace()
 {
     if (NULL != syms)
@@ -102,6 +82,32 @@ static void exit_backtrace()
     abfd = NULL;
     syms = NULL;
 }
+
+static int init_backtrace()
+{
+    static int init = 1;
+    static int sret = 0;
+    char **matching;
+
+    if (init) {
+        init = 0;
+        bfd_init();
+        if (!bfd_set_default_target("i686-redhat-linux-gnu"))
+            return 0;
+        abfd = bfd_openr("/proc/self/exe", NULL);
+        if (NULL == abfd)
+            return 0;
+        if (bfd_check_format(abfd, bfd_archive))
+            return 0;
+        if (!bfd_check_format_matches(abfd, bfd_object, &matching))
+            return 0;
+        fetchsyms(abfd);
+        atexit(exit_backtrace);
+        sret = 1;
+    }
+    return sret;
+}
+
 #endif // USE_BFD
 
 #ifdef USE_DWARF
@@ -113,19 +119,26 @@ static char *debuginfo_path = NULL;
 static Dwfl_Callbacks proc_callbacks;
 static Dwfl *dwfl = NULL;
 
-static bool init_backtrace ()
-{
-    proc_callbacks.find_debuginfo = dwfl_standard_find_debuginfo;
-    proc_callbacks.debuginfo_path = &debuginfo_path;
-    proc_callbacks.find_elf = dwfl_linux_proc_find_elf;
-    dwfl = dwfl_begin(&proc_callbacks);
-    return (0 == dwfl_linux_proc_report(dwfl, getpid()));
-}
-
 static void exit_backtrace ()
 {
     if (dwfl)
         dwfl_end(dwfl);
+}
+
+static bool init_backtrace ()
+{
+    static int init = 1;
+    static int sret = 0;
+    if (init) {
+        init = 0;
+        proc_callbacks.find_debuginfo = dwfl_standard_find_debuginfo;
+        proc_callbacks.debuginfo_path = &debuginfo_path;
+        proc_callbacks.find_elf = dwfl_linux_proc_find_elf;
+        dwfl = dwfl_begin(&proc_callbacks);
+        sret = (0 == dwfl_linux_proc_report(dwfl, getpid()));
+        atexit(exit_backtrace);
+    }
+    return sret;
 }
 
 static void cleanup_dwarf(Dwarf_Die *scopes)
@@ -219,7 +232,6 @@ namespace tracing {
     bfd_tracer::~bfd_tracer()
     {
         delete [] tbuf;
-        exit_backtrace();
     }
 
     const std::string & bfd_tracer::trace(int skip) const {
@@ -309,7 +321,6 @@ namespace tracing {
     dwarf_tracer::~dwarf_tracer()
     {
         delete [] tbuf;
-        exit_backtrace();
     }
 
     const std::string & dwarf_tracer::trace(int skip) const {
@@ -375,6 +386,9 @@ namespace tracing {
     }
 
     const char* exception::where() const throw() {
-        return tracer.trace(2).c_str();
+        pthread_mutex_lock(&trace_mutex);
+        const char *ret = tracer.trace(2).c_str();
+        pthread_mutex_unlock(&trace_mutex);
+        return ret;
     }
 }

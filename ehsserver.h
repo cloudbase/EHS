@@ -175,8 +175,8 @@ class EHSServer {
         /// Number of currently running threads
         int m_nThreads;
 
-        /// Ponter to the currently handled request
-        HttpRequest *m_poCurrentRequest;
+        /// Map of currently handled request (per thread)
+        CurrentRequestMap m_oCurrentRequest;
 
         friend class EHSConnection;
 };

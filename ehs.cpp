@@ -281,7 +281,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     m_nAcceptThreadId(0),
     m_nIdleTimeout(15),
     m_nThreads(0),
-    m_poCurrentRequest(NULL)
+    m_oCurrentRequest(CurrentRequestMap())
 {
     // you HAVE to specify a top-level EHS object
     if (NULL == m_poTopLevelEHS) {
@@ -550,24 +550,24 @@ void EHSServer::HandleData_Threaded()
                 HandleData(1000, self); // 1000ms select timeout
             } catch (exception &e) {
                 catched = true;
-                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_poCurrentRequest, e);
+                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e);
             } catch (...) {
                 catched = true;
                 runtime_error e("unspecified");
-                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_poCurrentRequest, e);
+                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e);
             }
             if (catched) {
                 if (NULL != eResponse) {
                     eResponse->m_poEHSConnection->AddResponse(eResponse);
                     MutexHelper mutex(&m_oMutex);
-                    delete m_poCurrentRequest;
-                    m_poCurrentRequest = NULL;
+                    delete m_oCurrentRequest[self];
+                    m_oCurrentRequest[self] = NULL;
                 } else {
                     m_nServerRunningStatus = SERVERRUNNING_SHOULDTERMINATE;
                     m_nAcceptThreadId = 0;
                     MutexHelper mutex(&m_oMutex);
-                    delete m_poCurrentRequest;
-                    m_poCurrentRequest = NULL;
+                    delete m_oCurrentRequest[self];
+                    m_oCurrentRequest[self] = NULL;
                 }
             }
         } while (m_nServerRunningStatus == SERVERRUNNING_THREADPOOL ||
@@ -577,29 +577,27 @@ void EHSServer::HandleData_Threaded()
     }
 }
 
-void EHSServer::HandleData (int inTimeoutMilliseconds, ///< milliseconds for timeout on select
-        pthread_t inThreadId ///< numeric ID for this thread to help debug
-        )
+void EHSServer::HandleData (int inTimeoutMilliseconds, pthread_t tid)
 {
     MutexHelper mutex(&m_oMutex);
     // determine if there are any jobs waiting if this thread should --
     //   if we're running one-thread-per-request and this is the accept thread
     //   we don't look for requests
-    m_poCurrentRequest = NULL;
+    m_oCurrentRequest[tid] = NULL;
     if (m_nServerRunningStatus != SERVERRUNNING_ONETHREADPERREQUEST ||
-            inThreadId != m_nAcceptThreadId ) {
-        m_poCurrentRequest = GetNextRequest();
+            tid != m_nAcceptThreadId ) {
+        m_oCurrentRequest[tid] = GetNextRequest();
     }
     // if we got a request to handle
-    if (NULL != m_poCurrentRequest) {
+    if (NULL != m_oCurrentRequest[tid]) {
         // handle the request and post it back to the connection object
         mutex.Unlock();
         // route the request
-        HttpResponse *response = m_poTopLevelEHS->RouteRequest(m_poCurrentRequest).release();
+        HttpResponse *response = m_poTopLevelEHS->RouteRequest(m_oCurrentRequest[tid]).release();
         response->m_poEHSConnection->AddResponse(response);
         mutex.Lock();
-        delete m_poCurrentRequest;
-        m_poCurrentRequest = NULL;
+        delete m_oCurrentRequest[tid];
+        m_oCurrentRequest[tid] = NULL;
     } else {
         // otherwise, no requests are pending
 
@@ -634,11 +632,9 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, ///< milliseconds for tim
                )
             {
 #ifdef _WIN32
-                EHS_TRACE("[%d] Critical Error: select() failed.  Aborting\n", inThreadId);
                 throw runtime_error("EHSServer::HandleData: select() failed.");
 #else // NOT _WIN32
                 if (errno != EINTR) {
-                    EHS_TRACE("[%d] Critical Error: select() failed.  Aborting\n", inThreadId);
                     throw runtime_error("EHSServer::HandleData: select() failed.");
                 }
 #endif // _WIN32
