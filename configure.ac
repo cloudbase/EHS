@@ -163,6 +163,11 @@ AC_ARG_ENABLE([warn],
 LIBVERSION="`echo $VERSION|tr . :`"
 AC_SUBST(LIBVERSION)
 
+dnl Disable strict aliasing
+ac_checked_CXXFLAGS=
+fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
+CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
+
 dnl
 dnl doxygen setup
 dnl
