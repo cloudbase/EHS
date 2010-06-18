@@ -192,8 +192,12 @@ retry:
     return new SecureSocket(ssl, fd, &m_peer);
 }
 
-int PeerCertificateVerifyCallback (int inOk,
-        X509_STORE_CTX *ipoStore) {
+int PeerCertificateVerifyCallback (int inOk, X509_STORE_CTX *
+#ifdef EHS_DEBUG
+        ipoStore
+#endif
+        )
+{
 
 #ifdef EHS_DEBUG
     if (!inOk) {

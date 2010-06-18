@@ -30,7 +30,11 @@
 # include <iostream>
 #endif
 
-inline void EHS_TRACE( const char* szFormat ... )
+inline void EHS_TRACE(const char*
+#ifdef EHS_DEBUG
+        szFormat
+#endif
+        ... )
 {
 #ifdef EHS_DEBUG
     const int bufsize = 100000; 
