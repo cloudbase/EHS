@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([ehs],[1.4.7],[ehsdev@fritz-elfert.de])
+AC_INIT([ehs],[1.4.8],[ehsdev@fritz-elfert.de])
 AC_REVISION([$Id$])
 AC_CONFIG_AUX_DIR([conf])
 AC_CONFIG_MACRO_DIR([m4])
