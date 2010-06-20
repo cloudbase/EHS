@@ -34,10 +34,11 @@ AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
 AC_CHECK_LIB(ssl, SSL_library_init)
+AC_CHECK_LIB(crypto, ERR_free_strings)
 AC_CHECK_LIB(dw, dwfl_begin, DWLIB="-ldw")
 AC_CHECK_LIB(bfd, bfd_openr, [BFDLIB1="-lbfd"])
 AC_CHECK_LIB(iberty, cplus_demangle, [BFDLIB2="-liberty"])
-havessl=$ac_cv_lib_ssl_SSL_library_init
+havessl=$ac_cv_lib_ssl_SSL_library_init$ac_cv_lib_crypto_ERR_free_strings
 
 AC_MSG_CHECKING([whether to build with SSL support])
 withval=AUTO
@@ -45,15 +46,15 @@ AC_ARG_WITH([ssl],AS_HELP_STRING([--with-ssl],[compile with SSL support (require
 AC_MSG_RESULT([$withval])
 case "$withval" in
     [[yY][eE][sS]])
-        test "$havessl" = "yes" || AC_MSG_ERROR([For compiling with SSL support, OpenSSL is required])
+        test "$havessl" = "yesyes" || AC_MSG_ERROR([For compiling with SSL support, OpenSSL is required])
         AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
         ;;
     AUTO)
-        if test "$havessl" = "yes" ; then
+        if test "$havessl" = "yesyes" ; then
             AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
-            AC_MSG_RESULT([configure: libssl is available, enabled SSL support])
+            AC_MSG_RESULT([configure: OpenSSL is available, enabled SSL support])
         else
-            AC_MSG_RESULT([configure: libssl not available, disabled SSL support])
+            AC_MSG_RESULT([configure: OpenSSL not available, disabled SSL support])
         fi
         ;;
 esac
