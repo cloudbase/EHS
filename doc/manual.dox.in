@@ -14,39 +14,43 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\par
     This can be found in the 'COPYING' file.\par
 
-\example samples/ehs_simple.cpp
+\example ehs_simple.cpp
 The most simplistic example.
 This example simply responds with a text containing the current timestamp.
 
-\example samples/ehs_testharness.cpp
+\example ehs_testharness.cpp
 A little more useful.
 In this example, the HandleRequest method is reimplemented in order to produce a
 custom response.
 
-\example samples/ehs_test.cpp
+\example ehs_test.cpp
 Multiple instances serving different URI paths.
 This example shows, how multiple EHS instances can handle different URI paths.
 Furthermore, handling of cookies is demonstrated as well.
 
-\example samples/ehs_formtest.cpp
+\example ehs_formtest.cpp
 A simple form test.
 This example shows how to handle form data and use cookies.
 
-\example samples/ehs_uploader.cpp
+\example ehs_uploader.cpp
 A file upload form.
 This example shows how to implement a file upload.
 
-\example samples/ehs_privport.cpp
+\example ehs_privport.cpp
 Binding do privileged ports.
 This example shows, how to use a BindHelper in order to bind to privileged ports.
 Before trying this, the bindhelper binary must be changed setuid-root.
 
-\example samples/ehs_https.cpp
+\example ehs_https.cpp
 Secure connections.
 
-\example samples/ehs_mirror.cpp
+\example ehs_mirror.cpp
 Serving the same content via two ports (HTTP and HTTPS).
 
-\example samples/ehs_exception.cpp
-Handling exceptions.
+\example ehs_exception.cpp
+This example shows, how to handle excetions in your code.\par
+In your derived EHS class, reimplement EHS::HandleThreadException. Its return value
+determines, if EHS responds with an HTTP error response (return a response) or terminates (return NULL).
+In your main code, you should have a try/catch block around StartServer, the main loop and StopServer. The
+main loop should use EHS::ShouldTerminate to check for an eventual termination.
 */
