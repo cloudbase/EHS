@@ -291,10 +291,9 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     pthread_mutex_init(&m_oMutex, NULL);
     pthread_cond_init(&m_oDoneAccepting, NULL);
     // grab out the parameters for less typing later on
-    EHSServerParameters & roEHSServerParameters =
-        ipoTopLevelEHS->m_oEHSServerParameters;
+    EHSServerParameters & params = ipoTopLevelEHS->m_oParams;
     // whether to run with https support
-    int nHttps = roEHSServerParameters["https"];
+    int nHttps = params["https"];
     if (nHttps) {
         EHS_TRACE("EHSServer running in HTTPS mode\n");
     } else {
@@ -305,9 +304,9 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
         if (nHttps) {
 #ifdef COMPILE_WITH_SSL		
             EHS_TRACE("Trying to create secure socket with certificate='%s' and passphrase='%s'\n",
-                    (const char*)roEHSServerParameters["certificate"],
-                    (const char*)roEHSServerParameters["passphrase"]);
-            m_poNetworkAbstraction = new SecureSocket(roEHSServerParameters["certificate"],
+                    (const char*)params["certificate"],
+                    (const char*)params["passphrase"]);
+            m_poNetworkAbstraction = new SecureSocket(params["certificate"],
                     reinterpret_cast<PassphraseHandler *>(ipoTopLevelEHS));
 #else // COMPILE_WITH_SSL
             throw runtime_error("EHSServer::EHSServer: EHS not compiled with SSL support. Cannot create HTTPS server.");
@@ -317,18 +316,18 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
         }
 
         // initialize the socket
-        if (roEHSServerParameters["bindaddress"] != "") {
-            m_poNetworkAbstraction->SetBindAddress(roEHSServerParameters["bindaddress"]);
+        if (params["bindaddress"] != "") {
+            m_poNetworkAbstraction->SetBindAddress(params["bindaddress"]);
         }
         m_poNetworkAbstraction->RegisterBindHelper(m_poTopLevelEHS->GetBindHelper());
-        m_poNetworkAbstraction->Init(roEHSServerParameters["port"]); // initialize socket stuff
-        if (roEHSServerParameters["mode"] == "threadpool") {
+        m_poNetworkAbstraction->Init(params["port"]); // initialize socket stuff
+        if (params["mode"] == "threadpool") {
             // need to set this here because the thread will check this to make
             // sure it's supposed to keep running
             m_nServerRunningStatus = SERVERRUNNING_THREADPOOL;
             // create a pthread
             int nResult = -1;
-            int nThreadsToStart = roEHSServerParameters ["threadcount"].GetInt();
+            int nThreadsToStart = params["threadcount"].GetInt();
             if (nThreadsToStart <= 0) {
                 nThreadsToStart = 1;
             }
@@ -344,7 +343,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             if (nResult != 0) {
                 m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
             }
-        } else if (roEHSServerParameters["mode"] == "onethreadperrequest") {
+        } else if (params["mode"] == "onethreadperrequest") {
             m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
             // spawn off one thread just to deal with basic stuff
             if (0 == pthread_create(&m_nAcceptThreadId, NULL,
@@ -355,7 +354,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             } else {
                 m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
             }
-        } else if (roEHSServerParameters["mode"] == "singlethreaded") {
+        } else if (params["mode"] == "singlethreaded") {
             // we're single threaded
             m_nServerRunningStatus = SERVERRUNNING_SINGLETHREADED;
         } else {
@@ -368,8 +367,8 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     switch (m_nServerRunningStatus) {
         case SERVERRUNNING_THREADPOOL:
             EHS_TRACE("Info: EHS Server running in threadpool mode with %s threads\n",
-                    roEHSServerParameters["threadcount"] == "" ? "1" :
-                    roEHSServerParameters[ "threadcount"].GetCharString());
+                    params["threadcount"] == "" ? "1" :
+                    params[ "threadcount"].GetCharString());
             break;
         case SERVERRUNNING_ONETHREADPERREQUEST:
             EHS_TRACE("Info: EHS Server running with one thread per request\n");
@@ -475,16 +474,17 @@ void EHS::ThreadExitHandler()
 
 const std::string EHS::GetPassphrase(bool /* twice */)
 {
-    return m_oEHSServerParameters["passphrase"];
+    return m_oParams["passphrase"];
 }
 
 void EHS::StartServer(EHSServerParameters &params)
 {
-    m_oEHSServerParameters = params;
+    m_oParams = params;
     if (m_poEHSServer != NULL) {
         throw runtime_error("EHS::StartServer: already running");
     } else {
         // associate a EHSServer object to this EHS object
+        m_bNoRouting = (m_oParams.find("norouterequest") != m_oParams.end());
         try {
             m_poEHSServer = new EHSServer(this);
         } catch (...) {
@@ -671,9 +671,9 @@ void EHSServer::CheckAcceptSocket ( )
         }
         // create a new EHSConnection object and initialize it
         EHSConnection * poEHSConnection = new EHSConnection ( poNewClient, this );
-        if (m_poTopLevelEHS->m_oEHSServerParameters.find("maxrequestsize") !=
-                m_poTopLevelEHS->m_oEHSServerParameters.end()) {
-            unsigned long n = m_poTopLevelEHS->m_oEHSServerParameters["maxrequestsize"];
+        if (m_poTopLevelEHS->m_oParams.find("maxrequestsize") !=
+                m_poTopLevelEHS->m_oParams.end()) {
+            unsigned long n = m_poTopLevelEHS->m_oParams["maxrequestsize"];
             EHS_TRACE("Setting connections MaxRequestSize to %lu\n", n);
             poEHSConnection->SetMaxRequestSize ( n );
         }
@@ -802,16 +802,14 @@ void EHSServer::EndServerThread()
     EHS_TRACE ("EndServerThread: all threads terminated\n");
 }
 
-EHS::EHS (EHS *ipoParent, ///< parent EHS object for routing purposes
-        string isRegisteredAs ///< path string for routing purposes
-        ) :
+EHS::EHS (EHS *ipoParent, string isRegisteredAs) :
     m_oEHSMap(EHSMap()),
     m_poParent(ipoParent),
     m_sRegisteredAs(isRegisteredAs),
     m_poEHSServer(NULL),
     m_poSourceEHS(NULL),
     m_poBindHelper(NULL),
-    m_oEHSServerParameters(EHSServerParameters())
+    m_oParams(EHSServerParameters())
 {
     EHS_TRACE("EHS::EHS TID=%p\n", pthread_self());
 }
@@ -848,8 +846,7 @@ void EHS::UnregisterEHS (const char *ipsRegisterPath)
     m_oEHSMap.erase(ipsRegisterPath);
 }
 
-void EHS::HandleData(int inTimeoutMilliseconds ///< milliseconds for select timeout
-        )
+void EHS::HandleData(int inTimeoutMilliseconds)
 {
     // make sure we're in a sane state
     if ((NULL == m_poParent) && (NULL == m_poEHSServer)) {
@@ -869,17 +866,16 @@ void EHS::HandleData(int inTimeoutMilliseconds ///< milliseconds for select time
     }
 }
 
-string GetNextPathPart(string &irsUri ///< URI to look for next path part in
-        )
+string GetNextPathPart(string &irsUri)
 {
     string ret;
     string newuri;
     pcrecpp::RE re("^/{0,1}([^/]+)/(.*)$");
-    if (re.FullMatch(irsUri, &ret, &newuri) ) {
+    if (re.FullMatch(irsUri, &ret, &newuri)) {
         irsUri = newuri;
         return ret;
     }
-    return "";
+    return string("");
 }
 
 auto_ptr<HttpResponse>
@@ -887,22 +883,23 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {
     // get the next path from the URI
-    string sNextPathPart = GetNextPathPart(request->m_sUri);
-    EHS_TRACE ("Info: Trying to route: '%s'\n", sNextPathPart.c_str());
+    string sNextPathPart;
+    if (!m_bNoRouting) {
+        sNextPathPart = GetNextPathPart(request->m_sUri);
+    }
     // We use an auto_ptr here, so that in case of an exception, the
     // target gets deleted.
     auto_ptr<HttpResponse> response(0);
     // if there is no more path, call HandleRequest on this EHS object with
     //   whatever's left - or if we're not routing
-    if (sNextPathPart.empty() ||
-            m_oEHSServerParameters.find("norouterequest") !=
-            m_oEHSServerParameters.end()) {
+    if (m_bNoRouting || sNextPathPart.empty()) {
         // create an HttpRespose object for the client
         response = auto_ptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
                     request->m_poSourceEHSConnection));
         // get the actual response and return code
         response->SetResponseCode(HandleRequest(request, response.get()));
     } else {
+        EHS_TRACE ("Info: Trying to route: '%s'\n", sNextPathPart.c_str());
         // if the path exists, check it against the map of EHSs
         if (m_oEHSMap[sNextPathPart]) {
             // if it exists, call its RouteRequest with the new shortened path

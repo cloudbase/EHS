@@ -139,6 +139,9 @@ class EHS : public PassphraseHandler {
         /// Our bind helper
         PrivilegedBindHelper *m_poBindHelper;
 
+        /// Flag: We don't do request routing
+        bool m_bNoRouting;
+
     public:
 
         /**
@@ -205,7 +208,7 @@ class EHS : public PassphraseHandler {
         void SetSourceEHS (EHS & source);
 
         /// Stores a map with server parameters
-        EHSServerParameters m_oEHSServerParameters;
+        EHSServerParameters m_oParams;
 
         /**
          * Starts up this instance. If configured to run in threaded mode,
