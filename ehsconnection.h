@@ -58,6 +58,8 @@ class EHSConnection {
 
         int m_nResponses; ///< holds id of last response sent
 
+        int m_nActiveRequests; ///< Number of currently processing requests
+
         /// file descriptor associated with this client
         NetworkAbstraction * m_poNetworkAbstraction;	
 
@@ -137,7 +139,7 @@ class EHSConnection {
         void AddResponse(HttpResponse *response);
 
         /// returns true of httprequestlist is not empty
-        int RequestsPending() { return !m_oHttpRequestList.empty(); }
+        int RequestsPending() { return (0 != m_nActiveRequests) || !m_oHttpRequestList.empty(); }
 
         /// returns underlying network abstraction
         NetworkAbstraction * GetNetworkAbstraction();

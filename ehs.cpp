@@ -135,6 +135,7 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
     m_nLastActivity(0),
     m_nRequests(0),
     m_nResponses(0),
+    m_nActiveRequests(0),
     m_poNetworkAbstraction(ipoNetworkAbstraction),
     m_sBuffer(""),
     m_oHttpResponseMap(HttpResponseMap()),
@@ -239,6 +240,7 @@ HttpRequest * EHSConnection::GetNextRequest()
     if (!m_oHttpRequestList.empty()) {
         ret = m_oHttpRequestList.front();
         m_oHttpRequestList.pop_front();
+        ++m_nActiveRequests;
     }
     return ret;
 }
@@ -414,8 +416,7 @@ HttpRequest * EHSServer::GetNextRequest()
         while (poNextRequest == NULL && !(iStartPoint == i && nFirstTime == 0)) {
             // check this one to see if it has anything
             poNextRequest = (*i)->GetNextRequest();
-            i++;
-            if (i == m_oEHSConnectionList.end()) {
+            if (++i == m_oEHSConnectionList.end()) {
                 i = m_oEHSConnectionList.begin();
             }
             nFirstTime = 0;
@@ -732,9 +733,10 @@ void EHSConnection::AddResponse(HttpResponse *response)
         HttpResponseMap::iterator i = m_oHttpResponseMap.find(m_nResponses + 1);
         if (m_oHttpResponseMap.end() != i) {
             found = true;
+            --m_nActiveRequests;
             SendHttpResponse(auto_ptr<HttpResponse>(i->second));
             m_oHttpResponseMap.erase(i);
-            m_nResponses++;
+            ++m_nResponses;
             // set last activity to the current time for idle purposes
             UpdateLastActivity();
             // if we're done with this connection, get rid of it
@@ -809,6 +811,7 @@ EHS::EHS (EHS *ipoParent, string isRegisteredAs) :
     m_poEHSServer(NULL),
     m_poSourceEHS(NULL),
     m_poBindHelper(NULL),
+    m_bNoRouting(false),
     m_oParams(EHSServerParameters())
 {
     EHS_TRACE("EHS::EHS TID=%p\n", pthread_self());
