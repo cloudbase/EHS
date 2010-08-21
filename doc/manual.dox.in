@@ -53,4 +53,7 @@ In your derived EHS class, reimplement EHS::HandleThreadException. Its return va
 determines, if EHS responds with an HTTP error response (return a response) or terminates (return NULL).
 In your main code, you should have a try/catch block around StartServer, the main loop and StopServer. The
 main loop should use EHS::ShouldTerminate to check for an eventual termination.
+
+\example ehs_basicauth.cpp
+This example shows how to handle basic authentication.
 */

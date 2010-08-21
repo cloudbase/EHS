@@ -33,25 +33,36 @@
 
 using namespace std;
 
+static const char * const correct_user = "tester";
+static const char * const correct_pass = "12345";
+
 // subclass of EHS that defines a custom HTTP response.
 class TestHarness : public EHS
 {
     // generates a page for each http request
     ResponseCode HandleRequest(HttpRequest *request, HttpResponse *response)
     {
+        ostringstream oss;
+
         if (!CheckAuthHeader(request)) {
             response->SetHeader("WWW-Authenticate", "Basic realm=\"Password required\"" );
-            // response->SetBody( "Unauthorized", 12);
             return HTTPRESPONSECODE_401_UNAUTHORIZED;
         }
 
         string user = request->Headers("HTTP_AUTH_USER");
         string pass = request->Headers("HTTP_AUTH_PASS");
-        if (user.compare("tester") || pass.compare("12345")) {
+        if (user.compare(correct_user) || pass.compare(correct_pass)) {
+            oss
+                << "<html><head><title>Forbidden</title></head><body>" << endl
+                << "<h1>403 Forbidden</h1>" << endl
+                << "<p>You obviously specified a wrong user and/or password</p>" << endl
+                << "<p>The correct User is '" << correct_user << "'</p>" << endl
+                << "<p>The correct Password is '" << correct_pass << "'</p>" << endl
+                << "</body></html>" << endl;
+            response->SetBody ( oss.str().c_str(), oss.str().length() );
             return HTTPRESPONSECODE_403_FORBIDDEN;
         }
 
-        ostringstream oss;
         oss
             << "<html><head><title>BasicAuth</title></head><body><table><tr>"
             << "<tr><td>request-method:</td><td>" << request->Method() << "</td></tr>" << endl
@@ -74,7 +85,7 @@ class TestHarness : public EHS
             oss << "<tr><td>Cookie:</td><td>"
                 << i->first << " => " << i->second << "</td></tr>" << endl;
         }
-        oss << "</body></html>";
+        oss << "</table></body></html>" << endl;
 
         response->SetBody ( oss.str().c_str(), oss.str().length() );
         return HTTPRESPONSECODE_200_OK;

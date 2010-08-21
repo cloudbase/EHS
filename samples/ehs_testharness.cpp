@@ -61,7 +61,7 @@ class TestHarness : public EHS
             oss << "<tr><td>Cookie:</td><td>"
                 << i->first << " => " << i->second << "</td></tr>" << endl;
         }
-        oss << "</body></html>";
+        oss << "</table></body></html>" << endl;
 
         response->SetBody ( oss.str().c_str(), oss.str().length() );
         return HTTPRESPONSECODE_200_OK;
