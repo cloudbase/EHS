@@ -155,6 +155,7 @@ EHSConnection::~EHSConnection()
 {
     delete m_poCurrentHttpRequest;
     delete m_poNetworkAbstraction;
+    pthread_mutex_destroy(&m_oMutex);
 }
 
 
@@ -394,6 +395,7 @@ EHSServer::~EHSServer ( )
         delete m_oEHSConnectionList.front ( );
         m_oEHSConnectionList.pop_front ( );
     }
+    pthread_mutex_destroy(&m_oMutex);
 }
 
 HttpRequest * EHSServer::GetNextRequest()
@@ -501,8 +503,11 @@ void * EHSServer::PthreadHandleData_ThreadedStub(void * ipParam ///< EHSServer o
         )
 {
     EHSServer *self = reinterpret_cast<EHSServer *>(ipParam);
+    MutexHelper mh(&self->m_oMutex);
     self->m_nThreads++;
+    mh.Unlock();
     self->HandleData_Threaded();
+    mh.Lock();
     self->m_nThreads--;
     return NULL;
 }
@@ -742,12 +747,12 @@ void EHSConnection::AddResponse(HttpResponse *response)
             // if we're done with this connection, get rid of it
             if (CheckDone()) {
                 EHS_TRACE("add response found something to delete\n");
-                // careful with mutexes around here.. Don't want to hold both
-                mutex.Unlock();
+		// Both mutexes are interlocked intentionally.
                 pthread_mutex_lock(&m_poEHSServer->m_oMutex);
+                mutex.Unlock();
                 m_poEHSServer->RemoveEHSConnection(this);
-                pthread_mutex_unlock(&m_poEHSServer->m_oMutex);
                 mutex.Lock();
+                pthread_mutex_unlock(&m_poEHSServer->m_oMutex);
             }
             EHS_TRACE("Sending response %d to %x\n", m_nResponses, this);
         }

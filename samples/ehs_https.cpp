@@ -54,7 +54,7 @@ class MyHelper : public PrivilegedBindHelper
             switch (pid = fork()) {
                 case 0:
                     sprintf(buf, "%08x%08x%04x", socket, inet_addr(addr), port);
-                    execl("bindhelper", buf, NULL);
+                    execl("bindhelper", buf, ((void *)NULL));
                     exit(errno);
                     break;
                 case -1:

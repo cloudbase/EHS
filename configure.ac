@@ -140,6 +140,8 @@ AC_ARG_ENABLE([warn],
 		[Enable additional warnings (Default: NO)]),
 	[
 		AC_MSG_NOTICE([will enable additional warnings])
+        fe_CHECK_FLAG([C],[CFLAGS],[-Wimplicit])
+        CFLAGS="$CFLAGS $ac_checked_CFLAGS"
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-pedantic])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wall])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wextra])
@@ -147,7 +149,6 @@ AC_ARG_ENABLE([warn],
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wcomment])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wformat])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wformat-security])
-        fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wimplicit])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wmissing-braces])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wparentheses])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wreturn-type])

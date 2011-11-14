@@ -102,13 +102,7 @@ int main (int argc, char ** argv)
 
     FormTester srv;
 
-    int nUseHttps = 0;
-    if (argc > 2) {
-        nUseHttps = atoi(argv[2]);
-    }
     EHSServerParameters oSP;
-
-
     oSP["port"] = argv[1];
     oSP["mode"] = "threadpool";
 

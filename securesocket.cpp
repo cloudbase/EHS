@@ -137,7 +137,7 @@ void SecureSocket::Init(int port)
 NetworkAbstraction *SecureSocket::Accept() 
 {
     string sError;
-    size_t addrlen = sizeof(m_peer);
+    socklen_t addrlen = sizeof(m_peer);
 retry:
     int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
