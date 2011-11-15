@@ -199,7 +199,7 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
                     pthread_t oThread;
                     // XXX: Why unlocked ?
                     mh.Unlock();
-                    pthread_create(&oThread, NULL,
+                    pthread_create(&oThread, &(m_poEHSServer->m_oThreadAttr),
                             EHSServer::PthreadHandleData_ThreadedStub,
                             (void *)m_poEHSServer);
                     EHS_TRACE("created thread with TID=0x%x, NULL, func=0x%x, data=0x%x\n",
@@ -284,7 +284,8 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     m_nAcceptThreadId(0),
     m_nIdleTimeout(15),
     m_nThreads(0),
-    m_oCurrentRequest(CurrentRequestMap())
+    m_oCurrentRequest(CurrentRequestMap()),
+    m_oThreadAttr(pthread_attr_t())
 {
     // you HAVE to specify a top-level EHS object
     if (NULL == m_poTopLevelEHS) {
@@ -293,6 +294,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
 
     pthread_mutex_init(&m_oMutex, NULL);
     pthread_cond_init(&m_oDoneAccepting, NULL);
+    pthread_attr_init(&m_oThreadAttr);
     // grab out the parameters for less typing later on
     EHSServerParameters & params = ipoTopLevelEHS->m_oParams;
     // whether to run with https support
@@ -337,7 +339,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             EHS_TRACE ("Starting %d threads\n", nThreadsToStart);
             for (int i = 0; i < nThreadsToStart; i++) {
                 // create new thread and detach so we don't have to join on it
-                nResult = pthread_create(&m_nAcceptThreadId, NULL,
+                nResult = pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
                         EHSServer::PthreadHandleData_ThreadedStub, (void *)this);
                 EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
                         m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
@@ -349,7 +351,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
         } else if (params["mode"] == "onethreadperrequest") {
             m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
             // spawn off one thread just to deal with basic stuff
-            if (0 == pthread_create(&m_nAcceptThreadId, NULL,
+            if (0 == pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
                         EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
                 EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
                         m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
@@ -596,13 +598,14 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, pthread_t tid)
     }
     // if we got a request to handle
     if (NULL != m_oCurrentRequest[tid]) {
+        HttpRequest *req = m_oCurrentRequest[tid];
         // handle the request and post it back to the connection object
         mutex.Unlock();
         // route the request
-        HttpResponse *response = m_poTopLevelEHS->RouteRequest(m_oCurrentRequest[tid]).release();
+        HttpResponse *response = m_poTopLevelEHS->RouteRequest(req).release();
         response->m_poEHSConnection->AddResponse(response);
+        delete req;
         mutex.Lock();
-        delete m_oCurrentRequest[tid];
         m_oCurrentRequest[tid] = NULL;
     } else {
         // otherwise, no requests are pending
@@ -748,12 +751,10 @@ void EHSConnection::AddResponse(HttpResponse *response)
             if (CheckDone()) {
                 EHS_TRACE("add response found something to delete\n");
 		// Both mutexes are interlocked intentionally.
-                pthread_mutex_lock(&m_poEHSServer->m_oMutex);
                 MutexHelper server_mutex(&m_poEHSServer->m_oMutex);
                 mutex.Unlock();
                 m_poEHSServer->RemoveEHSConnection(this);
                 mutex.Lock();
-                pthread_mutex_unlock(&m_poEHSServer->m_oMutex);
             }
             EHS_TRACE("Sending response %d to %x\n", m_nResponses, this);
         }

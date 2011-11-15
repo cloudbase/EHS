@@ -178,6 +178,9 @@ class EHSServer {
         /// Map of currently handled request (per thread)
         CurrentRequestMap m_oCurrentRequest;
 
+        /// Thread creation attributes (for setting stack size)
+        pthread_attr_t m_oThreadAttr;
+
         friend class EHSConnection;
 };
 
