@@ -749,6 +749,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
                 EHS_TRACE("add response found something to delete\n");
 		// Both mutexes are interlocked intentionally.
                 pthread_mutex_lock(&m_poEHSServer->m_oMutex);
+                MutexHelper server_mutex(&m_poEHSServer->m_oMutex);
                 mutex.Unlock();
                 m_poEHSServer->RemoveEHSConnection(this);
                 mutex.Lock();
