@@ -1,0 +1,57 @@
+Summary: Embedded HTTP server
+Name:    ehs
+Version: @VERSION@
+Release: @SVNREV@
+License: LGPL
+Group: System Environment/Libraries
+URL: http://sourceforge.net/projects/ehs/
+Source0: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(id -u -n)
+Buildrequires: openssl-devel, gcc-c++
+
+%description
+Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
+to give HTTP server functionality to any class or application. It supports form
+data via POST or GET, and uploads via multi-part form attachments.
+
+%package devel
+Summary: Embedded HTTP server
+Group: Development/Libraries
+
+%description devel
+Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
+to give HTTP server functionality to any class or application. It supports form
+data via POST or GET, and uploads via multi-part form attachments.
+
+This package contains the development headers as well as a static library.
+
+%prep
+%setup -q
+
+%build
+%configure
+
+%{__make} %{?_smp_mflags}
+
+%install
+%{__rm} -rf %{buildroot}
+%{__make} DESTDIR=%{buildroot} install
+
+%clean
+%{__rm} -rf %{buildroot}
+
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
+
+%files
+%defattr(644, root, root, 0755)
+%{_libdir}/*.so*
+
+%files devel
+%defattr(644, root, root, 0755)
+%doc AUTHORS COPYING INSTALL NEWS README ehs_development_guide.txt doc/html
+%{_libdir}/*.*a
+%{_includedir}/%{name}
+
+%changelog

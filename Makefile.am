@@ -41,6 +41,14 @@ bootstrap:
 dist-hook: conf/doxygen.cfg doc/manual.dox doxygen-doc
 	cp -a doc/html $(distdir)/doc/html
 
+rpm: dist conf/$(PACKAGE).spec
+	cp $(distdir).tar.gz ~/rpmbuild/SOURCES/
+	rm -f *.rpm
+	QA_RPATHS=3 rpmbuild -ba conf/$(PACKAGE).spec 2>&1 | tee rpmbuild.log
+	test -n "`grep ^Wrote: rpmbuild.log`" || exit 1
+	for rpm in `grep ^Wrote: rpmbuild.log|awk '{print $$2}'` ; do ln -snf $$rpm . ; done
+	rm -f rpmbuild.log
+
 # Next ifdef is really tricky:
 #  We want to be able to run make -f Makefile.am without having make
 #  complaining with "missing separator" at the automake include line.
