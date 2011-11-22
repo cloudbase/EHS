@@ -27,6 +27,8 @@
 # include "config.h"
 #endif
 
+#include <pthread.h>
+
 #include "ehs.h"
 #include "networkabstraction.h"
 #include "ehsconnection.h"
@@ -37,7 +39,6 @@
 #include "mutexhelper.h"
 
 #include <pcrecpp.h>
-#include <pthread.h>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -197,11 +198,12 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
                 if (m_poEHSServer->m_nServerRunningStatus == EHSServer::SERVERRUNNING_ONETHREADPERREQUEST ) {
                     // create a thread if necessary
                     pthread_t oThread;
-                    // XXX: Why unlocked ?
                     mh.Unlock();
-                    pthread_create(&oThread, &(m_poEHSServer->m_oThreadAttr),
-                            EHSServer::PthreadHandleData_ThreadedStub,
-                            (void *)m_poEHSServer);
+                    if (0 != pthread_create(&oThread, &(m_poEHSServer->m_oThreadAttr),
+                                EHSServer::PthreadHandleData_ThreadedStub,
+                                (void *)m_poEHSServer)) {
+                        return ADDBUFFER_NORESOURCE;
+                    }
                     EHS_TRACE("created thread with TID=0x%x, NULL, func=0x%x, data=0x%x\n",
                             oThread, EHSServer::PthreadHandleData_ThreadedStub, (void *) m_poEHSServer);
                     pthread_detach(oThread);
@@ -216,14 +218,10 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
         m_poCurrentHttpRequest->ParseData(m_sBuffer);
     } while (m_poCurrentHttpRequest->m_nCurrentHttpParseState ==
             HttpRequest::HTTPPARSESTATE_COMPLETEREQUEST);
-    AddBufferResult nReturnValue;
-    // return either invalid request or ok
     if ( m_poCurrentHttpRequest->m_nCurrentHttpParseState == HttpRequest::HTTPPARSESTATE_INVALIDREQUEST ) {
-        nReturnValue = ADDBUFFER_INVALIDREQUEST;
-    } else {
-        nReturnValue = ADDBUFFER_OK;
+        return ADDBUFFER_INVALIDREQUEST;
     }
-    return nReturnValue;
+    return ADDBUFFER_OK;
 }
 
 /// call when no more reads will be performed on this object.  inDisconnected is true when client has disconnected
@@ -320,6 +318,9 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             m_poNetworkAbstraction = new Socket();
         }
 
+        if (NULL == m_poNetworkAbstraction) {
+            throw runtime_error("EHSServer::EHSServer: Could not allocate socket.");
+        }
         // initialize the socket
         if (params["bindaddress"] != "") {
             m_poNetworkAbstraction->SetBindAddress(params["bindaddress"]);
@@ -331,7 +332,6 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             // sure it's supposed to keep running
             m_nServerRunningStatus = SERVERRUNNING_THREADPOOL;
             // create a pthread
-            int nResult = -1;
             int nThreadsToStart = params["threadcount"].GetInt();
             if (nThreadsToStart <= 0) {
                 nThreadsToStart = 1;
@@ -339,14 +339,15 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             EHS_TRACE ("Starting %d threads\n", nThreadsToStart);
             for (int i = 0; i < nThreadsToStart; i++) {
                 // create new thread and detach so we don't have to join on it
-                nResult = pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
-                        EHSServer::PthreadHandleData_ThreadedStub, (void *)this);
-                EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
-                        m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
-                pthread_detach(m_nAcceptThreadId);
-            }
-            if (nResult != 0) {
-                m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
+                if (0 == pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
+                            EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
+                    EHS_TRACE("created thread with ID=0x%x, NULL, func=0x%x, this=0x%x\n",
+                            m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
+                    pthread_detach(m_nAcceptThreadId);
+                } else {
+                    m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
+                    throw runtime_error("EHSServer::EHSServer: Unable to create threads");
+                }
             }
         } else if (params["mode"] == "onethreadperrequest") {
             m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
@@ -358,6 +359,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
                 pthread_detach(m_nAcceptThreadId);
             } else {
                 m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
+                throw runtime_error("EHSServer::EHSServer: Unable to create listener thread");
             }
         } else if (params["mode"] == "singlethreaded") {
             // we're single threaded
@@ -710,20 +712,33 @@ void EHSServer::CheckClientSockets ( )
                 (*i)->DoneReading(true);
             } else {
                 // otherwise we got data
-
                 // take the data we got and append to the connection's buffer
                 EHSConnection::AddBufferResult nAddBufferResult =
                     (*i)->AddBuffer(buf, nBytesReceived);
                 // if add buffer failed, don't read from this connection anymore
-                if (nAddBufferResult == EHSConnection::ADDBUFFER_INVALIDREQUEST ||
-                        nAddBufferResult == EHSConnection::ADDBUFFER_TOOBIG) {
-                    // Immediately send a 400 response, then close the connection
-                    auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
-                    (*i)->SendHttpResponse(tmp);
-                    // done reading but did not receieve disconnect
-                    EHS_TRACE("Done reading because we got a bad request\n");
-                    (*i)->DoneReading(false);
-                } // end error with AddBuffer
+                switch (nAddBufferResult) {
+                    case EHSConnection::ADDBUFFER_INVALIDREQUEST:
+                    case EHSConnection::ADDBUFFER_TOOBIG:
+                        {
+                            // Immediately send a 400 response, then close the connection
+                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
+                            (*i)->SendHttpResponse(tmp);
+                            (*i)->DoneReading(false);
+                            EHS_TRACE("Done reading because we got a bad request\n");
+                        }
+                        break;
+                    case EHSConnection::ADDBUFFER_NORESOURCE:
+                        {
+                            // Immediately send a 500 response, then close the connection
+                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_500_INTERNALSERVERERROR, 0, *i));
+                            (*i)->SendHttpResponse(tmp);
+                            (*i)->DoneReading(false);
+                            EHS_TRACE("Done reading because we are out of ressources\n");
+                        }
+                        break;
+                    default:
+                        break;
+                }
             } // end nBytesReceived
         } // FD_ISSET
     } // for loop through connections
@@ -750,7 +765,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
             // if we're done with this connection, get rid of it
             if (CheckDone()) {
                 EHS_TRACE("add response found something to delete\n");
-		// Both mutexes are interlocked intentionally.
+                // Both mutexes are interlocked intentionally.
                 MutexHelper server_mutex(&m_poEHSServer->m_oMutex);
                 mutex.Unlock();
                 m_poEHSServer->RemoveEHSConnection(this);
@@ -888,7 +903,7 @@ string GetNextPathPart(string &irsUri)
     return string("");
 }
 
-auto_ptr<HttpResponse>
+    auto_ptr<HttpResponse>
 EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {

@@ -39,9 +39,11 @@ CRYPTO_dynlock_value * DynamicSslLocking::DynamicLockCreateCallback ( const char
 	CRYPTO_dynlock_value *poDynlock = new CRYPTO_dynlock_value;
 
     if (NULL == poDynlock) {
-        throw runtime_error ( "DynamicSslLocking::DynamicLockCreateCallback: Could not allocate poDynlock" );
+        throw runtime_error ( "DynamicSslLocking::DynamicLockCreateCallback: Could not allocate dynamic CRYPTO mutex" );
     }
-	pthread_mutex_init(&poDynlock->oMutex, NULL);
+	if (0 != pthread_mutex_init(&poDynlock->oMutex, NULL)) {
+        throw runtime_error ( "DynamicSslLocking::DynamicLockCreateCallback: Could not initialize dynamic CRYPTO mutex" );
+    }
 	return poDynlock;
 
 }
@@ -62,7 +64,9 @@ void DynamicSslLocking::DynamicLockCleanupCallback ( struct CRYPTO_dynlock_value
 													 const char * ,
 													 int )
 {
-	pthread_mutex_destroy ( &ipoDynlock->oMutex );
+	if (0 != pthread_mutex_destroy ( &ipoDynlock->oMutex )) {
+        throw runtime_error("DynamicSslLocking::DynamicLockCleanupCallback: Could not destroy dynamic CRYPTO mutex");
+    }
 	delete ipoDynlock;
 }
 

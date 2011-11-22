@@ -62,12 +62,14 @@ StaticSslLocking::StaticSslLocking ( )
     StaticSslLocking::poMutexes = new pthread_mutex_t[CRYPTO_num_locks()];
 
     if ( NULL == StaticSslLocking::poMutexes ) {
-        throw runtime_error("StaticSslLocking::StaticSslLocking: Could not allocate poMutexes") ;
+        throw runtime_error("StaticSslLocking::StaticSslLocking: Could not allocate CRYPTO mutexes") ;
     }
 
     // initialize the mutexes
     for (int i = 0; i < CRYPTO_num_locks(); i++) {
-        pthread_mutex_init(&StaticSslLocking::poMutexes[i], NULL);
+        if (0 != pthread_mutex_init(&StaticSslLocking::poMutexes[i], NULL)) {
+            throw runtime_error("StaticSslLocking::StaticSslLocking: Could not initialize CRYPTO mutex") ;
+        }
     }
     // set callbacks
     CRYPTO_set_id_callback(StaticSslLocking::SslThreadIdCallback);
@@ -83,7 +85,9 @@ StaticSslLocking::~StaticSslLocking()
     CRYPTO_set_id_callback(NULL);
     CRYPTO_set_locking_callback(NULL);
     for ( int i = 0; i < CRYPTO_num_locks(); i++) {
-        pthread_mutex_destroy(&StaticSslLocking::poMutexes[i]);
+        if (0 != pthread_mutex_destroy(&StaticSslLocking::poMutexes[i])) {
+            throw runtime_error("StaticSslLocking::~StaticSslLocking: Could not destroy CRYPTO mutex");
+        }
     }
     delete [] StaticSslLocking::poMutexes;
     StaticSslLocking::poMutexes = NULL;

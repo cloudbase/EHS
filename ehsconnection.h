@@ -126,7 +126,8 @@ class EHSConnection {
             ADDBUFFER_INVALID = 0,
             ADDBUFFER_OK,
             ADDBUFFER_INVALIDREQUEST,
-            ADDBUFFER_TOOBIG
+            ADDBUFFER_TOOBIG,
+            ADDBUFFER_NORESOURCE
         };
 
         /// adds new data to psBuffer
