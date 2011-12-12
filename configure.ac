@@ -33,8 +33,10 @@ DWLIB=
 AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
-AC_CHECK_LIB(ssl, SSL_library_init)
+AC_CHECK_LIB(z, inflate)
+AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(crypto, ERR_free_strings)
+AC_CHECK_LIB(ssl, SSL_library_init)
 AC_CHECK_LIB(dw, dwfl_begin, DWLIB="-ldw")
 AC_CHECK_LIB(bfd, bfd_openr, [BFDLIB1="-lbfd"])
 AC_CHECK_LIB(iberty, cplus_demangle, [BFDLIB2="-liberty"])
@@ -55,6 +57,13 @@ case "$withval" in
             AC_MSG_RESULT([configure: OpenSSL is available, enabled SSL support])
         else
             AC_MSG_RESULT([configure: OpenSSL not available, disabled SSL support])
+        fi
+        ;;
+       *)
+        if test -d "${withval}/include/openssl" -a "${withval}/lib" ; then
+            AC_DEFINE([COMPILE_WITH_SSL],[1],[Whether to compile with SSL support or not])
+            CPPFLAGS="-I${withval}/include $CPPFLAGS"
+            LDFLAGS="-L${withval}/lib"
         fi
         ;;
 esac

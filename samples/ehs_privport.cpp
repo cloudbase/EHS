@@ -116,6 +116,7 @@ class MyHelper : public PrivilegedBindHelper
 //   waits for RETURN while the EHS thread does its job.
 int main ( int argc, char ** argv )
 {
+    cout << getEHSconfig() << endl;
     if (argc != 2) {
         cerr << "Usage: " << basename(argv[0]) << " [port]" << endl;
         return 0;

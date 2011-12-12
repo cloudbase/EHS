@@ -44,11 +44,14 @@
 #include <stdexcept>
 #include <cerrno>
 
+#ifdef COMPILE_WITH_SSL
+# include <openssl/opensslv.h>
+#endif
 static const char * const EHSconfig = "EHS_CONFIG:SSL="
 #ifdef COMPILE_WITH_SSL
-"1"
+"\"" OPENSSL_VERSION_TEXT "\""
 #else
-"0"
+"DISABLED"
 #endif
 ",DEBUG="
 #ifdef EHS_DEBUG
@@ -64,6 +67,36 @@ const char * getEHSconfig()
 }
 
 using namespace std;
+
+class EHSThreadHandlerHelper
+{
+    public:
+        EHSThreadHandlerHelper(EHS *ehs)
+            : m_pEHS(ehs)
+        {
+            if (m_pEHS) {
+                if (!m_pEHS->ThreadInitHandler()) {
+                    m_pEHS = NULL;
+                }
+            }
+        }
+
+        ~EHSThreadHandlerHelper()
+        {
+            if (m_pEHS) {
+                m_pEHS->ThreadExitHandler();
+                m_pEHS = NULL;
+            }
+        }
+
+        bool IsOK()
+        {
+            return (NULL != m_pEHS);
+        }
+
+    private:
+        EHS *m_pEHS;
+};
 
 int EHSServer::CreateFdSet()
 {
@@ -550,7 +583,8 @@ bool EHS::ShouldTerminate() const
 
 void EHSServer::HandleData_Threaded()
 {
-    if (m_poTopLevelEHS->ThreadInitHandler()) {
+    EHSThreadHandlerHelper thh(m_poTopLevelEHS);
+    if (thh.IsOK()) {
         pthread_t self = pthread_self();
         do {
             bool catched = false;
@@ -582,7 +616,6 @@ void EHSServer::HandleData_Threaded()
             }
         } while (m_nServerRunningStatus == SERVERRUNNING_THREADPOOL ||
                 self == m_nAcceptThreadId);
-        m_poTopLevelEHS->ThreadExitHandler();
         m_poNetworkAbstraction->ThreadCleanup();
     }
 }

@@ -109,6 +109,7 @@ ResponseCode tester::HandleRequest(HttpRequest *request, HttpResponse *response)
 int main(int argc, char **argv)
 {
 
+    cout << getEHSconfig() << endl;
     if (argc < 4) {
         string cmd = basename(argv[0]);
         cerr << "Usage: " << cmd << " [mode] [port] [file] <delay> <threadcount> <norouterequest>)" << endl;

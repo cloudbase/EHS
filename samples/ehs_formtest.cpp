@@ -94,6 +94,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 int main (int argc, char ** argv)
 {
 
+    cout << getEHSconfig() << endl;
 	if (argc != 2 && argc != 4) {
         cout << "usage: " << basename(argv[0]) << " <port> [<certificate_file> <certificate_passphrase>]" << endl;
         cout << "\tIf you specify the last 2 parameters, it will run in https mode" << endl;

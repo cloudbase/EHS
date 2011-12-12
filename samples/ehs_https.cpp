@@ -80,6 +80,7 @@ pthread_mutex_t MyHelper::mutex = PTHREAD_MUTEX_INITIALIZER;
 int main(int argc, char ** argv)
 {
 
+    cout << getEHSconfig() << endl;
 	if (argc != 4) {
 		cout << "Usage: " << basename(argv[0]) << " <port> <certificate file> <passphrase>" << endl; 
         return 0;

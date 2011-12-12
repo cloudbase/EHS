@@ -91,6 +91,7 @@ class TestException : public EHS
 //   sleeps forever and lets the EHS thread do its job.
 int main (int argc, char **argv)
 {
+    cout << getEHSconfig() << endl;
     if (argc != 2) {
         cerr << "Usage: " << basename(argv[0]) << " [port]" << endl;
         return 0;

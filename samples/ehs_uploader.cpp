@@ -107,6 +107,7 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
 
 int main(int argc, char ** argv)
 {
+    cout << getEHSconfig() << endl;
     if (argc < 2) {
         cout << "usage: " << basename(argv[0]) << " <port>" << endl;
         return 0;

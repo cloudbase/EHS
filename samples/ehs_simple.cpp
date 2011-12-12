@@ -33,6 +33,7 @@ using namespace std;
 int main(int argc, char ** argv)
 {
 
+    cout << getEHSconfig() << endl;
 	if (argc != 2 && argc != 3) {
         cout << "Usage: " << basename(argv[0]) << " <port> [threaded]" << endl;
         return 0;

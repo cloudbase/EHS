@@ -47,6 +47,7 @@ class MyEHS : public EHS {
 int main ( int argc, char ** argv )
 {
 
+    cout << getEHSconfig() << endl;
 	if ((argc != 2) && (argc != 5)) {
         string cmd(basename(argv[0]));
 		cout << "Usage: " << cmd << " <port> [<sslport> <certificate file> <passphrase>]" << endl; 
