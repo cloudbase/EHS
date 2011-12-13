@@ -247,8 +247,7 @@ retry:
 
 #ifdef EHS_DEBUG
     cerr
-        << "Got a connection from " << GetAddress() << ":"
-        << ntohs(m_peer.sin_port) << endl;
+        << "Got a connection from " << GetPeer() << endl;
 #endif
     if (-1 == fd) {
 #ifndef _WIN32
@@ -264,6 +263,15 @@ retry:
         return NULL;
     }
     return new Socket(fd, &m_peer);
+}
+
+string Socket::GetPeer() const
+{
+    char buf[20];
+    string ret(GetAddress());
+    snprintf(buf, 20, ":%d", GetPort());
+    ret.append(buf);
+    return ret;
 }
 
 string Socket::GetAddress() const

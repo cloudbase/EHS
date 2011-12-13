@@ -117,6 +117,8 @@ class Socket : public NetworkAbstraction {
 
         std::string GetAddress() const;
 
+        std::string GetPeer() const;
+
         /// The file descriptor of the socket on which this connection came in
         int m_fd;
 

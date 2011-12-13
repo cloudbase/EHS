@@ -51,6 +51,14 @@ class SslError
         int GetError(std::string & irsReport, bool inPeek = false);
 
         /**
+         * Retrieves info about the OpenSSL error specified in nError.
+         * @param irsReport Gets filled with the OpenSSL error info.
+         * @param nError The error to get info for.
+         * @return The OpenSSL error code (nError).
+         */
+        int GetErrorString(std::string & irsReport, int nError);
+
+        /**
          * Retrieves info about the last OpenSSL error and leaves it on OpenSSL error queue.
          * @param irsReport Gets filled with the OpenSSL error info.
          * @return The OpenSSL error code (0 == no error).

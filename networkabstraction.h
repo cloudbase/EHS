@@ -69,6 +69,13 @@ class NetworkAbstraction {
         virtual int GetPort() const = 0;
 
         /**
+         * Combination of GetAddress and GetPort.
+         * @return The address of the connected peer in quad-dotted format,
+         *   followed by the port, separated by a colon.
+         */
+        virtual std::string GetPeer() const = 0;
+
+        /**
          * Initializes a listening socket.
          * If listening should be restricted to a specific address, SetBindAddress
          * has to be called in advance.

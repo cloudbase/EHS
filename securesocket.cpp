@@ -179,7 +179,9 @@ retry:
     SSL_set_fd(ssl, fd);
     int ret = SSL_accept(ssl);
     if (1 != ret) {
-        s_pSslError->GetError(sError);
+        int err = s_pSslError->GetErrorString(sError, SSL_get_error(ssl, ret));
+        sError.append(" from ");
+        sError.append(GetPeer());
         SSL_free(ssl);
 #ifdef _WIN32
         closesocket(fd);

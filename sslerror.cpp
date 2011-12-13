@@ -51,6 +51,22 @@ void SslError::ThreadCleanup()
     ERR_remove_state(0);
 }
 
+int SslError::GetErrorString(string & irsReport, int nError)
+{
+	// do we need to load the strings?
+	if (!s_bMessagesLoaded) {
+		SSL_load_error_strings();
+		s_bMessagesLoaded = true;
+	}
+
+	char psBuffer[256];
+	ERR_error_string_n(nError, psBuffer, 256);
+	irsReport.assign(psBuffer);
+    snprintf(psBuffer, 256, "[%d] ", nError);
+	irsReport.insert(0, psBuffer);
+    return nError;
+}
+
 int SslError::GetError(string & irsReport, bool inPeek)
 {
 	// get the error code
@@ -63,16 +79,7 @@ int SslError::GetError(string & irsReport, bool inPeek)
 		return nError;
 	}
 
-	// do we need to load the strings?
-	if (!s_bMessagesLoaded) {
-		SSL_load_error_strings();
-		s_bMessagesLoaded = true;
-	}
-
-	char psBuffer[256];
-	ERR_error_string_n(nError, psBuffer, 256);
-	irsReport.assign(psBuffer);
-	return nError;
+    return GetError(irsReport, nError);
 }
 
 int SslError::PeekError(string & irsReport)
