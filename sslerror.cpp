@@ -61,9 +61,7 @@ int SslError::GetErrorString(string & irsReport, int nError)
 
 	char psBuffer[256];
 	ERR_error_string_n(nError, psBuffer, 256);
-	irsReport.assign(psBuffer);
-    snprintf(psBuffer, 256, "[%d] ", nError);
-	irsReport.insert(0, psBuffer);
+	irsReport.append(psBuffer);
     return nError;
 }
 
@@ -79,7 +77,14 @@ int SslError::GetError(string & irsReport, bool inPeek)
 		return nError;
 	}
 
-    return GetError(irsReport, nError);
+    GetErrorString(irsReport, nError);
+    if (!inPeek) {
+        unsigned long e;
+        while (0 != (e = ERR_get_error())) {
+            GetErrorString(irsReport, e);
+        }
+    }
+    return nError;
 }
 
 int SslError::PeekError(string & irsReport)

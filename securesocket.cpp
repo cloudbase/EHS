@@ -179,7 +179,8 @@ retry:
     SSL_set_fd(ssl, fd);
     int ret = SSL_accept(ssl);
     if (1 != ret) {
-        int err = s_pSslError->GetErrorString(sError, SSL_get_error(ssl, ret));
+        int err = s_pSslError->GetError(sError);
+//# int err = s_pSslError->GetErrorString(sError, SSL_get_error(ssl, ret));
         sError.append(" from ");
         sError.append(GetPeer());
         SSL_free(ssl);
