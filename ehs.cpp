@@ -151,6 +151,7 @@ void EHSServer::RemoveFinishedConnections ( )
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); ) {
         if ((*i)->CheckDone()) {
+            EHS_TRACE("EHSServer::RemoveFinishedConnections: found something to delete\n");
             RemoveEHSConnection(*i);
             i = m_oEHSConnectionList.begin();
         } else {
@@ -323,11 +324,23 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
         throw invalid_argument("EHSServer::EHSServer: Pointer to toplevel EHS object is NULL.");
     }
 
+    // grab out the parameters for less typing later on
+    EHSServerParameters & params = ipoTopLevelEHS->m_oParams;
+
     pthread_mutex_init(&m_oMutex, NULL);
     pthread_cond_init(&m_oDoneAccepting, NULL);
     pthread_attr_init(&m_oThreadAttr);
-    // grab out the parameters for less typing later on
-    EHSServerParameters & params = ipoTopLevelEHS->m_oParams;
+    {
+        // Set minimum stack size
+        size_t stacksize;
+        size_t min_stacksize = (unsigned long)params["stacksize"];
+        pthread_attr_getstacksize (&m_oThreadAttr, &stacksize);
+        EHS_TRACE ("Default thread stack size is %li", stacksize);
+        if (stacksize < min_stacksize) {
+            EHS_TRACE ("Settting thread stack size to %li", min_stacksize);
+            pthread_attr_setstacksize(&m_oThreadAttr, min_stacksize);
+        }
+    }
     // whether to run with https support
     int nHttps = params["https"];
     if (nHttps) {
@@ -480,7 +493,7 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
         throw invalid_argument("EHSServer::RemoveEHSConnection: argument is NULL");
     }
     bool removed = false;
-    EHS_TRACE("%d connections to look for something to delete\n",
+    EHS_TRACE("Look for something to delete within a list of %d connections",
             m_oEHSConnectionList.size ( ) );
     // go through the list and find all occurances of ipoEHSConnection
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
@@ -491,10 +504,9 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
             }
             removed = true;
             // destroy the connection and remove it from the list
+            // erase() returns an iterator pointing to the following element.
             delete *i;
-            m_oEHSConnectionList.erase(i);
-            // start back over at the beginning of the list
-            i = m_oEHSConnectionList.begin();
+            i = m_oEHSConnectionList.erase(i);
         } else {
             i++;
         }
@@ -795,16 +807,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
             ++m_nResponses;
             // set last activity to the current time for idle purposes
             UpdateLastActivity();
-            // if we're done with this connection, get rid of it
-            if (CheckDone()) {
-                EHS_TRACE("add response found something to delete\n");
-                // Both mutexes are interlocked intentionally.
-                MutexHelper server_mutex(&m_poEHSServer->m_oMutex);
-                mutex.Unlock();
-                m_poEHSServer->RemoveEHSConnection(this);
-                mutex.Lock();
-            }
-            EHS_TRACE("Sending response %d to %x\n", m_nResponses, this);
+            EHS_TRACE("Sending %d response(s) to %x\n", m_nResponses, this);
         }
     } while (found);
 }
@@ -841,8 +844,12 @@ void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
             reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
 
     // now send the body
-    m_poNetworkAbstraction->Send(response->GetBody(),
-            atoi(response->m_oResponseHeaders["content-length"].c_str()));
+    int blen = atoi(response->m_oResponseHeaders["content-length"].c_str());
+    if (blen > 0) {
+        EHS_TRACE("Sending %d bytes in thread %08x\n", blen, pthread_self());
+        m_poNetworkAbstraction->Send(response->GetBody(), blen);
+        EHS_TRACE("Done sending %d bytes in thread %08x\n", blen, pthread_self());
+    }
 }
 
 void EHSServer::EndServerThread()
@@ -936,7 +943,7 @@ string GetNextPathPart(string &irsUri)
     return string("");
 }
 
-    auto_ptr<HttpResponse>
+auto_ptr<HttpResponse>
 EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {

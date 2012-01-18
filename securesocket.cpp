@@ -301,12 +301,48 @@ SSL_CTX *SecureSocket::InitializeCertificates()
 
 int SecureSocket::Read(void *buf, int bufsize)
 {
-    return (bufsize > 0) ? SSL_read(m_pSsl, buf, bufsize) : 0;
+    int ret = 0;
+    if (bufsize > 0) {
+again:
+        ret = SSL_read(m_pSsl, buf, bufsize);
+        if (ret <= 0) {
+            switch (SSL_get_error(m_pSsl, ret)) {
+                case SSL_ERROR_WANT_READ:
+                case SSL_ERROR_WANT_WRITE:
+                    goto again;
+                    break;
+                case SSL_ERROR_SYSCALL:
+                    if ((errno == EAGAIN) || (errno == EINTR)) {
+                        goto again;
+                    }
+                    break;
+            }
+        }
+    }
+    return ret;
 }
 
 int SecureSocket::Send (const void *buf, size_t buflen, int)
 {
-    return (buflen > 0) ? SSL_write(m_pSsl, buf, buflen) : 0;
+    int ret = 0;
+    if (buflen > 0) {
+again:
+        ret = SSL_write(m_pSsl, buf, buflen);
+        if (ret <= 0) {
+            switch (SSL_get_error(m_pSsl, ret)) {
+                case SSL_ERROR_WANT_READ:
+                case SSL_ERROR_WANT_WRITE:
+                    goto again;
+                    break;
+                case SSL_ERROR_SYSCALL:
+                    if ((errno == EAGAIN) || (errno == EINTR)) {
+                        goto again;
+                    }
+                    break;
+            }
+        }
+    }
+    return ret;
 }
 
 void SecureSocket::Close()

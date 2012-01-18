@@ -134,13 +134,18 @@ void HttpResponse::SetBody ( const char * ipsBody, ///< body to return to user
 {
     if ( NULL != m_psBody ) {
         delete [] m_psBody;
+        m_psBody = NULL;
     }
-    m_psBody = new char [ inBodyLength + 1 ];
-    if ( NULL == m_psBody ) {
-        throw runtime_error ( "HttpResponse::SetBody: Could not allocate m_psBody" ); 
+    if (inBodyLength > 0) {
+        m_psBody = new char [ inBodyLength + 1 ];
+        if ( NULL == m_psBody ) {
+            throw runtime_error ( "HttpResponse::SetBody: Could not allocate m_psBody" ); 
+        }
+        memset ( m_psBody, 0, inBodyLength + 1 );
+        memcpy ( m_psBody, ipsBody, inBodyLength );
+    } else {
+        inBodyLength = 0;
     }
-    memset ( m_psBody, 0, inBodyLength + 1 );
-    memcpy ( m_psBody, ipsBody, inBodyLength );
 
     ostringstream oss;
     oss << inBodyLength;

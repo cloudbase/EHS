@@ -201,24 +201,48 @@ void Socket::Init(int port)
 
 int Socket::Read(void *buf, int bufsize)
 {
-    return recv(m_fd, 
+    int ret = 0;
+    if (bufsize > 0) {
+again:
+        ret = recv(m_fd, 
 #ifdef _WIN32
-            reinterpret_cast<char *>(buf),
+                reinterpret_cast<char *>(buf),
 #else
-            buf, 
+                buf, 
 #endif
-            bufsize, 0);
+                bufsize, 0);
+        if (ret < 0) {
+            switch (errno) {
+                case EAGAIN:
+                case EINTR:
+                    goto again;
+            }
+        }
+    }
+    return ret;
 }
 
 int Socket::Send(const void *buf, size_t buflen, int flags)
 {
-    return send(m_fd, 
+    int ret = 0;
+    if (buflen > 0) {
+again:
+        ret = send(m_fd, 
 #ifdef _WIN32
-            reinterpret_cast<const char *>(buf),
+                reinterpret_cast<const char *>(buf),
 #else
-            buf, 
+                buf, 
 #endif	
-            buflen, flags|MSG_NOSIGNAL);
+                buflen, flags|MSG_NOSIGNAL);
+        if (ret < 0) {
+            switch (errno) {
+                case EAGAIN:
+                case EINTR:
+                    goto again;
+            }
+        }
+    }
+    return ret;
 }
 
 void Socket::Close()
