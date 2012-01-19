@@ -775,7 +775,7 @@ void EHSServer::CheckClientSockets ( )
                     case EHSConnection::ADDBUFFER_NORESOURCE:
                         {
                             // Immediately send a 500 response, then close the connection
-                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_500_INTERNALSERVERERROR, 0, *i));
+                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
                             (*i)->SendHttpResponse(tmp);
                             (*i)->DoneReading(false);
                             EHS_TRACE("Done reading because we are out of ressources");

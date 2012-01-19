@@ -95,6 +95,7 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
         phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
         phrases[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
         phrases[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
+        phrases[HTTPRESPONSECODE_503_SERVICEUNAVAILABLE] = "Service Unavailable";
     }
     map<int, const char *>::const_iterator i = phrases.find(code);
     return (phrases.end() == i) ? "INVALID" : i->second;
