@@ -26,11 +26,15 @@
 #ifndef _DEBUG_H
 #define _DEBUG_H
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #ifdef EHS_DEBUG
 # include <iostream>
 #endif
 
-inline void EHS_TRACE(const char*
+static inline void _ehs_trace(const char*
 #ifdef EHS_DEBUG
         szFormat
 #endif
@@ -56,5 +60,15 @@ inline void EHS_TRACE(const char*
 #define EHS_FUTURE     (_message) message ("  *** FUTURE: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
 #define EHS_TODOCUMENT (_message) message ("  *** TODOCUMENT: " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
 #define EHS_DEBUGCODE  (_message) message ("  *** DEBUG CODE (REMOVE!): " ##_message "\t\t\t\t" __FILE__ ":" _STR(__LINE__) )	
+
+#ifdef HAVE_GNU_VAMACROS
+# ifdef HAVE_GNU_PRETTY_FUNCTION
+#  define EHS_TRACE(fmt, ...) _ehs_trace("%s [%s:%d]: " fmt, __PRETTY_FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+# else
+#  define EHS_TRACE(fmt, ...) _ehs_trace("%s [%s:%d]: " fmt, __func__, __FILE__, __LINE__, ##__VA_ARGS__)
+# endif
+#else
+# define EHS_TRACE _ehs_trace
+#endif
 
 #endif // _DEBUG_H

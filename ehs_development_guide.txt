@@ -18,8 +18,6 @@ How to build EHS (for UNIX):
                  if it finds OpenSSL.
 --enable-debug:  prints out many debugging statements.  Recommended when you first
                  build a new application, but rather spammy.
---enable-memory: prints out internal memory tracking information.  Mostly only 
-                 used for EHS internal development.
 --enable-warn:   Enable additional compiler warnings
 
 
