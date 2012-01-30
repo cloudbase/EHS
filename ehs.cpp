@@ -774,7 +774,7 @@ void EHSServer::CheckClientSockets ( )
                         break;
                     case EHSConnection::ADDBUFFER_NORESOURCE:
                         {
-                            // Immediately send a 500 response, then close the connection
+                            // Immediately send a 503 response, then close the connection
                             auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
                             (*i)->SendHttpResponse(tmp);
                             (*i)->DoneReading(false);
@@ -802,7 +802,9 @@ void EHSConnection::AddResponse(HttpResponse *response)
         if (m_oHttpResponseMap.end() != i) {
             found = true;
             --m_nActiveRequests;
+            mutex.Unlock();
             SendHttpResponse(auto_ptr<HttpResponse>(i->second));
+            mutex.Lock();
             m_oHttpResponseMap.erase(i);
             ++m_nResponses;
             // set last activity to the current time for idle purposes
@@ -814,6 +816,8 @@ void EHSConnection::AddResponse(HttpResponse *response)
 
 void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
 {
+    MutexHelper mutex(&m_oMutex);
+
     // only send it if the client isn't disconnected
     if (Disconnected()) {
         return;
@@ -840,6 +844,7 @@ void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
 
     // extra line break signalling end of headers
     oss << "\r\n";
+    mutex.Unlock();
     m_poNetworkAbstraction->Send(
             reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
 
