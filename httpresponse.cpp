@@ -94,6 +94,7 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
         phrases[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
         phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
         phrases[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
+		phrases[HTTPRESPONSECODE_413_TOOLARGE] = "Request entity too large";
         phrases[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
         phrases[HTTPRESPONSECODE_503_SERVICEUNAVAILABLE] = "Service Unavailable";
     }
