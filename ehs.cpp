@@ -763,13 +763,21 @@ void EHSServer::CheckClientSockets ( )
                 // if add buffer failed, don't read from this connection anymore
                 switch (nAddBufferResult) {
                     case EHSConnection::ADDBUFFER_INVALIDREQUEST:
-                    case EHSConnection::ADDBUFFER_TOOBIG:
                         {
                             // Immediately send a 400 response, then close the connection
                             auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
                             (*i)->SendHttpResponse(tmp);
                             (*i)->DoneReading(false);
                             EHS_TRACE("Done reading because we got a bad request");
+                        }
+                        break;
+                    case EHSConnection::ADDBUFFER_TOOBIG:
+                        {
+                            // Immediately send a 413 response, then close the connection
+                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_413_TOOLARGE, 0, *i));
+                            (*i)->SendHttpResponse(tmp);
+                            (*i)->DoneReading(false);
+                            EHS_TRACE("Done reading because we got a too large request");
                         }
                         break;
                     case EHSConnection::ADDBUFFER_NORESOURCE:
