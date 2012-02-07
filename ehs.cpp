@@ -96,6 +96,9 @@ class EHSThreadHandlerHelper
 
     private:
         EHS *m_pEHS;
+        // Disabled copy constructor
+        EHSThreadHandlerHelper(const EHSThreadHandlerHelper& other) : m_pEHS(other.m_pEHS) { }
+        EHSThreadHandlerHelper & operator=(const EHSThreadHandlerHelper& other) { m_pEHS = other.m_pEHS;  return *this; }
 };
 
 int EHSServer::CreateFdSet()
@@ -773,10 +776,19 @@ void EHSServer::CheckClientSockets ( )
                         break;
                     case EHSConnection::ADDBUFFER_TOOBIG:
                         {
-                            // Immediately send a 413 response, then close the connection
-                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_413_TOOLARGE, 0, *i));
+                            // Immediately send a configurable response (Default: 413), then close the connection
+                            ResponseCode rc = HTTPRESPONSECODE_413_TOOLARGE;
+                            if (m_poTopLevelEHS->m_oParams.find("code413") !=
+                                    m_poTopLevelEHS->m_oParams.end()) {
+                                unsigned long n = m_poTopLevelEHS->m_oParams["code413"];
+                                rc = (ResponseCode)n;
+                            }
+                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(rc, 0, *i));
                             (*i)->SendHttpResponse(tmp);
                             (*i)->DoneReading(false);
+#ifdef SPECIAL_STDERR
+                            std::cerr << "EHS Warning: Request size exceeded. Returning " << tmp.GetStatusString() << "." << std::endl;
+#endif
                             EHS_TRACE("Done reading because we got a too large request");
                         }
                         break;
@@ -786,6 +798,9 @@ void EHSServer::CheckClientSockets ( )
                             auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
                             (*i)->SendHttpResponse(tmp);
                             (*i)->DoneReading(false);
+#ifdef SPECIAL_STDERR
+                            std::cerr << "EHS Warning: No ressources available. Returning " << tmp.GetStatusString() << "." << std::endl;
+#endif
                             EHS_TRACE("Done reading because we are out of ressources");
                         }
                         break;

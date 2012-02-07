@@ -102,6 +102,14 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
     return (phrases.end() == i) ? "INVALID" : i->second;
 }
 
+std::string HttpResponse::GetStatusString()
+{
+    ostringstream oss;
+    oss << m_nResponseCode << " " << GetPhrase(m_nResponseCode);
+    std::string ret(oss.str());
+    return ret;
+}
+
 HttpResponse *HttpResponse::Error(ResponseCode code, int inResponseId, EHSConnection * ipoEHSConnection)
 {
     HttpResponse *ret = new HttpResponse(inResponseId, ipoEHSConnection);

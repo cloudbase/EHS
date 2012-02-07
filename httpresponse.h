@@ -131,6 +131,12 @@ class HttpResponse {
         char * GetBody() { return m_psBody; };
 
         /**
+         * retrieves the status string of this this response.
+         * @return The current status as "<i>number</i> <i>description</i>".
+         */
+        std::string GetStatusString();
+
+        /**
          * Sets the HTTP Date header.
          * @param stamp A UNIX timestamp, representing the desired time.
          */
