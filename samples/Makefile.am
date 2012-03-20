@@ -1,11 +1,18 @@
 AM_CPPFLAGS = -I$(top_srcdir)
 
+noinst_HEADERS = btexception.h common.h base64.h
+
 # Sample programs to be built but not installed
+#
+EXTRA_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
+				  ehs_simple ehs_mirror ehs_https ehs_privport \
+				  ehs_exception ehs_chunktest ehs_basicauth bindhelper
+
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \
 				  ehs_exception ehs_chunktest ehs_basicauth bindhelper
 
-noinst_HEADERS = btexception.h common.h base64.h
+bin_PROGRAMS = $(INSTALL_SAMPLES)
 
 ehs_basicauth_SOURCES = ehs_basicauth.cpp base64.cpp
 ehs_basicauth_LDADD = $(top_builddir)/libehs.la

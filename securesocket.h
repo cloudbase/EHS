@@ -31,23 +31,7 @@
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 
-
-#ifdef HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
-#include <sys/types.h>
-#ifdef HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif
-#ifdef HAVE_ARPA_INET_H
-# include <arpa/inet.h>
-#endif
-#include <unistd.h>
 #include <cstring>
-
 #include <string>
 #include <iostream>
 
@@ -159,6 +143,6 @@ class SecureSocket : public Socket
         static pthread_mutex_t s_mutex;
 };
 
-#endif
+#endif // COMPILE_WITH_SSL
 
 #endif // SECURE_SOCKET_H

@@ -41,7 +41,7 @@ using namespace std;
 // subclass of EHS that defines a custom HTTP response.
 class TestException : public EHS
 {
-    HttpResponse *HandleThreadException(pthread_t, HttpRequest *request, exception &ex)
+    HttpResponse *HandleThreadException(ehs_threadid_t, HttpRequest *request, exception &ex)
     {
         HttpResponse *ret = NULL;
         string msg(ex.what());

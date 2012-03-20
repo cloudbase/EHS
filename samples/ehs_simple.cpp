@@ -43,12 +43,27 @@ int main(int argc, char ** argv)
 
 	EHSServerParameters oSP;
 	oSP["port"] = argv[1];
-    if (3 == argc) {
+    if (2 < argc) {
         cout << "Starting in threaded mode" << endl;
         oSP["mode"] = "threadpool";
+        if (!strcmp(argv[2], "pool")) {
+            oSP["mode"] = "threadpool";
+            oSP["threadcount"] = 200;
+        }
+        if (!strcmp(argv[2], "single")) {
+            oSP["mode"] = "singlethreaded";
+        }
+        if (!strcmp(argv[2], "perrequest")) {
+            oSP["mode"] = "onethreadperrequest";
+        }
     } else {
         cout << "Starting in single threaded mode" << endl;
         oSP["mode"] = "singlethreaded";
+    }
+    if (5 == argc) {
+        oSP["https"] = 1;
+        oSP["certificate"] = argv[3];
+        oSP["passphrase"] = argv[4];
     }
 
     try {
@@ -56,7 +71,7 @@ int main(int argc, char ** argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-            if (3 == argc) {
+            if (2 < argc) {
                 usleep(300000);
             } else {
                 srv.HandleData(1000); // waits for 1 second

@@ -30,6 +30,7 @@
 #ifdef COMPILE_WITH_SSL
 
 #include "staticssllocking.h"
+#include "ehstypes.h"
 #include <stdexcept>
 
 using namespace std;
@@ -52,7 +53,7 @@ void StaticSslLocking::SslStaticLockCallback ( int inMode,
 
 unsigned long StaticSslLocking::SslThreadIdCallback ( )
 {
-    return ((unsigned long)pthread_self());
+    return static_cast<unsigned long>(THREADID(pthread_self()));
 }
 
 

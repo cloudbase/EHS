@@ -23,6 +23,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <ehs.h> 
 #include <iostream> 
 #include <cstdlib>
@@ -30,16 +34,29 @@
 #include <cstdio>
 #include <cerrno>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_WAIT_H
+# include <sys/wait.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
+#endif
 
 #include "common.h"
 
 using namespace std;
 
+#ifndef _WIN32
+// Bind helper is not needed on win32, because win32 does not
+// have a concept of privileged ports.
 class MyHelper : public PrivilegedBindHelper
 {
     public:
@@ -76,6 +93,7 @@ class MyHelper : public PrivilegedBindHelper
 };
 
 pthread_mutex_t MyHelper::mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 int main(int argc, char ** argv)
 {
@@ -87,8 +105,10 @@ int main(int argc, char ** argv)
 	}
 
 	EHS srv;
+#ifndef _WIN32
     MyHelper h;
     srv.SetBindHelper(&h);
+#endif
 
 	EHSServerParameters oSP;
 	oSP["port"] = argv[1];

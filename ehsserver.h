@@ -62,7 +62,7 @@ class EHSServer {
          * @param timeout select timeout in milliseconds.
          * @param tid Thread Id of the thread calling this method.
          */
-        void HandleData(int timeout, pthread_t tid = 0L); 
+        void HandleData(int timeout, ehs_threadid_t tid = 0); 
 
         /// Enumeration on the current running status of the EHSServer
         enum ServerRunningStatus {
@@ -167,7 +167,7 @@ class EHSServer {
         NetworkAbstraction * m_poNetworkAbstraction;
 
         /// pthread identifier for the accept thread -- only used when started in threaded mode
-        pthread_t m_nAcceptThreadId;
+        ehs_threadid_t m_nAcceptThreadId;
 
         /// number of seconds a connection can be idle before disconnect
         int m_nIdleTimeout;

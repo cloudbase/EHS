@@ -32,6 +32,8 @@
 
 #ifdef EHS_DEBUG
 # include <iostream>
+# include <cstdio>
+# include <cstdarg>
 #endif
 
 static inline void _ehs_trace(const char*

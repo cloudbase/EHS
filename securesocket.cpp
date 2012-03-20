@@ -27,10 +27,11 @@
 # include "config.h"
 #endif
 
+#ifdef COMPILE_WITH_SSL
 #include "ehs.h"
 #include "securesocket.h"
+#include "debug.h"
 
-#ifdef COMPILE_WITH_SSL
 #include "mutexhelper.h"
 
 #include <iostream>
@@ -138,7 +139,9 @@ NetworkAbstraction *SecureSocket::Accept()
 {
     string sError;
     socklen_t addrlen = sizeof(m_peer);
+#ifndef _WIN32
 retry:
+#endif
     int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
             reinterpret_cast<int *>(&addrlen) 
@@ -146,12 +149,9 @@ retry:
             &addrlen 
 #endif
             );
+    EHS_TRACE("SecureSocket::Accept: Got a connection from %s:%hd\n",
+            GetAddress().c_str(), ntohs(m_peer.sin_port));
 
-#ifdef EHS_DEBUG
-    cerr
-        << "Got a connection from " << GetAddress() << ":"
-        << ntohs(m_peer.sin_port) << endl;
-#endif
     if (-1 == fd) {
 #ifndef _WIN32
         switch (errno) {

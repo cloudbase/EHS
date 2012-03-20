@@ -26,40 +26,43 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
-///////////////////////////////////
-#ifdef _WIN32 // windows headers //
-///////////////////////////////////
+#ifdef _MSC_VER
+# pragma warning(disable : 4786)
+#endif
 
-// Pragma'ing away nasty MS 255-char-name problem.  Otherwise
-// you will get warnings on many template names that
-//	"identifier was truncated to '255' characters in the debug information".
-#pragma warning(disable : 4786)
+#ifdef HAVE_WINSOCK2_H
+# include <winsock2.h>
+#endif
+#ifdef HAVE_WINDOWS_H
+# include <windows.h>
+#endif
+#ifdef HAVE_TIME_H
+# include <time.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif
 
-// to use winsock2.h instead of winsock.h
-#define _WIN32_WINNT 0x0400
-#include <winsock2.h>
-#include <windows.h>
-#include <time.h>
-
-// make stricmp sound like strcasecmp
-#define strcasecmp stricmp
-
-// make windows sleep act like UNIX sleep
-#define sleep(seconds) (Sleep(seconds * 1000))
-
-///////////////////////////////////
-#else // unix headers go here    //
-///////////////////////////////////
-
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
-///////////////////////////////////
-#endif // end platform headers   //
-///////////////////////////////////
+#ifdef _WIN32
+typedef unsigned long in_addr_t;
+typedef size_t socklen_t;
+# define sleep(seconds) (Sleep(seconds * 1000))
+#endif
 
 #include "networkabstraction.h"
 

@@ -40,6 +40,7 @@
 
 #include <pcrecpp.h>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <cerrno>
@@ -388,11 +389,12 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             EHS_TRACE ("Starting %d threads in pool", nThreadsToStart);
             for (int i = 0; i < nThreadsToStart; i++) {
                 // create new thread and detach so we don't have to join on it
-                if (0 == pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
+                pthread_t thread;
+                if (0 == pthread_create(&thread, &m_oThreadAttr,
                             EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
                     EHS_TRACE("Created thread with ID=0x%x, NULL, func=0x%x, this=0x%x",
                             m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
-                    pthread_detach(m_nAcceptThreadId);
+                    pthread_detach(thread);
                 } else {
                     m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
                     throw runtime_error("EHSServer::EHSServer: Unable to create threads");
@@ -401,11 +403,12 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
         } else if (params["mode"] == "onethreadperrequest") {
             m_nServerRunningStatus = SERVERRUNNING_ONETHREADPERREQUEST;
             // spawn off one thread just to deal with basic stuff
-            if (0 == pthread_create(&m_nAcceptThreadId, &m_oThreadAttr,
+            pthread_t thread;
+            if (0 == pthread_create(&thread, &m_oThreadAttr,
                         EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
                 EHS_TRACE("Created thread with ID=0x%x, NULL, func=0x%x, this=0x%x",
                         m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
-                pthread_detach(m_nAcceptThreadId);
+                pthread_detach(thread);
             } else {
                 m_nServerRunningStatus = SERVERRUNNING_NOTRUNNING;
                 throw runtime_error("EHSServer::EHSServer: Unable to create listener thread");
@@ -600,7 +603,7 @@ void EHSServer::HandleData_Threaded()
 {
     EHSThreadHandlerHelper thh(m_poTopLevelEHS);
     if (thh.IsOK()) {
-        pthread_t self = pthread_self();
+        const ehs_threadid_t self = THREADID(pthread_self());
         do {
             bool catched = false;
             HttpResponse *eResponse = NULL;
@@ -635,7 +638,7 @@ void EHSServer::HandleData_Threaded()
     }
 }
 
-void EHSServer::HandleData (int inTimeoutMilliseconds, pthread_t tid)
+void EHSServer::HandleData (int inTimeoutMilliseconds, ehs_threadid_t tid)
 {
     MutexHelper mutex(&m_oMutex);
     // determine if there are any jobs waiting if this thread should --
@@ -725,7 +728,7 @@ void EHSServer::CheckAcceptSocket ( )
             if (emsg.find("SSL") == string::npos) {
                 throw;
             }
-            cerr << emsg << endl;
+            std::cerr << emsg << endl;
             return;
         }
         // create a new EHSConnection object and initialize it
@@ -952,7 +955,7 @@ void EHS::HandleData(int inTimeoutMilliseconds)
         // if we're in single threaded mode, handle data until there are no more jobs left
         if (m_poEHSServer->RunningStatus() == EHSServer::SERVERRUNNING_SINGLETHREADED) {
             do {
-                m_poEHSServer->HandleData(inTimeoutMilliseconds, pthread_self());
+                m_poEHSServer->HandleData(inTimeoutMilliseconds, THREADID(pthread_self()));
             } while (m_poEHSServer->RequestsPending() ||
                     m_poEHSServer->AcceptedNewConnection());
         }
@@ -1028,9 +1031,9 @@ void EHS::SetSourceEHS(EHS & iroSourceEHS)
     m_poSourceEHS = &iroSourceEHS;
 }
 
-HttpResponse *EHS::HandleThreadException(pthread_t tid, HttpRequest *, exception &ex)
+HttpResponse *EHS::HandleThreadException(ehs_threadid_t tid, HttpRequest *, exception &ex)
 {
-    cerr << "Caught an exception in thread "
+    std::cerr << "Caught an exception in thread "
         << hex << tid << ": " << ex.what() << endl;
     return NULL;
 }

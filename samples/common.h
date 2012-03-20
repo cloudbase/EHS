@@ -26,21 +26,53 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-#include <termios.h>
-#include <unistd.h>
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#ifdef HAVE_CONIO_H
+# include <conio.h>
+#endif
+#ifdef HAVE_TERMIOS_H
+# include <termios.h>
+#endif
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 #include <string>
+
+#ifdef _WIN32
+#define sleep(seconds) (Sleep(seconds * 1000))
+#endif
 
 // A small helper class for providing
 // non-blocking keyboard input.
 class kbdio {
     public:
-        kbdio() : st(termios()), stsave(termios()) {
+        kbdio()
+#ifndef _WIN32
+            : st(termios()), stsave(termios())
+#endif
+        {
+#ifndef _WIN32
             tcgetattr(0, &stsave);
             memcpy(&st, &stsave, sizeof(st));
             st.c_lflag &= ~ICANON;
             st.c_cc[VMIN] = st.c_cc[VTIME] = 0;
             tcsetattr(0, TCSANOW, &st);
+#endif
         }
+#ifdef _WIN32
+        bool qpressed() {
+            char c;
+            bool ret = false;
+            while (0 != _kbhit()) {
+                c = _getch();
+                ret |= ('q' == c);
+            }
+            return ret;
+        }
+#else
         ~kbdio() {
             tcsetattr(0, TCSANOW, &stsave);
         }
@@ -55,6 +87,7 @@ class kbdio {
     private:
         struct termios st;
         struct termios stsave;
+#endif
 };
 
 std::string basename(const std::string & s)
@@ -63,6 +96,11 @@ std::string basename(const std::string & s)
     size_t pos = ret.rfind("/");
     if (pos != ret.npos)
         ret.erase(0, pos);
+#ifdef _WIN32
+    pos = ret.rfind("\\");
+    if (pos != ret.npos)
+        ret.erase(0, pos);
+#endif
     return ret;
 }
 

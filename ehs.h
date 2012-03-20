@@ -263,7 +263,7 @@ class EHS : public PassphraseHandler {
          * @return NULL if the thread should exit; an appropriate
          *   HTTP response, if the thread should continue.
          */
-        virtual HttpResponse *HandleThreadException(pthread_t tid, HttpRequest *request, std::exception & ex);
+        virtual HttpResponse *HandleThreadException(ehs_threadid_t tid, HttpRequest *request, std::exception & ex);
 
         /**
          * Retrieve the server's exception status.

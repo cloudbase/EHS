@@ -9,6 +9,35 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign no-installinfo no-installman])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
+case $build_os in
+    mingw*)
+        if test "$build_os" = "$target_os" ; then
+            # On native MinGW, the default include/lib paths
+            # are /mingw/include resp. /mingw/lib, however
+            # several contributed stuff is under /usr/...
+            CPPFLAGS="$CPPFLAGS -I/usr/include"
+            LDFLAGS="$LDFLAGS -L/usr/lib"
+            # On native MinGW, we also want a prefix of /,
+            # because we want to install directly in our
+            # setupdir's bin (see packaging/win32/Makefile.am)
+            if test "x$prefix" = xNONE; then
+                prefix=/
+            fi
+        fi
+        ;;
+esac
+
+LIBEHS_RES=
+PLATFORM_SUBDIRS=
+case $target_os in
+    mingw*)
+        PLATFORM_SUBDIRS=setup
+        LIBEHS_RES='ehsrc.lo'
+        ;;
+esac
+AC_SUBST(PLATFORM_SUBDIRS)
+AC_SUBST(LIBEHS_RES)
+
 dnl Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
@@ -17,7 +46,23 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 
-AM_PROG_LIBTOOL
+m4_ifdef([LT_INIT],[
+LT_INIT([win32-dll pic-only])
+case $target_os in
+    mingw*)
+        LT_LANG([RC])
+        ;;
+esac
+],[
+AC_LIBTOOL_WIN32_DLL
+AC_PROG_LIBTOOL
+case $target_os in
+    mingw*)
+        tagnames="RC"
+        _LT_AC_TAGCONFIG
+        ;;
+esac
+])
 
 dnl Checks for libraries.
 
@@ -26,10 +71,23 @@ AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of t
      CXXFLAGS="$CXXFLAGS -I${withval}/include"
      LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
 
+ac_cv_dllpath=
+AC_ARG_WITH([dllpath],
+            AS_HELP_STRING([--with-dllpath=PATH],
+                           [Specify path for DLLs (mingw32 crossbuild only)]),
+        [ac_cv_dllpath=$withval])
+
+
 dnl Replace `main' with a function in -lpcre:
 BFDLIB1=
 BFDLIB2=
 DWLIB=
+
+dnl The following headers have to be checked *before* invoking
+dnl AC_CHECK_LIB for pcrecpp, ssl and crypto in order for those
+dnl checks to work correctly in mingw
+AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h pcre.h pcrecpp.h])
+
 AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
@@ -37,6 +95,7 @@ AC_CHECK_LIB(z, inflate)
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(crypto, ERR_free_strings)
 AC_CHECK_LIB(ssl, SSL_library_init)
+AC_CHECK_LIB(ws2_32, main)
 AC_CHECK_LIB(dw, dwfl_begin, DWLIB="-ldw")
 AC_CHECK_LIB(bfd, bfd_openr, [BFDLIB1="-lbfd"])
 AC_CHECK_LIB(iberty, cplus_demangle, [BFDLIB2="-liberty"])
@@ -91,7 +150,7 @@ esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h  demangle.h dwarf.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h demangle.h dwarf.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h sys/wait.h termios.h time.h unistd.h execinfo.h conio.h winsock2.h windows.h])
 
 dnl DWARF vs. BFD
 DW_CPPFLAGS=
@@ -182,6 +241,85 @@ ac_checked_CXXFLAGS=
 fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
 CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 
+dnl findrequires.pl script
+AC_CHECK_TARGET_TOOL([OBJDUMP],[objdump],[no])
+case ${OBJDUMP}-${target_os} in
+    no-mingw*)
+        AC_MSG_ERROR([Could not find required tool 'objdump'])
+        ;;
+esac
+AC_ARG_VAR([OBJDUMP],[Path to objdump binary. (required for win32 builds only)])
+dnl For the same reason, we require perl
+AC_CHECK_TOOL([PERL],[perl],[no])
+case ${PERL}-${target_os} in
+    no-mingw*)
+        AC_MSG_ERROR([Could not find required tool 'perl'])
+        ;;
+esac
+
+# ISCC env variable
+AC_ARG_VAR([ISCC],[Full path of InnoSetup compiler iscc.exe.])dnl
+SETUP=
+DLLPATH=
+PLATFORMDIST=
+INSTALL_SAMPLES=
+
+case $target_os in
+    linux*)
+        AC_CHECK_TOOL([RPMBUILD], [rpmbuild], [no])
+        if test "$RPMBUILD" != "no" ; then
+            PLATFORMDIST=rpm
+        else
+            AC_CHECK_TOOL([DPKG_BUILDPACKAGE], [dpkg-buildpackage], [no])
+            if test "$DPKG_BUILDPACKAGE" != "no" ; then
+                PLATFORMDIST=deb
+            fi
+        fi
+        ;;
+    mingw*)
+        PLATFORMDIST=setup
+        INSTALL_SAMPLES='$(noinst_PROGRAMS)'
+        if test "$build_os" = "$target_os" ; then
+            DLLPATH="$PATH"
+            AC_ARG_WITH([iscc],
+                        AS_HELP_STRING([--with-iscc=PATH],[Override ISCC path. (native mingw only)]),
+                        [ISCC="$withval"])
+            AC_PATH_PROG([ISCC],[iscc],[""],[$PATH])
+            if test -z "$ISCC" ; then
+                AC_MSG_WARN([InnoSetup compiler is missing, therefore no Setup will be built!])
+                SETUP=
+            else
+                SETUP=nativesetup
+            fi
+        else
+            if test -z "$ac_cv_dllpath" ; then
+                AC_MSG_ERROR([Need --with-dllpath option on mingw32 crossbuild])
+            fi
+            DLLPATH="$ac_cv_dllpath"
+            AC_ARG_WITH([wine-iscc],
+                        AS_HELP_STRING([--with-wine-iscc=PATH],[Path of ISCC to be run under wine. (mingw32 crossbuild only)]),
+                        [ISCC="$withval"])
+            if test -z "$ISCC" ; then
+                AC_MSG_WARN([InnoSetup compiler is missing, therefore no Setup will be built!])
+                SETUP=
+            else
+                AC_PATH_PROG([WINE],[wine],[""],[$PATH])
+                if test -z "$WINE" ; then
+                    AC_MSG_WARN([wine is not available, therefore no Setup will be built!])
+                    SETUP=
+                else
+                    SETUP=crosssetup
+                fi
+            fi
+        fi
+        ;;
+esac
+
+AC_SUBST(SETUP)
+AC_SUBST(DLLPATH)
+AC_SUBST(PLATFORMDIST)
+AC_SUBST(INSTALL_SAMPLES)
+
 dnl
 dnl doxygen setup
 dnl
@@ -195,5 +333,7 @@ DX_PDF_FEATURE(OFF)
 DX_PS_FEATURE(OFF)
 DX_INIT_DOXYGEN([EHS], [conf/doxygen.cfg], [doc])
 
-AC_CONFIG_FILES([Makefile samples/Makefile conf/doxygen.cfg doc/manual.dox conf/ehs.spec])
+AC_CONFIG_FILES([Makefile samples/Makefile setup/Makefile
+                 conf/doxygen.cfg doc/manual.dox conf/ehs.spec
+                 setup/findrequires.pl setup/isccwrap.sh ehsrc.rc])
 AC_OUTPUT

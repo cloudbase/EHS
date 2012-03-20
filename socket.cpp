@@ -48,13 +48,7 @@
 
 #include "ehs.h"
 #include "socket.h"
-
-#ifndef _WIN32
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
+#include "debug.h"
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0 // no support
@@ -64,6 +58,7 @@
 #include <sstream>
 #include <cstring>
 #include <cerrno>
+#include <cstdio>
 #include <stdexcept>
 
 using namespace std;
@@ -260,7 +255,9 @@ NetworkAbstraction *Socket::Accept()
 {
     string sError;
     socklen_t addrlen = sizeof(m_peer);
+#ifndef _WIN32
 retry:
+#endif
     int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
             reinterpret_cast<int *>(&addrlen) 
@@ -268,6 +265,8 @@ retry:
             &addrlen 
 #endif
             );
+    EHS_TRACE("Socket::Accept: Got a connection from %s:%hd\n",
+            GetAddress().c_str(), ntohs(m_peer.sin_port));
 
 #ifdef EHS_DEBUG
     cerr

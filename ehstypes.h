@@ -53,7 +53,16 @@ struct __caseless
     }
 };
 
-/// @file ehstypes.h
+#ifdef _WIN32
+#include <pthread.h>
+typedef unsigned long ehs_threadid_t;
+__inline__ ehs_threadid_t THREADID(pthread_t t) {
+    return pthread_getw32threadid_np(t);
+}
+#else
+typedef pthread_t ehs_threadid_t;
+#define THREADID
+#endif
 
 /// generic std::string => std::string map used by many things
 typedef std::map < std::string, std::string > StringMap;
@@ -86,7 +95,7 @@ typedef std::map < std::string, Datum > CookieParameters;
 typedef std::map < int, HttpResponse * > HttpResponseMap;
 
 /// holds the currently handled request for each thread
-typedef std::map < pthread_t, HttpRequest * > CurrentRequestMap;
+typedef std::map < ehs_threadid_t, HttpRequest * > CurrentRequestMap;
 
 /// holds a list of pending requests
 typedef std::list < HttpRequest * > HttpRequestList;

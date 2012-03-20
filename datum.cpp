@@ -32,10 +32,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#ifdef _WIN32
-#define strcasecmp stricmp
-#endif
-
 Datum & Datum::operator = ( const Datum & other )
 {
     sDatum = other.sDatum;

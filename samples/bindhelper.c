@@ -1,9 +1,13 @@
+#include <stdio.h>
+#include <errno.h>
+
+#ifdef _WIN32
+int main() { return -EINVAL; }
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
-#include <stdio.h>
-#include <errno.h>
 
 int main(int argc, char**argv)
 {
@@ -29,3 +33,4 @@ int main(int argc, char**argv)
     }
     return EINVAL;
 }
+#endif
