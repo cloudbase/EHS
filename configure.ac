@@ -193,7 +193,7 @@ INN_C_GNU_PRETTY_FUNCTION
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
 AC_FUNC_FORK
-AC_CHECK_FUNCS([inet_ntoa memset select setlocale socket strcasecmp strerror strtoul])
+AC_CHECK_FUNCS([inet_ntoa memset select setlocale socket strcasecmp strerror strtoul pthread_getw32threadid_np pthread_getw32threadhandle_np])
 tmp_LIBS="$LIBS"
 LIBS="$LIBS $BFDLIB1 $BFDLIB2"
 AC_CHECK_FUNCS([bfd_demangle])

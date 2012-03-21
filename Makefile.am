@@ -10,7 +10,7 @@ libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
 # Sources for building EHS library
 libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
 	socket.cpp sslerror.cpp staticssllocking.cpp datum.cpp \
-	httpresponse.cpp httprequest.cpp formvalue.cpp
+	httpresponse.cpp httprequest.cpp formvalue.cpp osdep.cpp
 libehs_la_LIBADD = $(LIBEHS_RES)
 libehs_la_DEPENDENCIES = $(LIBEHS_RES)
 EXTRA_libehs_la_SOURCES = ehsrc.rc
@@ -38,8 +38,15 @@ MAINTAINERCLEANFILES = -r aclocal.m4 config.h.in* configure Makefile.in \
 
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
 
+am_v_rc = $(am_v_rc_$(V))
+am_v_rc_ = $(am_v_rc_$(AM_DEFAULT_VERBOSITY))
+am_v_rc_0 = @echo "  RC  " $@;
+
 .rc.lo:
-	$(AM_V_GEN)$(LIBTOOL) --tag=RC --mode=compile $(RC) -I$(top_builddir) -o $@ $<
+	$(am_v_rc)$(LIBTOOL) $(AM_V_lt) --tag=RC --mode=compile $(RC) -I$(top_builddir) -o $@ $<
+
+.rc.o:
+	$(am_v_rc)$(RC) -I$(top_builddir) -o $@ $<
 
 # Bootstrap target.
 # After checkout from SVN, run make -f Makefile.am

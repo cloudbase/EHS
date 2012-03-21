@@ -56,9 +56,7 @@ struct __caseless
 #ifdef _WIN32
 #include <pthread.h>
 typedef unsigned long ehs_threadid_t;
-__inline__ ehs_threadid_t THREADID(pthread_t t) {
-    return pthread_getw32threadid_np(t);
-}
+extern ehs_threadid_t THREADID(pthread_t t);
 #else
 typedef pthread_t ehs_threadid_t;
 #define THREADID
