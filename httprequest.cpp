@@ -36,6 +36,7 @@
 #include <iostream>
 #include <cstdio>
 #include <stdexcept>
+#include <cstring>
 
 using namespace std;
 
@@ -283,12 +284,19 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                 } else if (sLine == "\r\n" ) {
                     // check to see if we're done with headers
 
-                    // if content length is found
-                    if ((m_oRequestHeaders.find("Content-Length") !=
-                            m_oRequestHeaders.end()) || m_bChunked) {
-                        m_nCurrentHttpParseState = HTTPPARSESTATE_BODY;
-                    } else {
+                    // Check for WebSocket header and skip parsing body if found.
+                    if ((0 == strcasecmp(m_oRequestHeaders["connection"].c_str(), "upgrade")) &&
+                            (0 == strcasecmp(m_oRequestHeaders["upgrade"].c_str(), "websocket"))) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
+                    } else {
+                        // Not a WebSocket Header, proceed normally:
+                        // if content length is found
+                        if ((m_oRequestHeaders.find("Content-Length") !=
+                                    m_oRequestHeaders.end()) || m_bChunked) {
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_BODY;
+                        } else {
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
+                        }
                     }
 
                     // if this is an HTTP/1.1 request, then it MUST have a Host: header
