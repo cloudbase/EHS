@@ -88,6 +88,7 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
     static map<int, const char *> phrases;
     if (0 == phrases.size()) {
         phrases[HTTPRESPONSECODE_200_OK] = "OK";
+        phrases[HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS] = "Switching Protocols";
         phrases[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
         phrases[HTTPRESPONSECODE_302_FOUND] = "FOUND";
         phrases[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
@@ -95,6 +96,7 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
         phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
         phrases[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
 		phrases[HTTPRESPONSECODE_413_TOOLARGE] = "Request entity too large";
+		phrases[HTTPRESPONSECODE_426_UPGRADE_REQUIRED] = "Upgrade required";
         phrases[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
         phrases[HTTPRESPONSECODE_503_SERVICEUNAVAILABLE] = "Service Unavailable";
     }

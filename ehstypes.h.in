@@ -28,6 +28,7 @@
 
 #include <string>
 #include <cstring>
+#include <memory>
 #include <map>
 #include <list>
 
@@ -52,6 +53,14 @@ struct __caseless
         return strcasecmp( s1.c_str(), s2.c_str() ) < 0;
     }
 };
+
+#if @USE_UNIQUE_PTR@
+# define ehs_autoptr std::unique_ptr
+# define ehs_move(x) std::move(x)
+#else
+# define ehs_autoptr std::auto_ptr
+# define ehs_move(x) (x)
+#endif
 
 #ifdef _WIN32
 #include <pthread.h>

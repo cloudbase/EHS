@@ -226,6 +226,7 @@ AC_ARG_ENABLE([warn],
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wswitch])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wuninitialized])
         CPPFLAGS="$CPPFLAGS $ac_checked_CPPFLAGS"
+        fe_CHECK_FLAG([C++],[CXXFLAGS],[-std=gnu++0x])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wctor-dtor-privacy])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wnon-virtual-dtor])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Woverloaded-virtual])
@@ -240,6 +241,19 @@ dnl Disable strict aliasing
 ac_checked_CXXFLAGS=
 fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
 CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
+
+dnl Check for std::unique_ptr and std::move
+AC_MSG_CHECKING([for availability of std::unique_ptr and std::move])
+USE_UNIQUE_PTR=0
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([
+AC_LANG_PROGRAM([[#include <memory>
+class foo { public: int bar; };
+void mv(std::unique_ptr<foo>p) { int v = p->bar; }]],
+[[std::unique_ptr<foo>p(new foo());mv(std::move(p));]]
+)],[USE_UNIQUE_PTR=1;AC_MSG_RESULT([yes])],[AC_MSG_RESULT([no])])
+AC_LANG_POP
+AC_SUBST([USE_UNIQUE_PTR])
 
 dnl findrequires.pl script
 AC_CHECK_TARGET_TOOL([OBJDUMP],[objdump],[no])
@@ -335,5 +349,5 @@ DX_INIT_DOXYGEN([EHS], [conf/doxygen.cfg], [doc])
 
 AC_CONFIG_FILES([Makefile samples/Makefile setup/Makefile
                  conf/doxygen.cfg doc/manual.dox conf/ehs.spec
-                 setup/findrequires.pl setup/isccwrap.sh ehsrc.rc])
+                 setup/findrequires.pl setup/isccwrap.sh ehsrc.rc ehstypes.h])
 AC_OUTPUT

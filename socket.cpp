@@ -171,7 +171,7 @@ void Socket::Init(int port)
         string ba(inet_ntoa(in));
         nResult = m_pBindHelper->BindPrivilegedPort(m_fd, ba.c_str(), port) ? 0 : -1;
     } else {
-        nResult = bind(m_fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa));
+        nResult = ::bind(m_fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa));
     }
 
     if (-1 == nResult) {

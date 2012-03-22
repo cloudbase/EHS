@@ -1,16 +1,18 @@
 AM_CPPFLAGS = -I$(top_srcdir)
 
-noinst_HEADERS = btexception.h common.h base64.h
+noinst_HEADERS = btexception.h common.h base64.h sha1.h
 
 # Sample programs to be built but not installed
 #
 EXTRA_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \
-				  ehs_exception ehs_chunktest ehs_basicauth bindhelper
+				  ehs_exception ehs_chunktest ehs_basicauth bindhelper \
+				  ehs_wsgate
 
 noinst_PROGRAMS = ehs_formtest ehs_test ehs_testharness ehs_uploader \
 				  ehs_simple ehs_mirror ehs_https ehs_privport \
-				  ehs_exception ehs_chunktest ehs_basicauth bindhelper
+				  ehs_exception ehs_chunktest ehs_basicauth bindhelper \
+				  ehs_wsgate
 
 bin_PROGRAMS = $(INSTALL_SAMPLES)
 
@@ -48,6 +50,11 @@ ehs_exception_SOURCES = ehs_exception.cpp btexception.cpp
 ehs_exception_CPPFLAGS = $(AM_CPPFLAGS) $(TRACE_CPPFLAGS)
 ehs_exception_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
 
+ehs_wsgate_SOURCES = ehs_wsgate.cpp btexception.cpp base64.cpp sha1.cpp
+ehs_wsgate_CPPFLAGS = $(AM_CPPFLAGS) $(TRACE_CPPFLAGS)
+ehs_wsgate_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
+
 bindhelper_SOURCES = bindhelper.c
 
+EXTRA_DIST = sha1-license.txt
 MAINTAINERCLEANFILES = Makefile.in

@@ -31,6 +31,7 @@
 /// different response codes and their corresponding phrases -- defined in EHS.cpp
 enum ResponseCode {
     HTTPRESPONSECODE_INVALID = 0,
+    HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS = 201,
     HTTPRESPONSECODE_200_OK = 200,
     HTTPRESPONSECODE_301_MOVEDPERMANENTLY = 301,
     HTTPRESPONSECODE_302_FOUND = 302,
@@ -39,6 +40,7 @@ enum ResponseCode {
     HTTPRESPONSECODE_403_FORBIDDEN = 403,
     HTTPRESPONSECODE_404_NOTFOUND = 404,
 	HTTPRESPONSECODE_413_TOOLARGE = 413,
+	HTTPRESPONSECODE_426_UPGRADE_REQUIRED = 426,
     HTTPRESPONSECODE_500_INTERNALSERVERERROR = 500,
     HTTPRESPONSECODE_503_SERVICEUNAVAILABLE = 503
 };
@@ -60,7 +62,7 @@ class HttpResponse {
 
         /**
          * Constructs a new instance.
-         * @param inResponseId A unique Id (normally derived from the corresponding requset Id).
+         * @param inResponseId A unique Id (normally derived from the corresponding request Id).
          * @param ipoEHSConnection The connection, on which this response should be sent.
          */
         HttpResponse(int inResponseId, EHSConnection * ipoEHSConnection);
@@ -68,7 +70,7 @@ class HttpResponse {
         /**
          * Constructs a new standardized error response.
          * @param code The HTTP error code.
-         * @param inResponseId A unique Id (normally derived from the corresponding requset Id).
+         * @param inResponseId A unique Id (normally derived from the corresponding request Id).
          * @param ipoEHSConnection The connection, on which this response should be sent.
          * @return The new response.
          */
@@ -122,6 +124,15 @@ class HttpResponse {
         void SetHeader(const std::string & name, const std::string & value)
         {
             m_oResponseHeaders[name] = value;
+        }
+
+        /**
+         * Removes an HTTP header.
+         * @param name The case insensitive name of the HTTP header to remove.
+         */
+        void RemoveHeader(const std::string & name)
+        {
+            m_oResponseHeaders.erase(name);
         }
 
         /**

@@ -139,8 +139,8 @@ void EHSServer::ClearIdleConnections()
         //   sent and there are no pending requests
         if ((*i)->StillReading() &&
                 time(NULL) - (*i)->LastActivity() > m_nIdleTimeout &&
-                (*i)->RequestsPending()) {
-            EHS_TRACE("Done reading because of idle timeout");
+                (!(*i)->RequestsPending())) {
+            EHS_TRACE("Done reading because of idle timeout", "");
             mh.Unlock();
             (*i)->DoneReading(false);
             mh.Lock();
@@ -155,7 +155,7 @@ void EHSServer::RemoveFinishedConnections ( )
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); ) {
         if ((*i)->CheckDone()) {
-            EHS_TRACE("Found something to delete");
+            EHS_TRACE("Found something to delete", "");
             RemoveEHSConnection(*i);
             i = m_oEHSConnectionList.begin();
         } else {
@@ -167,6 +167,7 @@ void EHSServer::RemoveFinishedConnections ( )
 
 EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
         EHSServer * ipoEHSServer) :
+    m_bRawMode(false),
     m_bDoneReading(false),
     m_bDisconnected(false),
     m_poCurrentHttpRequest(NULL),
@@ -291,7 +292,7 @@ int EHSConnection::CheckDone()
         if (m_nRequests - 1 <= m_nResponses) {
             // if we haven't disconnected, do that now
             if (!m_bDisconnected) {
-                EHS_TRACE ("Closing connection");
+                EHS_TRACE ("Closing connection", "");
                 m_poNetworkAbstraction->Close();
             }
             return 1;
@@ -348,9 +349,9 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
     // whether to run with https support
     int nHttps = params["https"];
     if (nHttps) {
-        EHS_TRACE("EHSServer running in HTTPS mode");
+        EHS_TRACE("EHSServer running in HTTPS mode", "");
     } else {
-        EHS_TRACE("EHSServer running in plain-text mode (no HTTPS)");
+        EHS_TRACE("EHSServer running in plain-text mode (no HTTPS)", "");
     }
     try {
         // are we using secure sockets?
@@ -430,13 +431,13 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
                     params[ "threadcount"].GetCharString());
             break;
         case SERVERRUNNING_ONETHREADPERREQUEST:
-            EHS_TRACE("EHS Server running with one thread per request");
+            EHS_TRACE("EHS Server running with one thread per request", "");
             break;
         case SERVERRUNNING_SINGLETHREADED:
-            EHS_TRACE("EHS Server running in singlethreaded mode");
+            EHS_TRACE("EHS Server running in singlethreaded mode", "");
             break;
         default:
-            EHS_TRACE("EHS Server not running. Server initialization failed.");
+            EHS_TRACE("EHS Server not running. Server initialization failed.", "");
             break;
     }
     return;
@@ -487,7 +488,7 @@ HttpRequest * EHSServer::GetNextRequest()
     if (poNextRequest == NULL) {
         //		EHS_TRACE ("No request found\n");
     } else {
-        EHS_TRACE ("Found request");
+        EHS_TRACE ("Found request", "");
     }
     return poNextRequest;
 }
@@ -521,13 +522,13 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
 
 bool EHS::ThreadInitHandler()
 {
-    EHS_TRACE("called");
+    EHS_TRACE("called", "");
     return true;
 }
 
 void EHS::ThreadExitHandler()
 {
-    EHS_TRACE("called");
+    EHS_TRACE("called", "");
 }
 
 const std::string EHS::GetPassphrase(bool /* twice */)
@@ -655,8 +656,8 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, ehs_threadid_t tid)
         // handle the request and post it back to the connection object
         mutex.Unlock();
         // route the request
-        HttpResponse *response = m_poTopLevelEHS->RouteRequest(req).release();
-        response->m_poEHSConnection->AddResponse(response);
+        ehs_autoptr<HttpResponse> response = m_poTopLevelEHS->RouteRequest(req);
+        response->m_poEHSConnection->AddResponse(response.get());
         delete req;
         mutex.Lock();
         m_oCurrentRequest[tid] = NULL;
@@ -753,10 +754,26 @@ void EHSServer::CheckClientSockets ( )
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); i++) {
         if (FD_ISSET((*i)->GetNetworkAbstraction()->GetFd(), &m_oReadFds)) {
-            EHS_TRACE("$$$$$ Got data on client connection");
+            EHS_TRACE("$$$$$ Got data on client connection", "");
             // do the actual read
             char buf[8192];
             int nBytesReceived = (*i)->GetNetworkAbstraction()->Read(buf, sizeof(buf));
+
+            if ((*i)->IsRaw()) {
+                if (0 > nBytesReceived) {
+                    (*i)->DoneReading(true);
+                } else {
+                    (*i)->UpdateLastActivity();
+                    RawSocketHandler *sh = m_poTopLevelEHS->GetRawSocketHandler(); 
+                    if (sh && (0 < nBytesReceived)) {
+                        if (! sh->OnData(**i, string(buf, nBytesReceived))) {
+                            (*i)->DoneReading(false);
+                        }
+                    }
+                }
+                continue;
+            }
+
             // if we received a disconnect
             if (nBytesReceived <= 0) {
                 // we're done reading and we received a disconnect
@@ -771,10 +788,10 @@ void EHSServer::CheckClientSockets ( )
                     case EHSConnection::ADDBUFFER_INVALIDREQUEST:
                         {
                             // Immediately send a 400 response, then close the connection
-                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
-                            (*i)->SendHttpResponse(tmp);
+                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
+                            (*i)->SendHttpResponse(ehs_move(tmp));
                             (*i)->DoneReading(false);
-                            EHS_TRACE("Done reading because we got a bad request");
+                            EHS_TRACE("Done reading because we got a bad request", "");
                         }
                         break;
                     case EHSConnection::ADDBUFFER_TOOBIG:
@@ -786,25 +803,25 @@ void EHSServer::CheckClientSockets ( )
                                 unsigned long n = m_poTopLevelEHS->m_oParams["code413"];
                                 rc = (ResponseCode)n;
                             }
-                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(rc, 0, *i));
-                            (*i)->SendHttpResponse(tmp);
+                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(rc, 0, *i));
+                            (*i)->SendHttpResponse(ehs_move(tmp));
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: Request size exceeded. Returning " << tmp.GetStatusString() << "." << std::endl;
 #endif
-                            EHS_TRACE("Done reading because we got a too large request");
+                            EHS_TRACE("Done reading because we got a too large request", "");
                         }
                         break;
                     case EHSConnection::ADDBUFFER_NORESOURCE:
                         {
                             // Immediately send a 503 response, then close the connection
-                            auto_ptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
-                            (*i)->SendHttpResponse(tmp);
+                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
+                            (*i)->SendHttpResponse(ehs_move(tmp));
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: No ressources available. Returning " << tmp.GetStatusString() << "." << std::endl;
 #endif
-                            EHS_TRACE("Done reading because we are out of ressources");
+                            EHS_TRACE("Done reading because we are out of ressources", "");
                         }
                         break;
                     default:
@@ -829,7 +846,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
             found = true;
             --m_nActiveRequests;
             mutex.Unlock();
-            SendHttpResponse(auto_ptr<HttpResponse>(i->second));
+            SendHttpResponse(ehs_autoptr<HttpResponse>(i->second));
             mutex.Lock();
             m_oHttpResponseMap.erase(i);
             ++m_nResponses;
@@ -840,7 +857,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
     } while (found);
 }
 
-void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
+void EHSConnection::SendHttpResponse(ehs_autoptr<HttpResponse> response)
 {
     MutexHelper mutex(&m_oMutex);
 
@@ -881,6 +898,9 @@ void EHSConnection::SendHttpResponse(auto_ptr<HttpResponse> response)
         m_poNetworkAbstraction->Send(response->GetBody(), blen);
         EHS_TRACE("Done sending %d bytes in thread %08x", blen, pthread_self());
     }
+    if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->m_nResponseCode) {
+        m_bRawMode = true;
+    }
 }
 
 void EHSServer::EndServerThread()
@@ -894,7 +914,7 @@ void EHSServer::EndServerThread()
         pthread_cond_broadcast(&m_oDoneAccepting);
         sleep(1);
     }
-    EHS_TRACE ("all threads terminated");
+    EHS_TRACE ("all threads terminated", "");
 }
 
 EHS::EHS (EHS *ipoParent, string isRegisteredAs) :
@@ -904,6 +924,7 @@ EHS::EHS (EHS *ipoParent, string isRegisteredAs) :
     m_poEHSServer(NULL),
     m_poSourceEHS(NULL),
     m_poBindHelper(NULL),
+    m_poRawSocketHandler(NULL),
     m_bNoRouting(false),
     m_oParams(EHSServerParameters())
 {
@@ -974,7 +995,7 @@ string GetNextPathPart(string &irsUri)
     return string("");
 }
 
-auto_ptr<HttpResponse>
+ehs_autoptr<HttpResponse>
 EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {
@@ -985,12 +1006,12 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
     }
     // We use an auto_ptr here, so that in case of an exception, the
     // target gets deleted.
-    auto_ptr<HttpResponse> response(0);
+    ehs_autoptr<HttpResponse> response;
     // if there is no more path, call HandleRequest on this EHS object with
     //   whatever's left - or if we're not routing
     if (m_bNoRouting || sNextPathPart.empty()) {
         // create an HttpRespose object for the client
-        response = auto_ptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
+        response = ehs_autoptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
                     request->m_poSourceEHSConnection));
         // get the actual response and return code
         response->SetResponseCode(HandleRequest(request, response.get()));
@@ -1002,9 +1023,9 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
             response = m_oEHSMap[sNextPathPart]->RouteRequest(request);
         } else {
             // if it doesn't exist, send an error back up saying resource doesn't exist
-            EHS_TRACE("Routing failed. Most likely caused by an invalid URL, not internal error");
+            EHS_TRACE("Routing failed. Most likely caused by an invalid URL, not internal error", "");
             // send back a 404 response
-            response = auto_ptr<HttpResponse>(HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request));
+            response = ehs_autoptr<HttpResponse>(HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request));
         }
     }
     return response;

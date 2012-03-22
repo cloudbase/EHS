@@ -49,6 +49,30 @@ extern "C" {
 }
 
 /**
+ * Helper class for performing raw socket IO.
+ * This class abstracts an interface to an external helper which
+ * which facilitates binary IO on a connection (for implementing WebSockets).
+ * In order to use raw IO, one first has to register an instance of this class
+ * using SetRawSocketHandler() and then produce a HttpResponse code 101.
+ * After sending this HttpResponse, EHS switches the corresponding connection
+ * into raw Mode, which does no further message parsing on received data, but
+ * invokes the OnData method whenever data arrives from the client.
+ */
+class RawSocketHandler {
+    public:
+        /**
+         * Handle raw data.
+         * Called by EHS, if an EHSConnection is in raw mode.
+         * @param conn The EHSConnection on which the data was received.
+         * @param data The received data.
+         * @return true, if the connection should be kept open.
+         */
+        virtual bool OnData(EHSConnection &conn, std::string data) = 0;
+
+        virtual ~RawSocketHandler ( ) { }
+};
+
+/**
  * Helper class for binding of sockets to privileged ports.
  * This class abstracts an interface to an external bind helper
  * program which facilitates binding of privileged ports (< 1024).
@@ -139,6 +163,9 @@ class EHS : public PassphraseHandler {
         /// Our bind helper
         PrivilegedBindHelper *m_poBindHelper;
 
+        /// Our RawSocketHandler
+        RawSocketHandler *m_poRawSocketHandler;
+
         /// Flag: We don't do request routing
         bool m_bNoRouting;
 
@@ -186,7 +213,7 @@ class EHS : public PassphraseHandler {
          * @param request The HTTP request to be routed.
          * @return A pointer to the HttpResponse object, to be sent back to the client.
          */
-        std::auto_ptr<HttpResponse> RouteRequest(HttpRequest *request);
+        ehs_autoptr<HttpResponse> RouteRequest(HttpRequest *request);
 
         /**
          * Main request handler.
@@ -290,6 +317,24 @@ class EHS : public PassphraseHandler {
         PrivilegedBindHelper * GetBindHelper() const
         {
             return m_poBindHelper;
+        }
+
+        /**
+         * Sets a RawSocketHandler for use by the network abstraction layer.
+         * @param helper A pointer to a RawSocketHandler instance.
+         */
+        void SetRawSocketHandler(RawSocketHandler *helper)
+        {
+            m_poRawSocketHandler = helper;
+        }
+
+        /**
+         * Retieves our RawSocketHandler.
+         * @return The current RawSocketHandler, or NULL if no RawSocketHandler was set.
+         */
+        RawSocketHandler * GetRawSocketHandler() const
+        {
+            return m_poRawSocketHandler;
         }
 
 };

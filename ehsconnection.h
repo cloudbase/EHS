@@ -26,6 +26,8 @@
 #ifndef _EHSCONNECTION_H_
 #define _EHSCONNECTION_H_
 
+#include <ehstypes.h>
+
 class EHSServer;
 class NetworkAbstraction;
 
@@ -43,6 +45,8 @@ class EHSConnection {
         EHSConnection & operator = ( const EHSConnection & );
 
     private:
+
+        bool m_bRawMode; ///< Flag: we are in raw IO mode
 
         bool m_bDoneReading; ///< we're never reading from this again
 
@@ -93,6 +97,9 @@ class EHSConnection {
         /// returns whether the client has disconnected from us.
         bool Disconnected() const { return m_bDisconnected; }
 
+        /// returns whether the this connection is in raw mode.
+        bool IsRaw() const { return m_bRawMode; }
+
     private:
 
         /// Constructor
@@ -134,7 +141,7 @@ class EHSConnection {
         AddBufferResult AddBuffer(char * ipsData, int inSize);
 
         /// sends the actual data back to the client
-        void SendHttpResponse(std::auto_ptr<HttpResponse> response);
+        void SendHttpResponse(ehs_autoptr<HttpResponse> response);
 
         /// adds a response to the response list and sends as many responses as are ready -- takes over the memory in ipoHttpResponse
         void AddResponse(HttpResponse *response);
