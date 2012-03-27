@@ -57,9 +57,11 @@ struct __caseless
 #if @USE_UNIQUE_PTR@
 # define ehs_autoptr std::unique_ptr
 # define ehs_move(x) std::move(x)
+# define ehs_rvref &&
 #else
 # define ehs_autoptr std::auto_ptr
 # define ehs_move(x) (x)
+# define ehs_rvref
 #endif
 
 #ifdef _WIN32
@@ -99,7 +101,7 @@ typedef std::map < std::string, FormValue > FormValueMap;
 typedef std::map < std::string, Datum > CookieParameters;
 
 /// holds respose objects not yet ready to send
-typedef std::map < int, HttpResponse * > HttpResponseMap;
+typedef std::map < int, ehs_autoptr<HttpResponse> > HttpResponseMap;
 
 /// holds the currently handled request for each thread
 typedef std::map < ehs_threadid_t, HttpRequest * > CurrentRequestMap;

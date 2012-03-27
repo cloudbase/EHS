@@ -144,7 +144,7 @@ class EHSConnection {
         void SendHttpResponse(HttpResponse *response);
 
         /// adds a response to the response list and sends as many responses as are ready -- takes over the memory in ipoHttpResponse
-        void AddResponse(ehs_autoptr<HttpResponse> && response);
+        void AddResponse(ehs_autoptr<HttpResponse> ehs_rvref response);
 
         /// returns true of httprequestlist is not empty
         int RequestsPending() { return (0 != m_nActiveRequests) || !m_oHttpRequestList.empty(); }

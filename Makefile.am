@@ -5,15 +5,6 @@ DIST_SUBDIRS = . samples setup
 
 # Build EHS library
 lib_LTLIBRARIES = libehs.la
-libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
-
-# Sources for building EHS library
-libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
-	socket.cpp sslerror.cpp staticssllocking.cpp datum.cpp \
-	httpresponse.cpp httprequest.cpp formvalue.cpp osdep.cpp
-libehs_la_LIBADD = $(LIBEHS_RES)
-libehs_la_DEPENDENCIES = $(LIBEHS_RES)
-EXTRA_libehs_la_SOURCES = ehsrc.rc
 
 # headers to be installed with the library
 pkginclude_HEADERS = ehs.h networkabstraction.h \
@@ -23,6 +14,16 @@ pkginclude_HEADERS = ehs.h networkabstraction.h \
 noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
 	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h \
 	mutexhelper.h
+
+# Sources for building EHS library
+libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
+	socket.cpp sslerror.cpp staticssllocking.cpp datum.cpp \
+	httpresponse.cpp httprequest.cpp formvalue.cpp osdep.cpp \
+	ehstypes.h
+libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
+libehs_la_LIBADD = $(LIBEHS_RES)
+libehs_la_DEPENDENCIES = $(LIBEHS_RES)
+EXTRA_libehs_la_SOURCES = ehsrc.rc
 
 # Extra stuff to distribute in tarball 
 EXTRA_DIST = $(DX_CONFIG) ehs_development_guide.txt \

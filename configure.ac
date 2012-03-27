@@ -226,7 +226,6 @@ AC_ARG_ENABLE([warn],
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wswitch])
         fe_CHECK_FLAG([C++],[CPPFLAGS],[-Wuninitialized])
         CPPFLAGS="$CPPFLAGS $ac_checked_CPPFLAGS"
-        fe_CHECK_FLAG([C++],[CXXFLAGS],[-std=gnu++0x])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wctor-dtor-privacy])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Wnon-virtual-dtor])
         fe_CHECK_FLAG([C++],[CXXFLAGS],[-Woverloaded-virtual])
@@ -243,6 +242,9 @@ fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
 CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 
 dnl Check for std::unique_ptr and std::move
+ac_checked_CXXFLAGS=
+fe_CHECK_FLAG([C++],[CXXFLAGS],[-std=gnu++0x])
+CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 AC_MSG_CHECKING([for availability of std::unique_ptr and std::move])
 USE_UNIQUE_PTR=0
 AC_LANG_PUSH([C++])

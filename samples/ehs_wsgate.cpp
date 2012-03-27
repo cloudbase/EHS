@@ -28,6 +28,7 @@
 #endif
 
 #include <ehs.h>
+#include <debug.h>
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
@@ -169,6 +170,8 @@ class MyBindHelper : public PrivilegedBindHelper
 
         virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port)
         {
+            cerr << "BindPrivilegedPort" << port;
+
             bool ret = false;
             pid_t pid;
             int status;
@@ -223,7 +226,7 @@ int main (int argc, char **argv)
     }
 
     cerr << "binding to " << atoi(argv[1]) << endl;
-    WsGate srv(NULL, "/wsgate");
+    WsGate srv;
 
 #ifndef _WIN32
     MyBindHelper h;
@@ -242,7 +245,7 @@ int main (int argc, char **argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-            usleep(300000);
+            srv.HandleData(1000);
         }
 
         srv.StopServer();

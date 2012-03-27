@@ -393,6 +393,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
                 pthread_t thread;
                 if (0 == pthread_create(&thread, &m_oThreadAttr,
                             EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
+                    m_nAcceptThreadId = THREADID(thread);
                     EHS_TRACE("Created thread with ID=0x%x, NULL, func=0x%x, this=0x%x",
                             m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
                     pthread_detach(thread);
@@ -407,6 +408,7 @@ EHSServer::EHSServer (EHS *ipoTopLevelEHS) :
             pthread_t thread;
             if (0 == pthread_create(&thread, &m_oThreadAttr,
                         EHSServer::PthreadHandleData_ThreadedStub, (void *)this)) {
+                m_nAcceptThreadId = THREADID(thread);
                 EHS_TRACE("Created thread with ID=0x%x, NULL, func=0x%x, this=0x%x",
                         m_nAcceptThreadId, EHSServer::PthreadHandleData_ThreadedStub, this);
                 pthread_detach(thread);
@@ -832,7 +834,7 @@ void EHSServer::CheckClientSockets ( )
     } // for loop through connections
 }
 
-void EHSConnection::AddResponse(ehs_autoptr<HttpResponse>&& response)
+void EHSConnection::AddResponse(ehs_autoptr<HttpResponse> ehs_rvref response)
 {
     MutexHelper mutex(&m_oMutex);
     // push the object on to the list
