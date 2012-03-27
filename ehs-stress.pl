@@ -17,6 +17,7 @@ my %UserAgentOptions;
 $SERVER = shift @ARGV;
 $PROCESSES = 10;
 $HITS = 10;
+$PROTO = "http";
 while  ( my $arg = shift @ARGV ) {
 	if ( $arg eq "-p" ) {
 		PrintHelp ( ) and exit if @ARGV == 0;
@@ -26,6 +27,8 @@ while  ( my $arg = shift @ARGV ) {
 		$HITS = shift @ARGV;
 	} elsif ( $arg eq "-k" ) {
 		$UserAgentOptions { keep_alive } = 1;
+	} elsif ( $arg eq "-s" ) {
+        $PROTO = "https";
 	}
 }
 
@@ -74,7 +77,7 @@ for ($i = 0; $i < $PROCESSES; $i++) {
         for ($j = 0; $j < $HITS || $HITS == -1; $j++) {
             $l = int rand 16384;
             print "Sending request " . ($j + 1) . " from process $i\n" if ($j + 1) % 100 == 0;
-            $r = HTTP::Request->new("GET", "https://" . $SERVER . "/" );
+            $r = HTTP::Request->new("GET", $PROTO . "://" . $SERVER . "/" );
             $response = $ua->request($r);
 	    if (!$response->header('Date')) {
 		print $response->as_string, "\n";
@@ -93,5 +96,5 @@ for ($i = 0; $i < $PROCESSES; $i++) {
 printstats();
 
 sub PrintHelp {
-    print "Usage: $0 <hostname>:<port> [-p <processes>] [-c <requests>] [-k]\n\t-p: number of processes to spawn (default 10)\n\t-c: request count per process (default 10)\n\t-k: if specified, persistent connections are used\n";
+    print "Usage: $0 <hostname>:<port> [-p <processes>] [-c <requests>] [-k]\n\t-p: number of processes to spawn (default 10)\n\t-c: request count per process (default 10)\n\t-k: if specified, persistent connections are used.\n\t-s: if specified, SSL is enabled.\n";
 }

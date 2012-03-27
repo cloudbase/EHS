@@ -79,7 +79,8 @@ HttpResponse::HttpResponse ( int inResponseId,
 
 HttpResponse::~HttpResponse ( )
 {
-    delete [] m_psBody;
+    if (m_psBody)
+        delete [] m_psBody;
 }
 
 ///< HTTP response code to get text version of

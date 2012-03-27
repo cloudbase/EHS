@@ -607,21 +607,21 @@ void EHSServer::HandleData_Threaded()
         const ehs_threadid_t self = THREADID(pthread_self());
         do {
             bool catched = false;
-            HttpResponse *eResponse = NULL;
+            ehs_autoptr<HttpResponse> eResponse;
 
             try {
                 HandleData(1000, self); // 1000ms select timeout
             } catch (exception &e) {
                 catched = true;
-                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e);
+                eResponse = ehs_autoptr<HttpResponse>(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
             } catch (...) {
                 catched = true;
                 runtime_error e("unspecified");
-                eResponse = m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e);
+                eResponse = ehs_autoptr<HttpResponse>(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
             }
             if (catched) {
-                if (NULL != eResponse) {
-                    eResponse->m_poEHSConnection->AddResponse(eResponse);
+                if (NULL != eResponse.get()) {
+                    eResponse->m_poEHSConnection->AddResponse(ehs_move(eResponse));
                     MutexHelper mutex(&m_oMutex);
                     delete m_oCurrentRequest[self];
                     m_oCurrentRequest[self] = NULL;
@@ -657,7 +657,7 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, ehs_threadid_t tid)
         mutex.Unlock();
         // route the request
         ehs_autoptr<HttpResponse> response = m_poTopLevelEHS->RouteRequest(req);
-        response->m_poEHSConnection->AddResponse(response.get());
+        response->m_poEHSConnection->AddResponse(ehs_move(response));
         delete req;
         mutex.Lock();
         m_oCurrentRequest[tid] = NULL;
@@ -789,7 +789,7 @@ void EHSServer::CheckClientSockets ( )
                         {
                             // Immediately send a 400 response, then close the connection
                             ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
-                            (*i)->SendHttpResponse(ehs_move(tmp));
+                            (*i)->SendHttpResponse(tmp.get());
                             (*i)->DoneReading(false);
                             EHS_TRACE("Done reading because we got a bad request", "");
                         }
@@ -804,7 +804,7 @@ void EHSServer::CheckClientSockets ( )
                                 rc = (ResponseCode)n;
                             }
                             ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(rc, 0, *i));
-                            (*i)->SendHttpResponse(ehs_move(tmp));
+                            (*i)->SendHttpResponse(tmp.get());
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: Request size exceeded. Returning " << tmp.GetStatusString() << "." << std::endl;
@@ -816,7 +816,7 @@ void EHSServer::CheckClientSockets ( )
                         {
                             // Immediately send a 503 response, then close the connection
                             ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
-                            (*i)->SendHttpResponse(ehs_move(tmp));
+                            (*i)->SendHttpResponse(tmp.get());
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: No ressources available. Returning " << tmp.GetStatusString() << "." << std::endl;
@@ -832,11 +832,11 @@ void EHSServer::CheckClientSockets ( )
     } // for loop through connections
 }
 
-void EHSConnection::AddResponse(HttpResponse *response)
+void EHSConnection::AddResponse(ehs_autoptr<HttpResponse>&& response)
 {
     MutexHelper mutex(&m_oMutex);
     // push the object on to the list
-    m_oHttpResponseMap[response->m_nResponseId] = response;
+    m_oHttpResponseMap[response->m_nResponseId] = ehs_move(response);
     // go through the list until we can't find the next response to send
     bool found;
     do {
@@ -846,7 +846,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
             found = true;
             --m_nActiveRequests;
             mutex.Unlock();
-            SendHttpResponse(ehs_autoptr<HttpResponse>(i->second));
+            SendHttpResponse((i->second).get());
             mutex.Lock();
             m_oHttpResponseMap.erase(i);
             ++m_nResponses;
@@ -857,7 +857,7 @@ void EHSConnection::AddResponse(HttpResponse *response)
     } while (found);
 }
 
-void EHSConnection::SendHttpResponse(ehs_autoptr<HttpResponse> response)
+void EHSConnection::SendHttpResponse(HttpResponse *response)
 {
     MutexHelper mutex(&m_oMutex);
 
