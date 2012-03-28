@@ -28,9 +28,9 @@
 #endif
 
 #include <ehs.h>
-#include <debug.h>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <typeinfo>
 #include <cstdlib>
@@ -63,11 +63,6 @@ using namespace std;
 using boost::algorithm::to_lower_copy;
 
 static const char * const ws_magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-
-typedef union {
-    unsigned u[5];
-    char buf[20];
-} sha1_result;
 
 // subclass of EHS that defines a custom HTTP response.
 class WsGate : public EHS
@@ -105,48 +100,90 @@ class WsGate : public EHS
     // generates a page for each http request
     ResponseCode HandleRequest(HttpRequest *request, HttpResponse *response)
     {
-        response->SetBody("", 0);
-        if (!request->HttpVersion().compare("1.1")) {
-            return HTTPRESPONSECODE_400_BADREQUEST;
+        if ((0 == request->Uri().compare("/")) || (0 == request->Uri().compare("/index.html"))) {
+            ifstream f("samples/wstest.html", ios::binary);
+            if (f.fail()) {
+                throw tracing::runtime_error("Failed to open html source");
+            }
+            f.seekg (0, ios::end);
+            size_t fsize = f.tellg();
+            f.seekg (0, ios::beg);
+            char *buf = new char [fsize];
+            f.read (buf,fsize);
+            f.close();
+            response->SetBody(buf, fsize);
+            delete buf;
+            return HTTPRESPONSECODE_200_OK;
         }
-        string wshost(to_lower_copy(request->Headers("Host")));
-        string wsconn(to_lower_copy(request->Headers("Connection")));
-        string wsupg(to_lower_copy(request->Headers("Upgrade")));
-        string wsver(request->Headers("Sec-WebSocket-Version"));
-        string wskey(request->Headers("Sec-WebSocket-Key"));
-        if (!wsconn.compare("upgrade")) {
-            return HTTPRESPONSECODE_400_BADREQUEST;
-        }
-        if (!wsupg.compare("websocket")) {
-            return HTTPRESPONSECODE_400_BADREQUEST;
-        }
-        if (!wshost.compare(m_sHostname)) {
-            return HTTPRESPONSECODE_400_BADREQUEST;
-        }
-        string wskey_decoded(base64_decode(wskey));
-        if (16 != wskey_decoded.length()) {
-            return HTTPRESPONSECODE_400_BADREQUEST;
-        }
-        SHA1 sha1;
-        sha1_result sha1r;
-        sha1 << wskey.c_str() << ws_magic;
-        if (!sha1.Result(sha1r.u)) {
-            return HTTPRESPONSECODE_500_INTERNALSERVERERROR;
-        }
-        // FIXME: endianess?
-        string sha1str(sha1r.buf, 20);
+        if (0 == request->Uri().compare("/wsgate")) {
+            response->SetBody("", 0);
+            if (REQUESTMETHOD_GET != request->Method()) {
+                cerr << endl << "!0 '" << request->Method() << "'" << endl;
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            if (0 != request->HttpVersion().compare("1.1")) {
+                cerr << endl << "!1 '" << request->HttpVersion() << "'" << endl;
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            string wshost(to_lower_copy(request->Headers("Host")));
+            string wsconn(to_lower_copy(request->Headers("Connection")));
+            string wsupg(to_lower_copy(request->Headers("Upgrade")));
+            string wsver(request->Headers("Sec-WebSocket-Version"));
+            string wskey(request->Headers("Sec-WebSocket-Key"));
+            string wsproto(request->Headers("Sec-WebSocket-Protocol"));
+            string wsext(request->Headers("Sec-WebSocket-Extension"));
 
-        response->RemoveHeader("Content-Type");
-        response->RemoveHeader("Content-Length");
-        response->RemoveHeader("Last-Modified");
+            bool connok = false;
+            vector<string> conntokens;
+            boost::split(conntokens, wsconn, boost::is_any_of(", "));
+            for (vector<string>::iterator it = conntokens.begin(); conntokens.end() != it; ++it) {
+                if (0 != it->compare("upgrade")) {
+                    connok = true;
+                }
+            }
+            if (!connok) {
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            if (0 != wsupg.compare("websocket")) {
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            if (0 != wshost.compare(m_sHostname)) {
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            string wskey_decoded(base64_decode(wskey));
+            if (16 != wskey_decoded.length()) {
+                return HTTPRESPONSECODE_400_BADREQUEST;
+            }
+            SHA1 sha1;
+            uint32_t digest[5];
+            sha1 << wskey.c_str() << ws_magic;
+            if (!sha1.Result(digest)) {
+                return HTTPRESPONSECODE_500_INTERNALSERVERERROR;
+            }
+            // Handle endianess
+            for (int i = 0; i < 5; ++i) {
+                digest[i] = htonl(digest[i]);
+            }
 
-        if (!wsver.compare("13")) {
-            response->SetHeader("Sec-WebSocket-Version", "13");
-            return HTTPRESPONSECODE_426_UPGRADE_REQUIRED;
+            response->RemoveHeader("Content-Type");
+            response->RemoveHeader("Content-Length");
+            response->RemoveHeader("Last-Modified");
+            response->RemoveHeader("Cache-Control");
+
+            if (0 != wsver.compare("13")) {
+                response->SetHeader("Sec-WebSocket-Version", "13");
+                return HTTPRESPONSECODE_426_UPGRADE_REQUIRED;
+            }
+            if (0 < wsproto.length()) {
+                response->SetHeader("Sec-WebSocket-Protocol", wsproto);
+            }
+            response->SetHeader("Upgrade", "websocket");
+            response->SetHeader("Connection", "Upgrade");
+            response->SetHeader("Sec-WebSocket-Accept",
+                    base64_encode(reinterpret_cast<const unsigned char *>(digest), 20));
+            return HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS;
         }
-        response->SetHeader("Sec-WebSocket-Accept",
-                base64_encode(reinterpret_cast<const unsigned char *>(sha1str.c_str()), sha1str.length()));
-        return HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS;
+        return HTTPRESPONSECODE_404_NOTFOUND;
     }
 
     void SetHostname(const string &name) {
@@ -154,7 +191,7 @@ class WsGate : public EHS
     }
 
     private:
-        string m_sHostname;
+    string m_sHostname;
 };
 
 #ifndef _WIN32
@@ -163,56 +200,54 @@ class WsGate : public EHS
 class MyBindHelper : public PrivilegedBindHelper
 {
     public:
-        MyBindHelper() : mutex(pthread_mutex_t())
-        {
-            pthread_mutex_init(&mutex, NULL);
-        }
+    MyBindHelper() : mutex(pthread_mutex_t())
+    {
+        pthread_mutex_init(&mutex, NULL);
+    }
 
-        virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port)
-        {
-            cerr << "BindPrivilegedPort" << port;
-
-            bool ret = false;
-            pid_t pid;
-            int status;
-            char buf[32];
-            pthread_mutex_lock(&mutex);
-            switch (pid = fork()) {
-                case 0:
-                    sprintf(buf, "%08x%08x%04x", socket, inet_addr(addr), port);
-                    execl("bindhelper", buf, ((void *)NULL));
-                    exit(errno);
-                    break;
-                case -1:
-                    break;
-                default:
-                    if (waitpid(pid, &status, 0) != -1) {
-                        ret = (0 == status);
-                        if (0 != status)
-                            cerr << "bind: " << strerror(WEXITSTATUS(status)) << endl;
-                    }
-                    break;
-            }
-            pthread_mutex_unlock(&mutex);
-            return ret;
+    virtual bool BindPrivilegedPort(int socket, const char *addr, const unsigned short port)
+    {
+        bool ret = false;
+        pid_t pid;
+        int status;
+        char buf[32];
+        pthread_mutex_lock(&mutex);
+        switch (pid = fork()) {
+            case 0:
+                sprintf(buf, "%08x%08x%04x", socket, inet_addr(addr), port);
+                execl("bindhelper", buf, ((void *)NULL));
+                exit(errno);
+                break;
+            case -1:
+                break;
+            default:
+                if (waitpid(pid, &status, 0) != -1) {
+                    ret = (0 == status);
+                    if (0 != status)
+                        cerr << "bind: " << strerror(WEXITSTATUS(status)) << endl;
+                }
+                break;
         }
+        pthread_mutex_unlock(&mutex);
+        return ret;
+    }
 
     private:
-        pthread_mutex_t mutex;
+    pthread_mutex_t mutex;
 };
 #endif
 
 class MyRawSocketHandler : public RawSocketHandler
 {
     public:
-        MyRawSocketHandler() { }
+    MyRawSocketHandler()
+    { }
 
-        virtual bool OnData(EHSConnection &conn, std::string data)
-        {
-            // dummy for now
-            return true;
-        }
-
+    virtual bool OnData(EHSConnection &conn, std::string data)
+    {
+        // ibuf.append(data);
+        return true;
+    }
 };
 
 // basic main that creates a threaded EHS object and then
@@ -234,6 +269,10 @@ int main (int argc, char **argv)
 #endif
     MyRawSocketHandler sh;
     srv.SetRawSocketHandler(&sh);
+
+    ostringstream oss;
+    oss << "localhost:" << argv[1];
+    srv.SetHostname(oss.str());
 
     EHSServerParameters oSP;
     oSP["port"] = argv[1];

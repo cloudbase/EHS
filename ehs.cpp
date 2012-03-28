@@ -756,7 +756,6 @@ void EHSServer::CheckClientSockets ( )
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); i++) {
         if (FD_ISSET((*i)->GetNetworkAbstraction()->GetFd(), &m_oReadFds)) {
-            EHS_TRACE("$$$$$ Got data on client connection", "");
             // do the actual read
             char buf[8192];
             int nBytesReceived = (*i)->GetNetworkAbstraction()->Read(buf, sizeof(buf));
@@ -767,6 +766,9 @@ void EHSServer::CheckClientSockets ( )
                 } else {
                     (*i)->UpdateLastActivity();
                     RawSocketHandler *sh = m_poTopLevelEHS->GetRawSocketHandler(); 
+                    if (0 < nBytesReceived) {
+                        EHS_TRACE("$$$$$ Got RAW data: len=%d", nBytesReceived);
+                    }
                     if (sh && (0 < nBytesReceived)) {
                         if (! sh->OnData(**i, string(buf, nBytesReceived))) {
                             (*i)->DoneReading(false);
@@ -775,6 +777,7 @@ void EHSServer::CheckClientSockets ( )
                 }
                 continue;
             }
+            EHS_TRACE("$$$$$ Got data on client connection: len=%d", nBytesReceived);
 
             // if we received a disconnect
             if (nBytesReceived <= 0) {
@@ -893,15 +896,19 @@ void EHSConnection::SendHttpResponse(HttpResponse *response)
     m_poNetworkAbstraction->Send(
             reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
 
+    // Switch protocols if necessary
+    if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->m_nResponseCode) {
+        EHS_TRACE("Switching connection to RAW mode", "");
+        m_bRawMode = true;
+        return;
+    }
+
     // now send the body
     int blen = atoi(response->m_oResponseHeaders["content-length"].c_str());
     if (blen > 0) {
         EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
         m_poNetworkAbstraction->Send(response->GetBody(), blen);
         EHS_TRACE("Done sending %d bytes in thread %08x", blen, pthread_self());
-    }
-    if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->m_nResponseCode) {
-        m_bRawMode = true;
     }
 }
 

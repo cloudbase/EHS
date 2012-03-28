@@ -100,6 +100,9 @@ class EHSConnection {
         /// returns whether the this connection is in raw mode.
         bool IsRaw() const { return m_bRawMode; }
 
+        // returns unique string key for this connection
+        std::string ConnHash() const;
+
     private:
 
         /// Constructor

@@ -241,6 +241,9 @@ ac_checked_CXXFLAGS=
 fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
 CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 
+dnl Check for boost minimum version
+BOOST_REQUIRE([1.33.1])
+
 dnl Check for std::unique_ptr and std::move
 ac_checked_CXXFLAGS=
 fe_CHECK_FLAG([C++],[CXXFLAGS],[-std=gnu++0x])
