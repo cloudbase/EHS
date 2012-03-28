@@ -28,6 +28,7 @@
 #endif
 
 #include <ehs.h>
+#include <vector>
 #include <sstream>
 #include <iostream>
 #include <fstream>
