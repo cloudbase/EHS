@@ -56,5 +56,5 @@ ehs_wsgate_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
 
 bindhelper_SOURCES = bindhelper.c
 
-EXTRA_DIST = sha1-license.txt
+EXTRA_DIST = sha1-license.txt wstest.html
 MAINTAINERCLEANFILES = Makefile.in
