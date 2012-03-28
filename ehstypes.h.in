@@ -59,7 +59,7 @@ struct __caseless
 # define ehs_move(x) std::move(x)
 # define ehs_rvref &&
 #else
-# include <boost::shared_ptr.hpp>
+# include <boost/shared_ptr.hpp>
 # define ehs_autoptr boost::shared_ptr
 # define ehs_move(x) (x)
 # define ehs_rvref

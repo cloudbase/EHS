@@ -46,6 +46,8 @@ m4_define([_BOOST_SERIAL], [m4_translit([
 # simply read the README, it will show you what to do step by step.
 
 m4_pattern_forbid([^_?(BOOST|Boost)_])
+m4_pattern_allow([BOOST_ROOT])
+m4_pattern_allow([BOOST_CPPFLAGS])
 
 
 # _BOOST_SED_CPP(SED-PROGRAM, PROGRAM,
@@ -60,7 +62,6 @@ m4_pattern_forbid([^_?(BOOST|Boost)_])
 # value of any macro.
 m4_define([_BOOST_SED_CPP],
 [AC_LANG_PREPROC_REQUIRE()dnl
-AC_REQUIRE([AC_PROG_SED])dnl
 AC_LANG_CONFTEST([AC_LANG_SOURCE([[$2]])])
 AS_IF([dnl eval is necessary to expand ac_cpp.
 dnl Ultrix and Pyramid sh refuse to redirect output of eval, so use subshell.
@@ -73,7 +74,7 @@ dnl everything else.
 dnl Cannot use 'dnl' after [$4] because a trailing dnl may break AC_CACHE_CHECK
 (eval "$ac_cpp conftest.$ac_ext") 2>&AS_MESSAGE_LOG_FD |
   tr -d '\r' |
-  $SED -n -e "$1" >conftest.i 2>&1],
+  sed -n -e "$1" >conftest.i 2>&1],
   [$3],
   [$4])
 rm -rf conftest*
@@ -93,7 +94,6 @@ rm -rf conftest*
 # Otherwise aborts with an error message.
 AC_DEFUN([BOOST_REQUIRE],
 [AC_REQUIRE([AC_PROG_CXX])dnl
-AC_REQUIRE([AC_PROG_GREP])dnl
 echo "$as_me: this is boost.m4[]_BOOST_SERIAL" >&AS_MESSAGE_LOG_FD
 boost_save_IFS=$IFS
 boost_version_req=$1
@@ -151,7 +151,7 @@ m4_pattern_allow([^BOOST_VERSION$])dnl
     #
     # I didn't indent this loop on purpose (to avoid over-indented code)
     boost_layout_system_search_list=`cd "$boost_dir" 2>/dev/null \
-        && ls -1 | "${GREP}" '^boost-' | sort -rn -t- -k2 \
+        && ls -1 | grep '^boost-' | sort -rn -t- -k2 \
         && echo .`
     for boost_inc in $boost_layout_system_search_list
     do
