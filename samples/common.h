@@ -42,7 +42,7 @@
 #include <string>
 
 #ifdef _WIN32
-#define sleep(seconds) (Sleep(seconds * 1000))
+inline void sleep(int seconds) { Sleep(seconds * 1000); }
 #endif
 
 // A small helper class for providing

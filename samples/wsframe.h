@@ -35,7 +35,7 @@
 #include "wsutf8.h"
 #include "btexception.h"
 
-#if defined(WIN32)
+#if defined(_WIN32)
 #include <winsock2.h>
 #else
 #include <arpa/inet.h>
@@ -93,7 +93,11 @@ namespace wspp {
         public:
             simple_rng() : seed(::time(NULL)) { }
             int32_t gen() {
+#ifdef _WIN32
+                return ::rand();
+#else
                 return ::rand_r(&seed);
+#endif
             }
         private:
             unsigned int seed;
