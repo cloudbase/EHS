@@ -59,14 +59,11 @@ string HttpResponse::HttpTime ( time_t stamp )
 ////////////////////////////////////////////////////////////////////
 
 HttpResponse::HttpResponse ( int inResponseId,
-        EHSConnection * ipoEHSConnection ) :
-    m_nResponseCode ( HTTPRESPONSECODE_INVALID ),	
-    m_oResponseHeaders ( StringCaseMap ( ) ),
-    m_oCookieList ( StringList ( ) ),
-    m_poEHSConnection ( ipoEHSConnection ),
-    m_nResponseId ( inResponseId ),
-    m_psBody ( NULL )
-
+        EHSConnection * ipoEHSConnection )
+    : GenericResponse(inResponseId, ipoEHSConnection)
+    , m_nResponseCode(HTTPRESPONSECODE_INVALID)
+    , m_oResponseHeaders(StringCaseMap())
+    , m_oCookieList (StringList())
 {
     // General Header Fields (HTTP 1.1 Section 4.5)
     time_t t = time ( NULL );
@@ -75,12 +72,6 @@ HttpResponse::HttpResponse ( int inResponseId,
     m_oResponseHeaders [ "Cache-Control" ] = "no-cache";
     m_oResponseHeaders [ "Content-Type" ] = "text/html";
     m_oResponseHeaders [ "Content-Length" ] = "0";
-}
-
-HttpResponse::~HttpResponse ( )
-{
-    if (m_psBody)
-        delete [] m_psBody;
 }
 
 ///< HTTP response code to get text version of
@@ -142,26 +133,12 @@ void HttpResponse::SetLastModified ( time_t stamp )
 // sets information regarding the body of the HTTP response
 //   sent back to the client
 void HttpResponse::SetBody ( const char * ipsBody, ///< body to return to user
-        int inBodyLength ///< length of the body
+        size_t inBodyLength ///< length of the body
         )
 {
-    if ( NULL != m_psBody ) {
-        delete [] m_psBody;
-        m_psBody = NULL;
-    }
-    if (inBodyLength > 0) {
-        m_psBody = new char [ inBodyLength + 1 ];
-        if ( NULL == m_psBody ) {
-            throw runtime_error ( "HttpResponse::SetBody: Could not allocate m_psBody" ); 
-        }
-        memset ( m_psBody, 0, inBodyLength + 1 );
-        memcpy ( m_psBody, ipsBody, inBodyLength );
-    } else {
-        inBodyLength = 0;
-    }
-
+    GenericResponse::SetBody(ipsBody, inBodyLength);
     ostringstream oss;
-    oss << inBodyLength;
+    oss << m_sBody.length();
     m_oResponseHeaders [ "Content-Length" ] = oss.str();
 }
 

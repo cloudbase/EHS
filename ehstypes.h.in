@@ -30,6 +30,7 @@
 #include <cstring>
 #include <memory>
 #include <map>
+#include <deque>
 #include <list>
 
 class EHSServer;
@@ -74,6 +75,59 @@ typedef pthread_t ehs_threadid_t;
 #define THREADID
 #endif
 
+class GenericResponse {
+    private:
+        GenericResponse( const GenericResponse & );
+        GenericResponse &operator = (const GenericResponse &);
+
+    public:
+        /**
+         * Constructs a new instance.
+         * @param inResponseId A unique Id (normally derived from the corresponding request Id).
+         * @param ipoEHSConnection The connection, on which this response should be sent.
+         */
+        GenericResponse(int inResponseId, EHSConnection * ipoEHSConnection)
+            : m_nResponseId(inResponseId)
+            , m_sBody("")
+            , m_poEHSConnection(ipoEHSConnection)
+    { }
+
+        /**
+         * Sets the body of this instance.
+         * @param ipsBody The content to set.
+         * @param inBodyLength The length of the body.
+         */
+        void SetBody(const char *ipsBody, size_t inBodyLength) {
+            m_sBody = std::string(ipsBody, inBodyLength);
+        }
+
+        /**
+         * retrieves the body of this response.
+         * @return The current content of the body.
+         */
+        std::string & GetBody() { return m_sBody; };
+
+        bool IsGeneric() { return true; }
+
+        EHSConnection * GetConnection() { return m_poEHSConnection; }
+
+        /// Destructor
+        virtual ~GenericResponse() { }
+
+    protected:
+        /// response id for making sure we send responses in the right order
+        int m_nResponseId;
+
+        /// the actual body to be sent back
+        std::string m_sBody;
+
+        /// ehs connection object this response goes back on
+        EHSConnection * m_poEHSConnection;
+
+        friend class EHSConnection;
+        friend class EHSServer;
+};
+
 /// generic std::string => std::string map used by many things
 typedef std::map < std::string, std::string > StringMap;
 
@@ -102,7 +156,7 @@ typedef std::map < std::string, FormValue > FormValueMap;
 typedef std::map < std::string, Datum > CookieParameters;
 
 /// holds respose objects not yet ready to send
-typedef std::map < int, ehs_autoptr<HttpResponse> > HttpResponseMap;
+typedef std::deque <ehs_autoptr<GenericResponse> > ResponseQueue;
 
 /// holds the currently handled request for each thread
 typedef std::map < ehs_threadid_t, HttpRequest * > CurrentRequestMap;

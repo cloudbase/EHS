@@ -71,7 +71,7 @@ class EHSConnection {
         std::string m_sBuffer;
 
         /// holds out-of-order httpresponses that aren't ready to go out yet
-        HttpResponseMap m_oHttpResponseMap;
+        ResponseQueue m_oResponseQueue;
 
         /// holds pending requests
         HttpRequestList m_oHttpRequestList;
@@ -100,8 +100,8 @@ class EHSConnection {
         /// returns whether the this connection is in raw mode.
         bool IsRaw() const { return m_bRawMode; }
 
-        // returns unique string key for this connection
-        std::string ConnHash() const;
+        /// adds a response to the response list and sends as many responses as are ready
+        void AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response);
 
     private:
 
@@ -144,10 +144,7 @@ class EHSConnection {
         AddBufferResult AddBuffer(char * ipsData, int inSize);
 
         /// sends the actual data back to the client
-        void SendHttpResponse(HttpResponse *response);
-
-        /// adds a response to the response list and sends as many responses as are ready -- takes over the memory in ipoHttpResponse
-        void AddResponse(ehs_autoptr<HttpResponse> ehs_rvref response);
+        void SendResponse(GenericResponse *response);
 
         /// returns true of httprequestlist is not empty
         int RequestsPending() { return (0 != m_nActiveRequests) || !m_oHttpRequestList.empty(); }

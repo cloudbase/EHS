@@ -178,7 +178,7 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
     m_nActiveRequests(0),
     m_poNetworkAbstraction(ipoNetworkAbstraction),
     m_sBuffer(""),
-    m_oHttpResponseMap(HttpResponseMap()),
+    m_oResponseQueue(ResponseQueue()),
     m_oHttpRequestList(HttpRequestList()),
     m_sAddress(ipoNetworkAbstraction->GetAddress()),
     m_nPort(ipoNetworkAbstraction->GetPort()),
@@ -609,21 +609,21 @@ void EHSServer::HandleData_Threaded()
         const ehs_threadid_t self = THREADID(pthread_self());
         do {
             bool catched = false;
-            ehs_autoptr<HttpResponse> eResponse;
+            ehs_autoptr<GenericResponse> eResponse;
 
             try {
                 HandleData(1000, self); // 1000ms select timeout
             } catch (exception &e) {
                 catched = true;
-                eResponse = ehs_autoptr<HttpResponse>(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
+                eResponse.reset(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
             } catch (...) {
                 catched = true;
                 runtime_error e("unspecified");
-                eResponse = ehs_autoptr<HttpResponse>(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
+                eResponse.reset(m_poTopLevelEHS->HandleThreadException(self, m_oCurrentRequest[self], e));
             }
             if (catched) {
                 if (NULL != eResponse.get()) {
-                    eResponse->m_poEHSConnection->AddResponse(ehs_move(eResponse));
+                    eResponse->GetConnection()->AddResponse(ehs_move(eResponse));
                     MutexHelper mutex(&m_oMutex);
                     delete m_oCurrentRequest[self];
                     m_oCurrentRequest[self] = NULL;
@@ -658,8 +658,8 @@ void EHSServer::HandleData (int inTimeoutMilliseconds, ehs_threadid_t tid)
         // handle the request and post it back to the connection object
         mutex.Unlock();
         // route the request
-        ehs_autoptr<HttpResponse> response = m_poTopLevelEHS->RouteRequest(req);
-        response->m_poEHSConnection->AddResponse(ehs_move(response));
+        ehs_autoptr<GenericResponse> response(m_poTopLevelEHS->RouteRequest(req));
+        response->GetConnection()->AddResponse(ehs_move(response));
         delete req;
         mutex.Lock();
         m_oCurrentRequest[tid] = NULL;
@@ -793,8 +793,8 @@ void EHSServer::CheckClientSockets ( )
                     case EHSConnection::ADDBUFFER_INVALIDREQUEST:
                         {
                             // Immediately send a 400 response, then close the connection
-                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
-                            (*i)->SendHttpResponse(tmp.get());
+                            ehs_autoptr<GenericResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_400_BADREQUEST, 0, *i));
+                            (*i)->SendResponse(tmp.get());
                             (*i)->DoneReading(false);
                             EHS_TRACE("Done reading because we got a bad request", "");
                         }
@@ -808,8 +808,8 @@ void EHSServer::CheckClientSockets ( )
                                 unsigned long n = m_poTopLevelEHS->m_oParams["code413"];
                                 rc = (ResponseCode)n;
                             }
-                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(rc, 0, *i));
-                            (*i)->SendHttpResponse(tmp.get());
+                            ehs_autoptr<GenericResponse> tmp(HttpResponse::Error(rc, 0, *i));
+                            (*i)->SendResponse(tmp.get());
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: Request size exceeded. Returning " << tmp.GetStatusString() << "." << std::endl;
@@ -820,8 +820,8 @@ void EHSServer::CheckClientSockets ( )
                     case EHSConnection::ADDBUFFER_NORESOURCE:
                         {
                             // Immediately send a 503 response, then close the connection
-                            ehs_autoptr<HttpResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
-                            (*i)->SendHttpResponse(tmp.get());
+                            ehs_autoptr<GenericResponse> tmp(HttpResponse::Error(HTTPRESPONSECODE_503_SERVICEUNAVAILABLE, 0, *i));
+                            (*i)->SendResponse(tmp.get());
                             (*i)->DoneReading(false);
 #ifdef SPECIAL_STDERR
                             std::cerr << "EHS Warning: No ressources available. Returning " << tmp.GetStatusString() << "." << std::endl;
@@ -837,32 +837,24 @@ void EHSServer::CheckClientSockets ( )
     } // for loop through connections
 }
 
-void EHSConnection::AddResponse(ehs_autoptr<HttpResponse> ehs_rvref response)
+void EHSConnection::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
 {
     MutexHelper mutex(&m_oMutex);
     // push the object on to the list
-    m_oHttpResponseMap[response->m_nResponseId] = ehs_move(response);
-    // go through the list until we can't find the next response to send
-    bool found;
-    do {
-        found = false;
-        HttpResponseMap::iterator i = m_oHttpResponseMap.find(m_nResponses + 1);
-        if (m_oHttpResponseMap.end() != i) {
-            found = true;
-            --m_nActiveRequests;
-            mutex.Unlock();
-            SendHttpResponse((i->second).get());
-            mutex.Lock();
-            m_oHttpResponseMap.erase(i);
-            ++m_nResponses;
-            // set last activity to the current time for idle purposes
-            UpdateLastActivity();
-            EHS_TRACE("Sending %d response(s) to %x", m_nResponses, this);
-        }
-    } while (found);
+    m_oResponseQueue.push_back(ehs_move(response));
+    while (!m_oResponseQueue.empty()) {
+        --m_nActiveRequests;
+        mutex.Unlock();
+        SendResponse(m_oResponseQueue.front().get());
+        mutex.Lock();
+        m_oResponseQueue.pop_front();
+        // set last activity to the current time for idle purposes
+        UpdateLastActivity();
+        EHS_TRACE("Sending %d response(s) to %x", m_nResponses, this);
+    }
 }
 
-void EHSConnection::SendHttpResponse(HttpResponse *response)
+void EHSConnection::SendResponse(GenericResponse *gresp)
 {
     MutexHelper mutex(&m_oMutex);
 
@@ -871,44 +863,52 @@ void EHSConnection::SendHttpResponse(HttpResponse *response)
         return;
     }
 
-    ostringstream oss;
-    // add in the response code
-    oss << "HTTP/1.1 " << response->m_nResponseCode
-        << " " << HttpResponse::GetPhrase(response->m_nResponseCode) << "\r\n";
+    if (gresp->IsGeneric()) {
+        mutex.Unlock();
+        m_poNetworkAbstraction->Send(
+                reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
+    } else {
+        ++m_nResponses;
+        HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
+        ostringstream oss;
+        // add in the response code
+        oss << "HTTP/1.1 " << response->GetResponseCode()
+            << " " << HttpResponse::GetPhrase(response->GetResponseCode()) << "\r\n";
 
-    // now go through all the entries in the responseheaders string map
-    StringMap::iterator ith = response->m_oResponseHeaders.begin();
-    while (ith != response->m_oResponseHeaders.end()) {
-        oss << ith->first << ": " << ith->second << "\r\n";
-        ith++;
-    }
+        // now go through all the entries in the responseheaders string map
+        StringCaseMap::iterator ith = response->GetHeaders().begin();
+        while (ith != response->GetHeaders().end()) {
+            oss << ith->first << ": " << ith->second << "\r\n";
+            ith++;
+        }
 
-    // now push out all the cookies
-    StringList::iterator itl = response->m_oCookieList.begin ( );
-    while (itl != response->m_oCookieList.end()) {
-        oss << "Set-Cookie: " << *itl << "\r\n";
-        itl++;
-    }
+        // now push out all the cookies
+        StringList::iterator itl = response->GetCookies().begin ( );
+        while (itl != response->GetCookies().end()) {
+            oss << "Set-Cookie: " << *itl << "\r\n";
+            itl++;
+        }
 
-    // extra line break signalling end of headers
-    oss << "\r\n";
-    mutex.Unlock();
-    m_poNetworkAbstraction->Send(
-            reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
+        // extra line break signalling end of headers
+        oss << "\r\n";
+        mutex.Unlock();
+        m_poNetworkAbstraction->Send(
+                reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
 
-    // Switch protocols if necessary
-    if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->m_nResponseCode) {
-        EHS_TRACE("Switching connection to RAW mode", "");
-        m_bRawMode = true;
-        return;
-    }
+        // Switch protocols if necessary
+        if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
+            EHS_TRACE("Switching connection to RAW mode", "");
+            m_bRawMode = true;
+            return;
+        }
 
-    // now send the body
-    int blen = atoi(response->m_oResponseHeaders["content-length"].c_str());
-    if (blen > 0) {
-        EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
-        m_poNetworkAbstraction->Send(response->GetBody(), blen);
-        EHS_TRACE("Done sending %d bytes in thread %08x", blen, pthread_self());
+        // now send the body
+        int blen = atoi(response->GetHeaders()["content-length"].c_str());
+        if (blen > 0) {
+            EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
+            m_poNetworkAbstraction->Send(response->GetBody().data(), blen);
+            EHS_TRACE("Done sending %d bytes in thread %08x", blen, pthread_self());
+        }
     }
 }
 
@@ -1004,7 +1004,7 @@ string GetNextPathPart(string &irsUri)
     return string("");
 }
 
-ehs_autoptr<HttpResponse>
+    ehs_autoptr<HttpResponse>
 EHS::RouteRequest(HttpRequest *request ///< request info for service
         )
 {
@@ -1015,29 +1015,31 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
     }
     // We use an auto_ptr here, so that in case of an exception, the
     // target gets deleted.
-    ehs_autoptr<HttpResponse> response;
+    ehs_autoptr<HttpResponse> invalid_response;
+
     // if there is no more path, call HandleRequest on this EHS object with
     //   whatever's left - or if we're not routing
     if (m_bNoRouting || sNextPathPart.empty()) {
         // create an HttpRespose object for the client
-        response = ehs_autoptr<HttpResponse>(new HttpResponse(request->m_nRequestId,
+        ehs_autoptr<HttpResponse> response(new HttpResponse(request->m_nRequestId,
                     request->m_poSourceEHSConnection));
         // get the actual response and return code
         response->SetResponseCode(HandleRequest(request, response.get()));
-    } else {
-        EHS_TRACE ("Trying to route: '%s'", sNextPathPart.c_str());
-        // if the path exists, check it against the map of EHSs
-        if (m_oEHSMap[sNextPathPart]) {
-            // if it exists, call its RouteRequest with the new shortened path
-            response = m_oEHSMap[sNextPathPart]->RouteRequest(request);
-        } else {
-            // if it doesn't exist, send an error back up saying resource doesn't exist
-            EHS_TRACE("Routing failed. Most likely caused by an invalid URL, not internal error", "");
-            // send back a 404 response
-            response = ehs_autoptr<HttpResponse>(HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request));
-        }
+        return ehs_move(response);
     }
-    return response;
+    EHS_TRACE ("Trying to route: '%s'", sNextPathPart.c_str());
+    // if the path exists, check it against the map of EHSs
+    if (m_oEHSMap[sNextPathPart]) {
+        // if it exists, call its RouteRequest with the new shortened path
+        return ehs_move(m_oEHSMap[sNextPathPart]->RouteRequest(request));
+    } else {
+        // if it doesn't exist, send an error back up saying resource doesn't exist
+        EHS_TRACE("Routing failed. Most likely caused by an invalid URL, not internal error", "");
+        // send back a 404 response
+        return ehs_move(ehs_autoptr<HttpResponse>(HttpResponse::Error(HTTPRESPONSECODE_404_NOTFOUND, request)));
+    }
+    throw runtime_error("EHS::RouteRequest: Invalid response.");
+    return ehs_move(invalid_response);
 }
 
 // default handle request returns time as text
@@ -1066,4 +1068,12 @@ HttpResponse *EHS::HandleThreadException(ehs_threadid_t tid, HttpRequest *, exce
     std::cerr << "Caught an exception in thread "
         << hex << tid << ": " << ex.what() << endl;
     return NULL;
+}
+
+void EHS::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
+{
+    EHSConnection *conn = response->GetConnection();
+    if (conn) {
+        conn->AddResponse(ehs_move(response));
+    }
 }

@@ -134,6 +134,8 @@ AC_MSG_RESULT([$enableval])
 case "$enableval" in
     [[yY][eE][sS]])
         AC_DEFINE([EHS_DEBUG],[1],[Whether to compile with debugging information])
+        CFLAGS="$CFLAGS -O0"
+        CXXFLAGS="$CXXFLAGS -O0"
         ;;
 esac
 
@@ -243,6 +245,18 @@ CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 
 dnl Check for boost minimum version
 BOOST_REQUIRE([1.33.1])
+
+dnl Check for boost::lock_guard
+
+AC_MSG_CHECKING([for availability of boost::lock_guard])
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([
+AC_LANG_PROGRAM([[#include <boost/thread.hpp>
+boost::recursive_mutex m;]],
+[[boost::lock_guard<boost::recursive_mutex> lock(m);]]
+)],[AC_DEFINE([HAVE_BOOST_LOCK_GUARD],[1],[Define if boost::lock_guard is available])
+    AC_MSG_RESULT([yes])],[AC_MSG_RESULT([no])])
+AC_LANG_POP
 
 dnl Check for std::unique_ptr and std::move
 ac_checked_CXXFLAGS=

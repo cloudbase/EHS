@@ -1,3 +1,6 @@
+#ifndef BTEXCEPTION_H
+#define BTEXCEPTION_H
+
 #include <exception>
 #include <string>
 
@@ -100,3 +103,5 @@ namespace tracing {
             std::string msg;
     };
 }
+
+#endif

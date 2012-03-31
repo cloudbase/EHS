@@ -50,16 +50,13 @@ enum ResponseCode {
  * It contains the actual body, any headers specified,
  * and the response code.
  */
-class HttpResponse {
+class HttpResponse : public GenericResponse {
 
     private:
-
-        HttpResponse ( const HttpResponse & );
-
-        HttpResponse & operator = ( const HttpResponse & );
+        HttpResponse( const HttpResponse & );
+        HttpResponse &operator = (const HttpResponse &);
 
     public:
-
         /**
          * Constructs a new instance.
          * @param inResponseId A unique Id (normally derived from the corresponding request Id).
@@ -94,7 +91,7 @@ class HttpResponse {
         static const char *GetPhrase(ResponseCode code);
 
         /// Destructor
-        ~HttpResponse ( );
+        virtual ~HttpResponse ( ) { }
 
         /**
          * Sets the body of this instance.
@@ -102,7 +99,7 @@ class HttpResponse {
          * @param inBodyLength The length of the body. This parameter also
          *   sets the value of the Content-Length HTTP header.
          */
-        void SetBody(const char *ipsBody, int inBodyLength);
+        void SetBody(const char *ipsBody, size_t inBodyLength);
 
         /**
          * Sets cookies for this response.
@@ -115,6 +112,21 @@ class HttpResponse {
          * @param code The desired HTTP response code.
          */
         void SetResponseCode(ResponseCode code) { m_nResponseCode = code; }
+
+        /**
+         * Retrieves the status code of this this response.
+         */
+        ResponseCode GetResponseCode() { return m_nResponseCode; }
+
+        /**
+         * Retrieves the headers of this this response.
+         */
+        StringCaseMap& GetHeaders() { return m_oResponseHeaders; }
+
+        /**
+         * Retrieves the cookies of this this response.
+         */
+        StringList& GetCookies() { return m_oCookieList; }
 
         /**
          * Sets an HTTP header.
@@ -136,13 +148,7 @@ class HttpResponse {
         }
 
         /**
-         * retrieves the body of this response.
-         * @return The current content of the body.
-         */
-        char * GetBody() { return m_psBody; };
-
-        /**
-         * retrieves the status string of this this response.
+         * Retrieves the status string of this this response.
          * @return The current status as "<i>number</i> <i>description</i>".
          */
         std::string GetStatusString();
@@ -167,6 +173,8 @@ class HttpResponse {
          */
         std::string HttpTime(time_t stamp);
 
+        virtual bool IsGeneric() { return false; }
+
     private:
 
         /// the response code to be sent back
@@ -178,18 +186,6 @@ class HttpResponse {
 
         /// cookies waiting to be sent
         StringList m_oCookieList;
-
-        /// ehs connection object this response goes back on
-        EHSConnection * m_poEHSConnection;
-
-        /// response id for making sure we send responses in the right order
-        int m_nResponseId;
-
-        /// the actual body to be sent back -- set by SetBody
-        char * m_psBody;
-
-        friend class EHSConnection;
-        friend class EHSServer;
 };
 
 #endif // HTTPRESPONSE_H

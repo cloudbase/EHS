@@ -38,9 +38,6 @@
 #include <cstdio>
 #include <cerrno>
 #include <boost/algorithm/string.hpp>
-#include "btexception.h"
-#include "base64.h"
-#include "sha1.h"
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -59,6 +56,10 @@
 #endif
 
 #include "common.h"
+#include "btexception.h"
+#include "base64.h"
+#include "sha1.h"
+#include "wsendpoint.h"
 
 using namespace std;
 using boost::algorithm::to_lower_copy;
@@ -73,8 +74,8 @@ class WsGate : public EHS
     WsGate(EHS *parent = NULL, std::string registerpath = "")
         : EHS(parent, registerpath)
         , m_sHostname("localhost")
-    {
-    }
+        {
+        }
 
     HttpResponse *HandleThreadException(ehs_threadid_t, HttpRequest *request, exception &ex)
     {
@@ -238,17 +239,78 @@ class MyBindHelper : public PrivilegedBindHelper
 };
 #endif
 
+typedef boost::shared_ptr<wspp::wsendpoint> conn_ptr;
+typedef boost::shared_ptr<wspp::wshandler> handler_ptr;
+typedef std::map<EHSConnection *, conn_ptr> conn_map;
+typedef std::map<EHSConnection *, handler_ptr> handler_map;
+
+class MyWsHandler : public wspp::wshandler
+{
+    public:
+    MyWsHandler(EHSConnection *econn, EHS *ehs)
+        : m_econn(econn)
+        , m_ehs(ehs)
+    {}
+
+    virtual void on_message(std::string, std::string data) {
+        cerr << "GOT Message: '" << data << "'" << endl;
+        data.insert(0, "Yes, ");
+        send_text(data);
+    }
+    virtual void on_close() {
+        cerr << "GOT Close" << endl;
+    }
+    virtual bool on_ping(const std::string data) {
+        cerr << "GOT Ping: '" << data << "'" << endl;
+        return true;
+    }
+    virtual void on_pong(const std::string data) {
+        cerr << "GOT Pong: '" << data << "'" << endl;
+    }
+    virtual void do_response(const std::string data) {
+        cerr << "Send WS response '" << data << "'" << endl;
+        ehs_autoptr<GenericResponse> r(new GenericResponse(0, m_econn));
+        r->SetBody(data.data(), data.length());
+        m_ehs->AddResponse(ehs_move(r));
+    }
+
+    private:
+    MyWsHandler(const MyWsHandler&);
+    MyWsHandler& operator=(const MyWsHandler&);
+    EHSConnection *m_econn;
+    EHS *m_ehs;
+};
+
 class MyRawSocketHandler : public RawSocketHandler
 {
     public:
-    MyRawSocketHandler()
+    MyRawSocketHandler(WsGate *parent)
+        : m_parent(parent)
+          , m_cmap(conn_map())
+          , m_hmap(handler_map())
     { }
 
     virtual bool OnData(EHSConnection &conn, std::string data)
     {
-        // ibuf.append(data);
+        conn_ptr c;
+        if (m_cmap.end() == m_cmap.find(&conn)) {
+            handler_ptr h(new MyWsHandler(&conn, m_parent));
+            conn_ptr c(new wspp::wsendpoint(h.get()));
+            m_hmap[&conn] = h;
+            m_cmap[&conn] = c;
+        }
+        m_cmap[&conn]->AddRxData(data);
         return true;
     }
+
+    private:
+    MyRawSocketHandler(const MyRawSocketHandler&);
+    MyRawSocketHandler& operator=(const MyRawSocketHandler&);
+
+    WsGate *m_parent;
+    conn_map m_cmap;
+    handler_map m_hmap;
+
 };
 
 // basic main that creates a threaded EHS object and then
@@ -268,7 +330,7 @@ int main (int argc, char **argv)
     MyBindHelper h;
     srv.SetBindHelper(&h);
 #endif
-    MyRawSocketHandler sh;
+    MyRawSocketHandler sh(&srv);
     srv.SetRawSocketHandler(&sh);
 
     ostringstream oss;

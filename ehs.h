@@ -329,7 +329,7 @@ class EHS : public PassphraseHandler {
         }
 
         /**
-         * Retieves our RawSocketHandler.
+         * Retrieves our RawSocketHandler.
          * @return The current RawSocketHandler, or NULL if no RawSocketHandler was set.
          */
         RawSocketHandler * GetRawSocketHandler() const
@@ -337,6 +337,11 @@ class EHS : public PassphraseHandler {
             return m_poRawSocketHandler;
         }
 
+        /**
+         * Enqueues a generic response.
+         * @param response The response to enqueue
+         */
+        void AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response);
 };
 
 #endif // EHS_H
