@@ -35,48 +35,68 @@ static const uint8_t utf8d[] = {
 
 uint32_t inline
 decode(uint32_t* state, uint32_t* codep, uint8_t byte) {
-  uint32_t type = utf8d[byte];
+    uint32_t type = utf8d[byte];
 
-  *codep = (*state != UTF8_ACCEPT) ?
-    (byte & 0x3fu) | (*codep << 6) :
-    (0xff >> type) & (byte);
+    *codep = (*state != UTF8_ACCEPT) ?
+        (byte & 0x3fu) | (*codep << 6) :
+        (0xff >> type) & (byte);
 
-  *state = utf8d[256 + *state*16 + type];
-  return *state;
+    *state = utf8d[256 + *state*16 + type];
+    return *state;
 }
-    
+
+/**
+ * A validator for UTF-8 strings
+ */
 class validator {
-public:
-    validator() : m_state(UTF8_ACCEPT),m_codepoint(0) {}
-    
-    bool consume (uint32_t byte) {
-        if (utf8_validator::decode(&m_state,&m_codepoint,byte) == UTF8_REJECT) {
-            return false;
-        }
-        return true;
-    }
-    
-    template <typename iterator_type>
-    bool decode (iterator_type b, iterator_type e) {
-        for (iterator_type i = b; i != e; i++) {
-            if (utf8_validator::decode(&m_state,&m_codepoint,*i) == UTF8_REJECT) {
+    public:
+        /// Constuctor
+        validator() : m_state(UTF8_ACCEPT),m_codepoint(0) {}
+
+        /** 
+         * Validate a single UTF-8 character.
+         * @param byte The UTF-8 character to validate
+         * @return true, if the character is valid.
+         */
+        bool consume (uint32_t byte) {
+            if (utf8_validator::decode(&m_state,&m_codepoint,byte) == UTF8_REJECT) {
                 return false;
             }
+            return true;
         }
-        return true;
-    }
-    
-    bool complete() {
-        return m_state == UTF8_ACCEPT;
-    }
-    
-    void reset() {
-        m_state = UTF8_ACCEPT;
-        m_codepoint = 0;
-    }
-private:
-    uint32_t    m_state;
-    uint32_t    m_codepoint;
+
+        template <typename iterator_type>
+            /** 
+             * Validate a range of UTF-8 characters.
+             * @param b Iterator, pointing to the start of the sequence,
+             * @param e Iterator, pointing to the end of the sequence.
+             * @return true, if the supplied sequence is valid.
+             */
+            bool decode (iterator_type b, iterator_type e) {
+                for (iterator_type i = b; i != e; i++) {
+                    if (utf8_validator::decode(&m_state,&m_codepoint,*i) == UTF8_REJECT) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+        /**
+         * Retrieve validator state.
+         * @return true, if the current state is valid. 
+         */
+        bool complete() {
+            return m_state == UTF8_ACCEPT;
+        }
+
+        /// Reset the validator state. 
+        void reset() {
+            m_state = UTF8_ACCEPT;
+            m_codepoint = 0;
+        }
+    private:
+        uint32_t    m_state;
+        uint32_t    m_codepoint;
 };
 
 // convenience function that creates a validator, validates a complete string 
@@ -89,7 +109,7 @@ inline bool validate(const std::string& s) {
     }
     return v.complete();
 }
-    
+
 } // namespace utf8_validator
 
 #endif // UTF8_VALIDATOR_HPP
