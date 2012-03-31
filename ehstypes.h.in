@@ -75,6 +75,12 @@ typedef pthread_t ehs_threadid_t;
 #define THREADID
 #endif
 
+/**
+ * This class represents what is sent back to the client.
+ * It contains the actual body only.
+ * Any HTTP specific additions like headers or the response
+ * code are handled in the drived class HttpResponse.
+ */
 class GenericResponse {
     private:
         GenericResponse( const GenericResponse & );
@@ -107,6 +113,11 @@ class GenericResponse {
          */
         std::string & GetBody() { return m_sBody; };
 
+        /**
+         * retrieves the EHSConnection, on which this response
+         * is supposed to be send.
+         * @return The EHSConnection of this instance.
+         */
         EHSConnection * GetConnection() { return m_poEHSConnection; }
 
         /// Destructor

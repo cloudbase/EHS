@@ -156,12 +156,26 @@ namespace wspp {
                         reset();
                     }
 
+                    /**
+                     * Retrieves the state of this instance.
+                     * @return true, if this instance is ready.
+                     */
                     bool ready() const {
                         return (m_state == STATE_READY);
                     }
+
+                    /**
+                     * Retrieves the current amount of bytes,
+                     * required to complete the next decoding step.
+                     * @return the current amount of bytes needed.
+                     */
                     uint64_t get_bytes_needed() const {
                         return m_bytes_needed;
                     }
+
+                    /**
+                     * Resets this endpoint to its initial state.
+                     */
                     void reset() {
                         m_state = STATE_BASIC_HEADER;
                         m_bytes_needed = BASIC_HEADER_LENGTH;
@@ -170,10 +184,15 @@ namespace wspp {
                         std::fill(m_header,m_header+MAX_HEADER_LENGTH,0);
                     }
 
-                    // Method invariant: One of the following must always be true even in the case 
-                    // of exceptions.
-                    // - m_bytes_needed > 0
-                    // - m-state = STATE_READY
+                    /**
+                     * Reads incoming data and decodes it.
+                     * Method invariant: One of the following must always be true even in the case 
+                     * of exceptions.
+                     * - m_bytes_needed > 0
+                     * - m-state = STATE_READY
+                     *
+                     * @param s The stream of incoming data.
+                     */
                     void consume(std::istream &s) {
                         try {
                             switch (m_state) {
