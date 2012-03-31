@@ -127,7 +127,7 @@ namespace wspp {
 
         template <class rng_policy>
             class parser {
-                public:
+                private:
                     // basic payload byte flags
                     static const uint8_t BPB0_OPCODE = 0x0F;
                     static const uint8_t BPB0_RSV3 = 0x10;
@@ -145,6 +145,7 @@ namespace wspp {
                     static const uint8_t extended_header_length = 12;
                     static const uint64_t max_payload_size = 100000000; // 100MB
 
+                public:
                     // create an empty frame for writing into
                     parser(rng_policy& rng)
                         : m_state(STATE_BASIC_HEADER)
@@ -162,15 +163,6 @@ namespace wspp {
                      */
                     bool ready() const {
                         return (m_state == STATE_READY);
-                    }
-
-                    /**
-                     * Retrieves the current amount of bytes,
-                     * required to complete the next decoding step.
-                     * @return the current amount of bytes needed.
-                     */
-                    uint64_t get_bytes_needed() const {
-                        return m_bytes_needed;
                     }
 
                     /**
@@ -280,8 +272,145 @@ namespace wspp {
                         }
                     }
 
+                    /**
+                     * Retrieves header.
+                     * @return The current header data.
+                     */
                     std::string get_header_str() {
                         return std::string(m_header, get_header_len());
+                    }
+
+                    /**
+                     * Retrieves payload.
+                     * @return The current payload data.
+                     */
+                    std::string get_payload_str() const {
+                        return std::string(m_payload.begin(), m_payload.end());
+                    }
+
+                    /**
+                     * Retrieves payload.
+                     * @return The current payload data.
+                     */
+                    std::vector<unsigned char> &get_payload() {
+                        return m_payload;
+                    }
+
+                    /**
+                     * Check for control message.
+                     * @return true, if the current message is a control message.
+                     */
+                    bool is_control() const {
+                        return (opcode::is_control(get_opcode()));
+                    }
+
+                    /**
+                     * Set the FIN bit of the current message.
+                     * @param fin The value of the FIN bit.
+                     */
+                    void set_fin(bool fin) {
+                        if (fin) {
+                            m_header[0] |= BPB0_FIN;
+                        } else {
+                            m_header[0] &= (0xFF ^ BPB0_FIN);
+                        }
+                    }
+
+                    /**
+                     * Retrieve message opcode.
+                     * @return The opcode of the current message.
+                     */
+                    opcode::value get_opcode() const {
+                        return frame::opcode::value(m_header[0] & BPB0_OPCODE);
+                    }
+
+                    /**
+                     * Set the opcode of the current message.
+                     * @param op The value of the opcode according to RFC6455.
+                     */
+                    void set_opcode(opcode::value op) {
+                        if (opcode::reserved(op)) {
+                            throw tracing::wserror("reserved opcode",tracing::wserror::PROTOCOL_VIOLATION);
+                        }
+
+                        if (opcode::invalid(op)) {
+                            throw tracing::wserror("invalid opcode",tracing::wserror::PROTOCOL_VIOLATION);
+                        }
+
+                        if (is_control() && get_basic_size() > limits::PAYLOAD_SIZE_BASIC) {
+                            throw tracing::wserror("control frames can't have large payloads",tracing::wserror::PROTOCOL_VIOLATION);
+                        }
+
+                        m_header[0] &= (0xFF ^ BPB0_OPCODE); // clear op bits
+                        m_header[0] |= op; // set op bits
+                    }
+
+                    /**
+                     * Set the MASKED bit of the current message.
+                     * @param masked The value of the MASKED bit. If true, generate a masking key.
+                     */
+                    void set_masked(bool masked) {
+                        if (masked) {
+                            m_header[1] |= BPB1_MASK;
+                            generate_masking_key();
+                        } else {
+                            m_header[1] &= (0xFF ^ BPB1_MASK);
+                            clear_masking_key();
+                        }
+                    }
+
+                    /**
+                     * Set the payload of the current message.
+                     * @param source The payload for the current message.
+                     */
+                    void set_payload(const std::string& source) {
+                        set_payload_helper(source.size());
+
+                        std::copy(source.begin(),source.end(),m_payload.begin());
+                    }
+
+                    /**
+                     * Set the payload of the current message.
+                     * @param source The payload for the current message.
+                     */
+                    void set_payload(const std::vector<unsigned char>& source) {
+                        set_payload_helper(source.size());
+
+                        std::copy(source.begin(),source.end(),m_payload.begin());
+                    }
+
+                    /**
+                     * Retrieve the close code (reason) of a CLOSE message.
+                     * @return The close code according to RFC6455.
+                     */
+                    close::status::value get_close_code() const {
+                        if (m_payload.size() == 0) {
+                            return close::status::NO_STATUS;
+                        } else {
+                            return close::status::value(get_raw_close_code());
+                        }
+                    }
+
+                    /**
+                     * Retrieve the textual reason of a CLOSE message.
+                     * @return The textual reason (my be empty).
+                     */
+                    std::string get_close_reason() const {
+                        if (m_payload.size() > 2) {
+                            return get_payload_str().substr(2);
+                        } else {
+                            return std::string();
+                        }
+                    }
+
+                private:
+                    /**
+                     * Retrieves the current amount of bytes,
+                     * required to complete the next decoding step.
+                     * @return the current amount of bytes needed.
+                     */
+                    uint64_t get_bytes_needed() const {
+                        return m_bytes_needed;
                     }
 
                     // get pointers to underlying buffers
@@ -315,14 +444,6 @@ namespace wspp {
                     bool get_fin() const {
                         return ((m_header[0] & BPB0_FIN) == BPB0_FIN);
                     }
-                    void set_fin(bool fin) {
-                        if (fin) {
-                            m_header[0] |= BPB0_FIN;
-                        } else {
-                            m_header[0] &= (0xFF ^ BPB0_FIN);
-                        }
-                    }
-
                     bool get_rsv1() const {
                         return ((m_header[0] & BPB0_RSV1) == BPB0_RSV1);
                     }
@@ -356,39 +477,9 @@ namespace wspp {
                         }
                     }
 
-                    opcode::value get_opcode() const {
-                        return frame::opcode::value(m_header[0] & BPB0_OPCODE);
-                    }
-                    void set_opcode(opcode::value op) {
-                        if (opcode::reserved(op)) {
-                            throw tracing::wserror("reserved opcode",tracing::wserror::PROTOCOL_VIOLATION);
-                        }
-
-                        if (opcode::invalid(op)) {
-                            throw tracing::wserror("invalid opcode",tracing::wserror::PROTOCOL_VIOLATION);
-                        }
-
-                        if (is_control() && get_basic_size() > limits::PAYLOAD_SIZE_BASIC) {
-                            throw tracing::wserror("control frames can't have large payloads",tracing::wserror::PROTOCOL_VIOLATION);
-                        }
-
-                        m_header[0] &= (0xFF ^ BPB0_OPCODE); // clear op bits
-                        m_header[0] |= op; // set op bits
-                    }
-
                     bool get_masked() const {
                         return ((m_header[1] & BPB1_MASK) == BPB1_MASK);
                     }
-                    void set_masked(bool masked) {
-                        if (masked) {
-                            m_header[1] |= BPB1_MASK;
-                            generate_masking_key();
-                        } else {
-                            m_header[1] &= (0xFF ^ BPB1_MASK);
-                            clear_masking_key();
-                        }
-                    }
-
                     uint8_t get_basic_size() const {
                         return m_header[1] & BPB1_PAYLOAD;
                     }
@@ -430,24 +521,6 @@ namespace wspp {
                         }
                     }
 
-                    std::string get_payload_str() const {
-                        return std::string(m_payload.begin(), m_payload.end());
-                    }
-
-                    std::vector<unsigned char> &get_payload() {
-                        return m_payload;
-                    }
-
-                    void set_payload(const std::vector<unsigned char>& source) {
-                        set_payload_helper(source.size());
-
-                        std::copy(source.begin(),source.end(),m_payload.begin());
-                    }
-                    void set_payload(const std::string& source) {
-                        set_payload_helper(source.size());
-
-                        std::copy(source.begin(),source.end(),m_payload.begin());
-                    }
                     void set_payload_helper(uint64_t s) {
                         if (s > max_payload_size) {
                             throw tracing::wserror("requested payload is over implementation defined limit",tracing::wserror::MESSAGE_TOO_BIG);
@@ -515,10 +588,6 @@ namespace wspp {
                         m_payload[1] = val[1];
 
                         std::copy(message.begin(),message.end(),m_payload.begin()+2);
-                    }
-
-                    bool is_control() const {
-                        return (opcode::is_control(get_opcode()));
                     }
 
                     std::string print_frame() const {
@@ -685,22 +754,6 @@ namespace wspp {
                         // this is a no-op as clearing the mask bit also changes the get_header_len
                         // method to not include these byte ranges. Whenever the masking bit is re-
                         // set a new key is generated anyways.
-                    }
-
-                    close::status::value get_close_code() const {
-                        if (m_payload.size() == 0) {
-                            return close::status::NO_STATUS;
-                        } else {
-                            return close::status::value(get_raw_close_code());
-                        }
-                    }
-
-                    std::string get_close_reason() const {
-                        if (m_payload.size() > 2) {
-                            return get_payload_str().substr(2);
-                        } else {
-                            return std::string();
-                        }
                     }
 
 
