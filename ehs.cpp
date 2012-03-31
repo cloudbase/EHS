@@ -108,12 +108,12 @@ int EHSServer::CreateFdSet()
     FD_ZERO(&m_oReadFds);
     // add the accepting FD	
     FD_SET(m_poNetworkAbstraction->GetFd(), &m_oReadFds);
-    int nHighestFd = m_poNetworkAbstraction->GetFd();
+    ehs_socket_t nHighestFd = m_poNetworkAbstraction->GetFd();
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); i++) {
         /// skip this one if it's already been used
         if ((*i)->StillReading()) {
-            int nCurrentFd = (*i)->GetNetworkAbstraction()->GetFd();
+            ehs_socket_t nCurrentFd = (*i)->GetNetworkAbstraction()->GetFd();
             // EHS_TRACE("Adding %d to FD SET", nCurrentFd);
             FD_SET(nCurrentFd, &m_oReadFds);
             // store the highest FD in the set to return it
@@ -125,7 +125,7 @@ int EHSServer::CreateFdSet()
                     (*i)->GetNetworkAbstraction()->GetFd());
         }
     }
-    return nHighestFd;
+    return (int)nHighestFd;
 }
 
 void EHSServer::ClearIdleConnections()
@@ -747,6 +747,9 @@ void EHSServer::CheckAcceptSocket ( )
             m_oEHSConnectionList.push_back(poEHSConnection);
             m_bAcceptedNewConnection = true;
         }
+        // Add the just created connection to our FD_SET
+        CreateFdSet();
+        EHS_TRACE("Accepted new connection %p\n", poEHSConnection);
     } // end FD_ISSET ( )
 }
 
@@ -782,6 +785,7 @@ void EHSServer::CheckClientSockets ( )
             // if we received a disconnect
             if (nBytesReceived <= 0) {
                 // we're done reading and we received a disconnect
+                EHS_TRACE("Read result = %d", nBytesReceived);
                 (*i)->DoneReading(true);
             } else {
                 // otherwise we got data
@@ -863,11 +867,14 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         return;
     }
 
-    if (gresp->IsGeneric()) {
+    HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
+    if (NULL == response) {
+        EHS_TRACE("Sending GENERIC response", "");
         mutex.Unlock();
         m_poNetworkAbstraction->Send(
                 reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
     } else {
+        EHS_TRACE("Sending HTTP response", "");
         ++m_nResponses;
         HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
         ostringstream oss;

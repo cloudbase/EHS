@@ -58,10 +58,20 @@
 # include <arpa/inet.h>
 #endif
 
+#include <cstdio>
+
 #ifdef _WIN32
 typedef unsigned long in_addr_t;
 typedef size_t socklen_t;
 # define sleep(seconds) (Sleep(seconds * 1000))
+#endif
+
+extern const char *net_strerror();
+#ifdef _WIN32
+# define net_errno WSAGetLastError()
+#else
+# define INVALID_SOCKET -1
+# define net_errno errno
 #endif
 
 #include "networkabstraction.h"
@@ -81,7 +91,7 @@ class Socket : public NetworkAbstraction {
          * @param fd The socket descriptor of this connection.
          * @param peer The peer address of this socket
          */
-        Socket(int fd, sockaddr_in *peer);
+        Socket(ehs_socket_t fd, sockaddr_in *peer);
 
     public:
 
@@ -98,7 +108,7 @@ class Socket : public NetworkAbstraction {
 
         virtual void SetBindAddress(const char * bindAddress);
 
-        virtual int GetFd() const { return m_fd; }
+        virtual ehs_socket_t GetFd() const { return m_fd; }
 
         virtual int Read(void *buf, int bufsize);
 
@@ -123,7 +133,7 @@ class Socket : public NetworkAbstraction {
         std::string GetPeer() const;
 
         /// The file descriptor of the socket on which this connection came in
-        int m_fd;
+        ehs_socket_t m_fd;
 
         /// Stores the peer address of the current connection
         sockaddr_in m_peer;

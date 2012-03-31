@@ -107,8 +107,6 @@ class GenericResponse {
          */
         std::string & GetBody() { return m_sBody; };
 
-        bool IsGeneric() { return true; }
-
         EHSConnection * GetConnection() { return m_poEHSConnection; }
 
         /// Destructor

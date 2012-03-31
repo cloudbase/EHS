@@ -91,7 +91,7 @@ class WsGate : public EHS
             if (0 != msg.compare("fatal")) {
                 ret = HttpResponse::Error(HTTPRESPONSECODE_500_INTERNALSERVERERROR, request);
                 string body(ret->GetBody());
-                tmsg.insert(0, "<br>\n<pre>").append("</pre><p><a href=\"/\">Back to main page</a>");
+                tmsg.insert(0, "<br>\n<pre>").append(msg).append("</pre><p><a href=\"/\">Back to main page</a>");
                 body.insert(body.find("</body>"), tmsg);
                 ret->SetBody(body.c_str(), body.length());
             }
@@ -105,7 +105,10 @@ class WsGate : public EHS
         if ((0 == request->Uri().compare("/")) || (0 == request->Uri().compare("/index.html"))) {
             ifstream f("samples/wstest.html", ios::binary);
             if (f.fail()) {
-                throw tracing::runtime_error("Failed to open html source");
+                f.open("wstest.html", ios::binary);
+                if (f.fail()) {
+                    throw tracing::runtime_error("Failed to open html source");
+                }
             }
             f.seekg (0, ios::end);
             size_t fsize = f.tellg();

@@ -45,7 +45,7 @@ class TestHarness : public EHS
         ostringstream oss;
 
         if (!CheckAuthHeader(request)) {
-            response->SetHeader("WWW-Authenticate", "Basic realm=\"Password required\"" );
+            response->SetHeader("WWW-Authenticate", "Basic realm=\"Password required please use tester and 12345\"" );
             return HTTPRESPONSECODE_401_UNAUTHORIZED;
         }
 

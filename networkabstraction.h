@@ -31,6 +31,12 @@
 
 class PrivilegedBindHelper;
 
+#ifdef _WIN32
+typedef SOCKET ehs_socket_t;
+#else
+typedef int ehs_socket_t;
+#endif
+
 /**
  * Abstracts different socket types.
  * This interface abstracts the differences between normal
@@ -91,7 +97,7 @@ class NetworkAbstraction {
          * Retrieves the underlying file descriptor.
          * @return The FD/Socket of the listening socket.
          */
-        virtual int GetFd() const = 0;
+        virtual ehs_socket_t GetFd() const = 0;
 
         /**
          * Performs a read from the underlying socket.

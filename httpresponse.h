@@ -173,8 +173,6 @@ class HttpResponse : public GenericResponse {
          */
         std::string HttpTime(time_t stamp);
 
-        virtual bool IsGeneric() { return false; }
-
     private:
 
         /// the response code to be sent back

@@ -106,7 +106,7 @@ class SecureSocket : public Socket
          * @param fd The socket descriptor of this connection.
          * @param peer The peer address of this socket
          */
-        SecureSocket(SSL *ssl, int fd, sockaddr_in *peer);
+        SecureSocket(SSL *ssl, ehs_socket_t fd, sockaddr_in *peer);
 
         /// Initializes the SSL context and provides it with certificates.
         SSL_CTX *InitializeCertificates();

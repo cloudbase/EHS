@@ -61,6 +61,23 @@
 #include <cstdio>
 #include <stdexcept>
 
+#ifdef _WIN32
+const char *net_strerror() {
+    static char ret[1024];
+    int err = net_errno;
+    va_list args = NULL;
+    if (!FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_FROM_HMODULE,
+            NULL, err, 0, ret, sizeof(ret), &args)) {
+        snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
+    }
+    return ret;
+}
+#else
+const char *net_strerror() {
+    return strerror(net_errno);
+}
+#endif
+
 using namespace std;
 
     Socket::Socket()
@@ -73,7 +90,7 @@ using namespace std;
     memset(&m_bindaddr, 0, sizeof(m_bindaddr));
 }
 
-Socket::Socket(int fd, sockaddr_in * peer) :
+Socket::Socket(ehs_socket_t fd, sockaddr_in * peer) :
     m_fd(fd),
     m_peer(*peer),
     m_bindaddr(sockaddr_in()),
@@ -131,7 +148,7 @@ void Socket::Init(int port)
 #endif // End WIN32-specific network initialization code
 
     // need to create a socket for listening for new connections
-    if (m_fd != -1) {
+    if (INVALID_SOCKET != m_fd) {
 #ifdef _WIN32
         WSACleanup();
 #endif
@@ -139,17 +156,18 @@ void Socket::Init(int port)
     }
 
     m_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (-1 == m_fd) {
+    if (INVALID_SOCKET == m_fd) {
+        sError.assign("socket: ").append(net_strerror());
 #ifdef _WIN32
         WSACleanup();
 #endif
-        sError.assign("socket: ");
-        throw runtime_error(sError.append(strerror(errno)));
+        throw runtime_error(sError);
     }
 
 #ifdef _WIN32
     u_long one = 1;
     ioctlsocket(m_fd, FIONBIO, &one);
+    setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char *>(&one), sizeof(int));
 #else
     int one = 1;
     ioctl(m_fd, FIONBIO, &one);
@@ -175,21 +193,21 @@ void Socket::Init(int port)
     }
 
     if (-1 == nResult) {
+        sError.assign("bind: ").append(net_strerror());
 #ifdef _WIN32
         WSACleanup();
 #endif
-        sError.assign("bind: ");
-        throw runtime_error(sError.append(strerror(errno)));
+        throw runtime_error(sError);
     }
 
     // listen 
     nResult = listen(m_fd, 20);
     if (0 != nResult) {
+        sError.assign("listen: ").append(net_strerror());
 #ifdef _WIN32
         WSACleanup();
 #endif
-        sError.assign("listen: ");
-        throw runtime_error(sError.append(strerror(errno)));
+        throw runtime_error(sError);
     }
 }
 
@@ -207,10 +225,20 @@ again:
 #endif
                 bufsize, 0);
         if (ret < 0) {
-            switch (errno) {
+            int err = net_errno;
+            switch (err) {
                 case EAGAIN:
                 case EINTR:
+#ifdef _WIN32
+                case WSAEWOULDBLOCK:
+#endif
                     goto again;
+                    break;
+#ifdef _WIN32
+                default:
+                    EHS_TRACE("NET_ERR: %d", err);
+                    break;
+#endif
             }
         }
     }
@@ -230,9 +258,12 @@ again:
 #endif	
                 buflen, flags|MSG_NOSIGNAL);
         if (ret < 0) {
-            switch (errno) {
+            switch (net_errno) {
                 case EAGAIN:
                 case EINTR:
+#ifdef _WIN32
+                case WSAEWOULDBLOCK:
+#endif
                     goto again;
             }
         }
@@ -242,7 +273,7 @@ again:
 
 void Socket::Close()
 {
-    if (-1 == m_fd)
+    if (INVALID_SOCKET == m_fd)
         return;
 #ifdef _WIN32
     closesocket(m_fd);
@@ -255,34 +286,32 @@ NetworkAbstraction *Socket::Accept()
 {
     string sError;
     socklen_t addrlen = sizeof(m_peer);
-#ifndef _WIN32
 retry:
-#endif
-    int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
+    ehs_socket_t fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
             reinterpret_cast<int *>(&addrlen) 
 #else
             &addrlen 
 #endif
             );
-    EHS_TRACE("Socket::Accept: Got a connection from %s:%hd\n",
+    EHS_TRACE("Socket::Accept: Got a connection from %s:%hu\n",
             GetAddress().c_str(), ntohs(m_peer.sin_port));
 
-#ifdef EHS_DEBUG
-    cerr
-        << "Got a connection from " << GetPeer() << endl;
-#endif
-    if (-1 == fd) {
-#ifndef _WIN32
-        switch (errno) {
+    if (INVALID_SOCKET == fd) {
+        switch (net_errno) {
             case EAGAIN:
             case EINTR:
+#ifdef _WIN32
+                case WSAEWOULDBLOCK:
+#endif
                 goto retry;
                 break;
         }
+        sError.assign("accept: ").append(net_strerror());
+#ifdef _WIN32
+        WSACleanup();
 #endif
-        sError.assign("accept: ");
-        throw runtime_error(sError.append(strerror(errno)));
+        throw runtime_error(sError);
         return NULL;
     }
     return new Socket(fd, &m_peer);

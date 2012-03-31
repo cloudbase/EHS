@@ -64,7 +64,7 @@ SecureSocket::SecureSocket (const std::string & certfile,
 #endif
 }
 
-SecureSocket::SecureSocket (SSL *ssl, int fd, sockaddr_in *peer) :
+SecureSocket::SecureSocket (SSL *ssl, ehs_socket_t fd, sockaddr_in *peer) :
     Socket(fd, peer),
     m_pSsl(ssl),
     m_sCertFile(""),
@@ -139,30 +139,32 @@ NetworkAbstraction *SecureSocket::Accept()
 {
     string sError;
     socklen_t addrlen = sizeof(m_peer);
-#ifndef _WIN32
 retry:
-#endif
-    int fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
+    ehs_socket_t fd = accept(m_fd, reinterpret_cast<sockaddr *>(&m_peer),
 #ifdef _WIN32
             reinterpret_cast<int *>(&addrlen) 
 #else
             &addrlen 
 #endif
             );
-    EHS_TRACE("SecureSocket::Accept: Got a connection from %s:%hd\n",
+    EHS_TRACE("SecureSocket::Accept: Got a connection from %s:%hu\n",
             GetAddress().c_str(), ntohs(m_peer.sin_port));
 
-    if (-1 == fd) {
-#ifndef _WIN32
+    if (INVALID_SOCKET == fd) {
         switch (errno) {
             case EAGAIN:
             case EINTR:
+#ifdef _WIN32
+                case WSAEWOULDBLOCK:
+#endif
                 goto retry;
                 break;
         }
+        sError.assign("accept: ").append(net_strerror());
+#ifdef _WIN32
+        WSACleanup();
 #endif
-        sError.assign("accept: ");
-        throw runtime_error(sError.append(strerror(errno)));
+        throw runtime_error(sError);
     }
 
     // TCP connection is ready. Do server side SSL.
@@ -171,24 +173,35 @@ retry:
         s_pSslError->GetError(sError);
 #ifdef _WIN32
         closesocket(fd);
+        WSACleanup();
 #else
         close(fd);
 #endif
         throw runtime_error(sError.insert(0, "Error while creating SSL session context: "));
     }
     SSL_set_fd(ssl, fd);
+retry_handshake:
     int ret = SSL_accept(ssl);
     if (1 != ret) {
+        ostringstream oss;
+        int sslerr = SSL_get_error(ssl, ret);
+        switch (sslerr) {
+            case SSL_ERROR_WANT_READ:
+            case SSL_ERROR_WANT_WRITE:
+            case SSL_ERROR_WANT_ACCEPT:
+                goto retry_handshake;
+                break;
+        }
         s_pSslError->GetError(sError);
-        sError.append(" from ");
-        sError.append(GetPeer());
+        oss << "Error during SSL handshake: " << sError
+            << " (SSL_err:" << sslerr << ") from " << GetPeer();
         SSL_free(ssl);
 #ifdef _WIN32
         closesocket(fd);
 #else
         close(fd);
 #endif
-        throw runtime_error(sError.insert(0, "Error during SSL handshake: "));
+        throw runtime_error(oss.str());
     }
 
     return new SecureSocket(ssl, fd, &m_peer);

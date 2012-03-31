@@ -4,10 +4,13 @@
 		transform= prefix=/ exec_prefix=/ libdir=/lib bindir=/bin \
 		datadir=/share includedir=/include install
 	cp -av $(top_builddir)/doc/html setupdir/doc
+	mkdir setupdir/samples
+	cp -av $(top_builddir)/samples/*.{c,cpp,h,txt} setupdir/samples
+	cp $(top_builddir)/samples/*.html setupdir/bin
 	touch $@
 
 .dlldeps: .setupdir findrequires.pl
-	env DEPDEBUG=1 perl findrequires.pl "$(DLLPATH)" setupdir/bin/*.{exe,dll} 2>$@|xargs cp -t setupdir/bin
+	env DEPDEBUG=1 perl findrequires.pl "$(DLLPATH)" setupdir/bin/*.{exe,dll} 2>$@|xargs --no-run-if-empty cp -t setupdir/bin
 	touch $@
 
 .stripsetup: .setupdir

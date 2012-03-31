@@ -56,13 +56,19 @@ Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 [CustomMessages]
 uninst_ehs=Uninstall EHS
 doc=Documentation
+exbrowse=Browse example directory
+binshell=Start shell in bin directory
 
 de.uninst_ehs=Deinstalliere EHS
 de.doc=Dokumentation
+de.exbrowse=Beispielverzeichnis ansehen
+de.binshell=Starte Kommandozeile im bin directory
 
 [Files]
 Source: setupdir\*; DestDir: {app}; Flags: recursesubdirs replacesameversion
 
 [Icons]
 Name: "{group}\{cm:doc}"; Filename: "{app}\doc\index.html";
+Name: "{group}\{cm:exbrowse}"; Filename: "{app}\samples";
+Name: "{group}\{cm:binshell}"; Filename: "{cmd}"; WorkingDir: "{app}\bin"
 Name: "{group}\{cm:uninst_ehs}"; Filename: "{uninstallexe}";
