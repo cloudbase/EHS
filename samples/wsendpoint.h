@@ -20,6 +20,12 @@
  */
 class MutexHelper {
     public:
+        /**
+         * Constructs a new instance.
+         * The associated mutex is locked by default.
+         * @param mutex The mutex to use.
+         * @param locknow false, if the mutex should not be locked initially
+         */
         MutexHelper(pthread_mutex_t *mutex, bool locknow = true) :
             m_pMutex(mutex), m_bLocked(false)
         {
@@ -27,18 +33,27 @@ class MutexHelper {
                 Lock();
         }
 
+        /**
+         * Unlocks the associated mutex.
+         */
         ~MutexHelper()
         {
             if (m_bLocked)
                 pthread_mutex_unlock(m_pMutex);
         }
 
+        /**
+         * Locks the associated mutex.
+         */
         void Lock()
         {
             pthread_mutex_lock(m_pMutex);
             m_bLocked = true;
         }
 
+        /**
+         * Unlocks the associated mutex.
+         */
         void Unlock()
         {
             m_bLocked = false;
@@ -56,17 +71,37 @@ class MutexHelper {
 namespace wspp {
     class wsendpoint;
 
+    /**
+     * Event handler interface for the server-side
+     * WebSockets endpoint.
+     *
+     * This class is used as the API for working with a server-side
+     * WebSockets endpoint. An application has to derive a specific
+     * implementation from this class, implementing the various pure
+     * virtual methods.
+     */
     class wshandler {
         public:
+            /**
+             * Send a text message to the remote client.
+             * @param data The payload to send.
+             */
             void send_text(const std::string data) {
                 send(data, frame::opcode::TEXT);
             }
 
+            /**
+             * Send a binary message to the remote client.
+             * @param data The payload to send.
+             */
             void send_binary(const std::string data) {
                 send(data, frame::opcode::BINARY);
             }
 
+            /// Constructor
             wshandler() : m_endpoint(0) {}
+
+            /// Destructor
             virtual ~wshandler() {}
 
         private:
@@ -85,8 +120,15 @@ namespace wspp {
             friend class wsendpoint;
     };
 
+    /**
+     * This class implements a server-side WebSockets endpoint.
+     */
     class wsendpoint {
         public:
+            /**
+             * Constructor
+             * @param h The corresponding wshandler instance.
+             */
             wsendpoint(wshandler *h)
                 : m_rng(simple_rng())
                   , m_parser(frame::parser<simple_rng>(m_rng))
@@ -108,6 +150,17 @@ namespace wspp {
             ~wsendpoint() { pthread_mutex_destroy(&m_lock); }
 #endif
 
+            /**
+             * Processes incoming data from the client.
+             * The incoming data is decoded, according to RFC6455.
+             * If any message is completely assembled, the on_message
+             * method of the corresponding wshandler is invoked. For
+             * internal replys (e.g. PONG responses) the do_response
+             * method of the corresponding wshandler is used. All other
+             * on_xxx methods are called when the corresponding events occur.
+             *
+             * @param data the raw data, received from the client.
+             */
             void AddRxData(std::string data)
             {
                 std::istringstream s(data);
@@ -160,6 +213,26 @@ namespace wspp {
                 }
             }
 
+            /**
+             * Send a data message.
+             * This method is invoked from the corresponding wshandler
+             * in order to send TEXT and BINARY payloads.
+             * @param payload The payload data.
+             * @param op The opcode according to RFC6455
+             */
+            void send(const std::string& payload, frame::opcode::value op) {
+                frame::parser<simple_rng> control(m_rng);
+                control.set_opcode(op);
+                control.set_fin(true);
+                control.set_masked(false);
+                control.set_payload(payload);
+
+                std::string tmp(control.get_header_str());
+                tmp.append(control.get_payload_str());
+                m_handler->do_response(tmp);
+            }
+
+        private:
             void process_data() {
                 m_handler->on_message(m_parser.get_header_str(), m_parser.get_payload_str());
             }
@@ -325,18 +398,6 @@ namespace wspp {
                     pl.append(local_close_reason);
                     control.set_payload(pl);
                 }
-
-                std::string tmp(control.get_header_str());
-                tmp.append(control.get_payload_str());
-                m_handler->do_response(tmp);
-            }
-
-            void send(const std::string& payload, frame::opcode::value op) {
-                frame::parser<simple_rng> control(m_rng);
-                control.set_opcode(op);
-                control.set_fin(true);
-                control.set_masked(false);
-                control.set_payload(payload);
 
                 std::string tmp(control.get_header_str());
                 tmp.append(control.get_payload_str());
