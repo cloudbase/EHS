@@ -61,6 +61,12 @@ static int64_t htonll(int64_t v) {
 #define ntohll(x) htonll(x)
 
 namespace tracing {
+
+    /**
+     * This class represents any errors in our WebSockets implementation.
+     * It is derived from tracing::exception in order to produce backtraces
+     * on platforms that have BFD or DWARF available.
+     */
     class wserror : public exception
     {
         public:
@@ -74,11 +80,25 @@ namespace tracing {
                 OUT_OF_MESSAGES = 6
             };
 
+            /**
+             * Constructor
+             * @param __arg The textual message for this instance.
+             * @param code The numeric error code for this instance.
+             */
             explicit wserror(const std::string& __arg, int code = wserror::FATAL_ERROR)
                 : exception(), msg(__arg) , ecode(code) { }
+            /// Destructor
             virtual ~wserror() throw() { }
+            /**
+             * Retrieve error message.
+             * @return the textual message of this instance.
+             */
             virtual const char* what() const throw()
             { return msg.c_str(); }
+            /**
+             * Retrieve error code.
+             * @return the numeric error code of this instance.
+             */
             virtual int code() const { return ecode; }
 
         private:
@@ -89,9 +109,17 @@ namespace tracing {
 
 namespace wspp {
 
+    /**
+     * A VERY simplistic random generator.
+     */
     class simple_rng {
         public:
+            /// Constructor
             simple_rng() : seed(::time(NULL)) { }
+            /**
+             * Generate a new random value.
+             * @return A random 32 bit int in the range 0..RAND_MAX
+             */
             int32_t gen() {
 #ifdef _WIN32
                 return ::rand();
@@ -126,6 +154,9 @@ namespace wspp {
 */
 
         template <class rng_policy>
+            /**
+             * The main parser/codec for our WebSockets implementation.
+             */
             class parser {
                 private:
                     // basic payload byte flags
@@ -146,7 +177,10 @@ namespace wspp {
                     static const uint64_t max_payload_size = 100000000; // 100MB
 
                 public:
-                    // create an empty frame for writing into
+                    /**
+                     * Constructor
+                     * @param rng The random number generator to be used with this instance.
+                     */
                     parser(rng_policy& rng)
                         : m_state(STATE_BASIC_HEADER)
                         , m_bytes_needed(BASIC_HEADER_LENGTH)
