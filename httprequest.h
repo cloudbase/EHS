@@ -159,7 +159,10 @@ class HttpRequest {
          */
         std::string Headers(const std::string & name)
         {
-            return m_oRequestHeaders[name];
+            if (m_oRequestHeaders.find(name) != m_oRequestHeaders.end()) {
+                return m_oRequestHeaders[name];
+            }
+            return std::string();
         }
 
         /**

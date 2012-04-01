@@ -123,6 +123,8 @@ int EHSServer::CreateFdSet()
         } else {
             EHS_TRACE("FD %d isn't reading anymore",
                     (*i)->GetNetworkAbstraction()->GetFd());
+            if (time(NULL) - (*i)->LastActivity() > (5 * m_nIdleTimeout)) {
+            }
         }
     }
     return (int)nHighestFd;
@@ -747,8 +749,6 @@ void EHSServer::CheckAcceptSocket ( )
             m_oEHSConnectionList.push_back(poEHSConnection);
             m_bAcceptedNewConnection = true;
         }
-        // Add the just created connection to our FD_SET
-        CreateFdSet();
         EHS_TRACE("Accepted new connection %p\n", poEHSConnection);
     } // end FD_ISSET ( )
 }
@@ -862,20 +862,24 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
 {
     MutexHelper mutex(&m_oMutex);
 
-    // only send it if the client isn't disconnected
-    if (Disconnected()) {
-        return;
-    }
 
-    HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
+    HttpResponse *response = dynamic_cast<HttpResponse *>(gresp);
     if (NULL == response) {
+        // only send it if the client isn't disconnected
+        if (Disconnected()) {
+            return;
+        }
         EHS_TRACE("Sending GENERIC response", "");
         mutex.Unlock();
         m_poNetworkAbstraction->Send(
                 reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
     } else {
-        EHS_TRACE("Sending HTTP response", "");
         ++m_nResponses;
+        // only send it if the client isn't disconnected
+        if (Disconnected()) {
+            return;
+        }
+        EHS_TRACE("Sending HTTP response", "");
         HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
         ostringstream oss;
         // add in the response code

@@ -41,6 +41,7 @@
 #include <cstring>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/regex.hpp>
+#include <boost/lexical_cast.hpp>
 
 using namespace std;
 
@@ -162,11 +163,12 @@ HttpRequest::ParseMultipartFormDataResult HttpRequest::ParseMultipartFormData ( 
     cerr << "looking for boundary in '" << m_oRequestHeaders["Content-Type"] << "'" << endl;
 #endif
     // find the boundary string
-    pcrecpp::RE re("multipart/[^;]+;[ ]*boundary=([^\"]+)$");
-    string sBoundary;
-    if (re.FullMatch(m_oRequestHeaders["Content-Type"], &sBoundary)) {
+    boost::regex re("multipart/[^;]+;[ ]*boundary=([^\"]+)$");
+    boost::smatch match;
+    if (boost::regex_match(m_oRequestHeaders["Content-Type"], match, re)) {
         // the actual boundary has two dashes prepended to it
-        sBoundary.insert(0, "--");
+        string sBoundary("--");
+        sBoundary.append(match[1]);
         string::size_type blen = sBoundary.length();
 
 #ifdef EHS_DEBUG
@@ -248,15 +250,18 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
     string sLine;
     string sName;
     string sValue;
+    boost::regex reHeader("^([^:\\s]+):\\s+(.*)\\r\\n$");
+    boost::regex reHeaderCont("^\\s+(.*)\\r\\n$");
+    boost::smatch match;
     bool bDone = false;
-    pcrecpp::RE reHeader("^([^:\\s]+):\\s+(.*)\\r\\n$");
-    pcrecpp::RE reHeaderCont("^\\s+(.*)\\r\\n$");
 
+    EHS_TRACE("called", "");
     while ( ! bDone &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_INVALIDREQUEST &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_COMPLETEREQUEST &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_INVALID ) {
 
+        EHS_TRACE("parsestate=%d", m_nCurrentHttpParseState);
         switch ( m_nCurrentHttpParseState ) {
 
             case HTTPPARSESTATE_REQUEST:
@@ -271,13 +276,12 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // if we got a line, look for a request line
 
                     // everything must be uppercase according to RFC 2616
-                    pcrecpp::RE_Options opt(PCRE_DOTALL);
-                    pcrecpp::RE re("^([A-Z]{3,8}) ([^ ]+) HTTP/(\\d+\\.\\d+)\\r\\n$" , opt);
-                    string muri;
-                    string mver;
-                    string mreq;
-                    if (re.FullMatch(sLine, &mreq, &muri, &mver)) {
-
+                    boost::regex re("^([A-Z]{3,8}) ([^ ]+) HTTP/(\\d+\\.\\d+)\\r\\n$");
+                    boost::smatch match;
+                    if (boost::regex_match(sLine, match, re, boost::match_single_line)) {
+                        string mreq(match[1]);
+                        string muri(match[2]);
+                        string mver(match[3]);
                         // get the info from the request line
                         m_nRequestMethod = GetRequestMethodFromString(mreq);
                         if (REQUESTMETHOD_UNKNOWN == m_nRequestMethod) {
@@ -313,11 +317,11 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // check to see if we're done with headers
 
                     // Check for WebSocket header and skip parsing body if found.
-                    if (MultivalHeaderContains(m_oRequestHeaders["connection"], "upgrade") &&
-                            MultivalHeaderContains(m_oRequestHeaders["upgrade"], "websocket")) {
+                    if (MultivalHeaderContains(Headers("connection"), "upgrade") &&
+                            MultivalHeaderContains(Headers("upgrade"), "websocket")) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
                     } else {
-                        m_bChunked = MultivalHeaderContains(m_oRequestHeaders["transfer-encoding"], "chunked");
+                        m_bChunked = MultivalHeaderContains(Headers("transfer-encoding"), "chunked");
                         // Not a WebSocket Header, proceed normally:
                         // if content length is found
                         if ((m_oRequestHeaders.find("Content-Length") !=
@@ -338,8 +342,10 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         ParseCookieData(m_oRequestHeaders["Cookie"]);
                     }
 
-                } else if (reHeader.FullMatch(sLine, &sName, &sValue)) {
-                    EHS_TRACE("header fullmatch", "");
+                } else if (boost::regex_match(sLine, match, reHeader)) {
+                    sName.assign(match[1]);
+                    sValue.assign(match[2]);
+                    EHS_TRACE("header fullmatch '%s' => '%s'", sName.c_str(), sValue.c_str());
                     // else if there is still data
 
                     boost::trim(sValue);
@@ -359,7 +365,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         }
                     }
                     m_sLastHeaderName = sName;
-                } else if (reHeaderCont.FullMatch(sLine, &sValue)) {
+                } else if (boost::regex_match(sLine, match, reHeaderCont)) {
+                    sValue.assign(match[1]);
                     EHS_TRACE("headerCont fullmatch", "");
                     // Header continuation using leading space
                     if (m_sLastHeaderName.empty()) {
@@ -460,15 +467,20 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // get the next line
                     sLine = GetNextLine(irsData);
                     if (!sLine.empty()) {
-                        string slen;
 #ifdef EHS_DEBUG
                         cerr << "[EHS_DEBUG] Look for chunk header in :'" << sLine << "'" << endl;
 #endif
-                        pcrecpp::RE_Options opt(PCRE_CASELESS);
-                        pcrecpp::RE reChunkHeader("^([\\da-f]+)[^\\r]*\\r\\n$", opt);
-                        if (reChunkHeader.FullMatch(sLine, &slen)) {
-                            unsigned long len;
-                            sscanf(slen.c_str(), "%lx", &len);
+                        boost::regex reChunkHeader("^([[:xdigit:]]+)[^\\r]*\\r\\n$");
+                        boost::smatch match;
+                        if (boost::regex_match(sLine, match, reChunkHeader)) {
+                            char *eptr = NULL;
+                            string tmp(match[1]);
+                            unsigned long len = strtoul(tmp.c_str(), &eptr, 16);
+                            if (eptr && (*eptr)) {
+                                m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                                continue;
+                            }
+
                             if (0 == len) {
                                 // Got end of chunked transfer
 #ifdef EHS_DEBUG
@@ -501,8 +513,13 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     }
 
                     // get the content length
-                    unsigned int nContentLength =
-                        atoi(m_oRequestHeaders["Content-Length"].c_str());
+                    unsigned int nContentLength = 0;
+                    try {
+                        boost::lexical_cast<unsigned int>(m_oRequestHeaders["Content-Length"]);
+                    } catch (const boost::bad_lexical_cast &e) {
+                        m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        continue;
+                    }
 
                     // else if we haven't gotten all the data we're looking for,
                     //   just hold off and try again when we get more
@@ -594,14 +611,13 @@ HttpRequest::~HttpRequest ( )
 string GetNextLine(string & buffer)
 {
     string ret;
-    pcrecpp::RE_Options opt(PCRE_MULTILINE|PCRE_DOTALL);
-    pcrecpp::RE re("^([^\\r]*\\r\\n)(.*)$", opt);
-    string mbuf;
-    if (re.FullMatch(buffer, &ret, &mbuf)) {
-        buffer = mbuf;
-    } else {
-        ret.clear();
+    size_t pos = buffer.find("\r\n");
+    if (string::npos != pos) {
+        pos += 2;
+        ret.assign(buffer.substr(0, pos));
+        buffer.erase(0, pos);
     }
+    EHS_TRACE("ret='%s'", ret.c_str());
     return ret;
 }
 
