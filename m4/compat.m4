@@ -75,3 +75,10 @@ else
   $1="$ac_cv_prog_$1"
 fi
 ])# AC_CHECK_TARGET_TOOL
+
+m4_ifndef([_AS_ECHO_LOG],[
+m4_define([_AS_ECHO_LOG],
+[_AS_ECHO([$as_me:$LINENO: $1], [AS_MESSAGE_LOG_FD])])])
+])
+m4_ifndef([_AC_DO_STDERR],[
+m4_define([_AC_DO_STDERR],[_AC_EVAL_STDERR($1)])])
