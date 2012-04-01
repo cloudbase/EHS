@@ -38,7 +38,7 @@
 #include "debug.h"
 #include "mutexhelper.h"
 
-#include <pcrecpp.h>
+#include <boost/regex.hpp>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -1001,12 +1001,11 @@ void EHS::HandleData(int inTimeoutMilliseconds)
 
 string GetNextPathPart(string &irsUri)
 {
-    string ret;
-    string newuri;
-    pcrecpp::RE re("^/{0,1}([^/]+)/(.*)$");
-    if (re.FullMatch(irsUri, &ret, &newuri)) {
-        irsUri = newuri;
-        return ret;
+    boost::regex re("^/{0,1}([^/]+)/(.*)$");
+    boost::smatch match;
+    if (boost::regex_match(irsUri, match, re)) {
+        irsUri = match[2];
+        return match[1];
     }
     return string("");
 }

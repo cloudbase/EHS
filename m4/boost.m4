@@ -48,6 +48,10 @@ m4_define([_BOOST_SERIAL], [m4_translit([
 m4_pattern_forbid([^_?(BOOST|Boost)_])
 m4_pattern_allow([BOOST_ROOT])
 m4_pattern_allow([BOOST_CPPFLAGS])
+m4_pattern_allow([BOOST_REGEX_LDPATH])
+m4_pattern_allow([BOOST_REGEX_LDFLAGS])
+m4_pattern_allow([BOOST_REGEX_LIBS])
+m4_pattern_allow([BOOST_LDPATH])
 
 
 # _BOOST_SED_CPP(SED-PROGRAM, PROGRAM,
