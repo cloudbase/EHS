@@ -138,18 +138,10 @@ class WsGate : public EHS
             string wsproto(request->Headers("Sec-WebSocket-Protocol"));
             string wsext(request->Headers("Sec-WebSocket-Extension"));
 
-            bool connok = false;
-            vector<string> conntokens;
-            boost::split(conntokens, wsconn, boost::is_any_of(", "));
-            for (vector<string>::iterator it = conntokens.begin(); conntokens.end() != it; ++it) {
-                if (0 != it->compare("upgrade")) {
-                    connok = true;
-                }
-            }
-            if (!connok) {
+            if (!MultivalHeaderContains(wsconn, "upgrade")) {
                 return HTTPRESPONSECODE_400_BADREQUEST;
             }
-            if (0 != wsupg.compare("websocket")) {
+            if (!MultivalHeaderContains(wsupg, "websocket")) {
                 return HTTPRESPONSECODE_400_BADREQUEST;
             }
             if (0 != wshost.compare(m_sHostname)) {
@@ -175,7 +167,7 @@ class WsGate : public EHS
             response->RemoveHeader("Last-Modified");
             response->RemoveHeader("Cache-Control");
 
-            if (0 != wsver.compare("13")) {
+            if (!MultivalHeaderContains(wsver, "13")) {
                 response->SetHeader("Sec-WebSocket-Version", "13");
                 return HTTPRESPONSECODE_426_UPGRADE_REQUIRED;
             }

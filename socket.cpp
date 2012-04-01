@@ -65,9 +65,8 @@
 const char *net_strerror() {
     static char ret[1024];
     int err = net_errno;
-    va_list args = NULL;
     if (!FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_FROM_HMODULE,
-            NULL, err, 0, ret, sizeof(ret), &args)) {
+            GetModuleHandleA("wsock32.dll"), err, 0, ret, sizeof(ret), NULL)) {
         snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
     }
     return ret;
@@ -294,7 +293,7 @@ retry:
             &addrlen 
 #endif
             );
-    EHS_TRACE("Socket::Accept: Got a connection from %s:%hu\n",
+    EHS_TRACE("Got a connection from %s:%hu\n",
             GetAddress().c_str(), ntohs(m_peer.sin_port));
 
     if (INVALID_SOCKET == fd) {

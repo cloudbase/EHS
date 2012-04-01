@@ -147,7 +147,7 @@ retry:
             &addrlen 
 #endif
             );
-    EHS_TRACE("SecureSocket::Accept: Got a connection from %s:%hu\n",
+    EHS_TRACE("Got a connection from %s:%hu\n",
             GetAddress().c_str(), ntohs(m_peer.sin_port));
 
     if (INVALID_SOCKET == fd) {

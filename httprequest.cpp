@@ -29,16 +29,53 @@
 
 #include "ehs.h"
 #include "ehsconnection.h"
+#include "debug.h"
 
 #include <pcrecpp.h>
 #include <string>
 #include <algorithm>
+#include <set>
 #include <iostream>
 #include <cstdio>
 #include <stdexcept>
 #include <cstring>
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/regex.hpp>
 
 using namespace std;
+
+bool MultivalHeaderContains(const std::string &header, const std::string &value)
+{
+    std::set<std::string> tokens;
+    boost::split_regex(tokens, boost::to_lower_copy(header), boost::regex(",\\s*"));
+    return (tokens.find(boost::to_lower_copy(value)) != tokens.end());
+}
+
+bool IsMultivalHeader(const std::string &header)
+{
+    static std::set<std::string> multivalHeaders;
+    if (multivalHeaders.empty()) {
+        multivalHeaders.insert("accept-charset");
+        multivalHeaders.insert("accept-encoding");
+        multivalHeaders.insert("accept-language");
+        multivalHeaders.insert("cache-control");
+        multivalHeaders.insert("connection");
+        multivalHeaders.insert("expect");
+        multivalHeaders.insert("if-match");
+        multivalHeaders.insert("if-none-match");
+        multivalHeaders.insert("pragma");
+        multivalHeaders.insert("sec-websocket-extensions");
+        multivalHeaders.insert("sec-websocket-protocol");
+        multivalHeaders.insert("sec-websocket-version");
+        multivalHeaders.insert("trailer");
+        multivalHeaders.insert("transfer-encoding");
+        multivalHeaders.insert("upgrade");
+        multivalHeaders.insert("via");
+    }
+    bool ret = multivalHeaders.find(boost::to_lower_copy(header)) != multivalHeaders.end();
+    EHS_TRACE("IsMultivalHeader (%s) returning %d", header.c_str(), ret);
+    return ret;
+}
 
 void HttpRequest::GetFormDataFromString ( const string & irsString ///< string to parse for form data
         )
@@ -48,9 +85,7 @@ void HttpRequest::GetFormDataFromString ( const string & irsString ///< string t
     string value;
     pcrecpp::StringPiece input(irsString);
     while (re.FindAndConsume(&input, &name, &value)) {
-#ifdef EHS_DEBUG
-        cerr << "[EHS_DEBUG] Info: Got form data: '" << name << "' => '" << value << "'" << endl;
-#endif
+        EHS_TRACE("Info: Got form data: '%s' => '%s'", name.c_str(), value.c_str());
         ContentDisposition oContentDisposition;
         m_oFormValueMap[name] = FormValue(value, oContentDisposition);
     }
@@ -82,9 +117,7 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
     string::size_type nBlankLinePosition = isSubbody.find("\r\n\r\n");
     // if there's no double blank line, then this isn't a valid subbody
     if (nBlankLinePosition == string::npos) {
-#ifdef EHS_DEBUG
-        cerr << "[EHS_DEUBG] Invalid subbody, couldn't find double blank line" << endl;
-#endif
+        EHS_TRACE("Invalid subbody, couldn't find double blank line", "");
         return PARSESUBBODY_INVALIDSUBBODY;
     }
     // create a string from the beginning to the blank line
@@ -101,11 +134,7 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
         pcrecpp::StringPiece nvp(sNameValuePairs);
         pcrecpp::RE nvre("[ ]?([^= ]+)=\"([^\"]+)\"[;]?");
         while (nvre.FindAndConsume(&nvp, &sName, &sValue)) {
-#ifdef EHS_DEBUG
-            cerr
-                << "[EHS_DEBUG] Info: Subbody header found: '"
-                << sName << "' => '" << sValue << "'" << endl;
-#endif
+            EHS_TRACE("Subbody header found: '%s' => '%s'", sName.c_str(), sValue.c_str());
             oStringCaseMap[sName] = sValue;
         }
 
@@ -117,9 +146,7 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
         roFormValue.m_sBody = isSubbody.substr(nBlankLinePosition + 4);
     } else {
         // couldn't find content-disposition line -- FATAL ERROR
-#ifdef EHS_DEBUG
-        cerr << "[EHS_DEBUG] Error: Couldn't find content-disposition line" << endl;
-#endif
+        EHS_TRACE("ERROR: Couldn't find content-disposition line", "");
         return PARSESUBBODY_INVALIDSUBBODY;
     }
     return PARSESUBBODY_SUCCESS;
@@ -222,7 +249,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
     string sName;
     string sValue;
     bool bDone = false;
-    pcrecpp::RE reHeader("^([^:]*):\\s+(.*)\\r\\n$");
+    pcrecpp::RE reHeader("^([^:\\s]+):\\s+(.*)\\r\\n$");
+    pcrecpp::RE reHeaderCont("^\\s+(.*)\\r\\n$");
 
     while ( ! bDone &&
             m_nCurrentHttpParseState != HTTPPARSESTATE_INVALIDREQUEST &&
@@ -285,10 +313,11 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // check to see if we're done with headers
 
                     // Check for WebSocket header and skip parsing body if found.
-                    if ((0 == strcasecmp(m_oRequestHeaders["connection"].c_str(), "upgrade")) &&
-                            (0 == strcasecmp(m_oRequestHeaders["upgrade"].c_str(), "websocket"))) {
+                    if (MultivalHeaderContains(m_oRequestHeaders["connection"], "upgrade") &&
+                            MultivalHeaderContains(m_oRequestHeaders["upgrade"], "websocket")) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_COMPLETEREQUEST;
                     } else {
+                        m_bChunked = MultivalHeaderContains(m_oRequestHeaders["transfer-encoding"], "chunked");
                         // Not a WebSocket Header, proceed normally:
                         // if content length is found
                         if ((m_oRequestHeaders.find("Content-Length") !=
@@ -302,6 +331,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // if this is an HTTP/1.1 request, then it MUST have a Host: header
                     if (m_sHttpVersionNumber == "1.1" &&
                             m_oRequestHeaders.find("Host") == m_oRequestHeaders.end()) {
+                        EHS_TRACE("Missing Host header in HTTP/1.1 request", "");
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                     }
                     if (m_oRequestHeaders.find("Cookie") != m_oRequestHeaders.end()) {
@@ -309,18 +339,41 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     }
 
                 } else if (reHeader.FullMatch(sLine, &sName, &sValue)) {
+                    EHS_TRACE("header fullmatch", "");
                     // else if there is still data
 
-                    if (sName == "Transfer-Encoding" && sValue == "chunked") {
-                        m_bChunked = true;
+                    boost::trim(sValue);
+                    if (m_oRequestHeaders.end() == m_oRequestHeaders.find(sName)) {
+                        m_oRequestHeaders[sName] = sValue;
+                    } else {
+                        // Multiple header of same name (RFC2616, Section 4.2)
+                        // Check, if specific header is allowed (defined as comma-sparated
+                        // multi-value header.
+                        if (!IsMultivalHeader(sName)) {
+                            EHS_TRACE("Multi-Value for %s not allowed", sName.c_str());
+                            m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                            bDone = true;
+                        } else {
+                            string tmp(m_oRequestHeaders[sName].append(", ").append(sValue));
+                            m_oRequestHeaders[sName] = tmp;
+                        }
                     }
-                    m_oRequestHeaders[sName] = sValue;
+                    m_sLastHeaderName = sName;
+                } else if (reHeaderCont.FullMatch(sLine, &sValue)) {
+                    EHS_TRACE("headerCont fullmatch", "");
+                    // Header continuation using leading space
+                    if (m_sLastHeaderName.empty()) {
+                        EHS_TRACE("Header-Continuation without preceeding Header", "");
+                        m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
+                        bDone = true;
+                    } else {
+                        boost::trim(sValue);
+                        string tmp(m_oRequestHeaders[m_sLastHeaderName].append(" ").append(sValue));
+                        m_oRequestHeaders[m_sLastHeaderName] = tmp;
+                    }
                 } else {
                     // else we had some sort of error -- bail out
-
-#ifdef EHS_DEBUG
-                    cerr << "[EHS_DEBUG] Error: Invalid header line: '" << sLine << "'" << endl;
-#endif
+                    EHS_TRACE("Invalid header line: '%s'", sLine.c_str());
                     m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                     bDone = true;
                 }
@@ -514,6 +567,7 @@ HttpRequest::HttpRequest (int inRequestId,
     m_sOriginalUri(""),
     m_sHttpVersionNumber(""),
     m_sBody(""),
+    m_sLastHeaderName(""),
     m_bSecure(false),
     m_oRequestHeaders(StringCaseMap()),
     m_oFormValueMap(FormValueMap()),

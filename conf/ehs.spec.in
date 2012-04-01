@@ -1,7 +1,7 @@
 # Build-time configuration
 # 
 %define with_specialstderr %{?_with_specialstderr: 1} %{?!_with_specialstderr: 0}
-# use wxWidgets static libs
+# use static SSL libs
 %define with_staticssl %{?_with_staticssl: 1} %{?!_with_staticssl: 0}
 
 Summary: Embedded HTTP server

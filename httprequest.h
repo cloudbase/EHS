@@ -257,6 +257,9 @@ class HttpRequest {
         /// Binary data, not NULL terminated
         std::string m_sBody; 
 
+        /// Name of last HTTP header seen.
+        std::string m_sLastHeaderName;
+
         /// whether or not this came over secure channels
         bool m_bSecure;
 
@@ -301,5 +304,21 @@ std::string GetNextLine(std::string & buffer);
  * @return The corresponding numeric value, or REQUESTMETHOD_UNKNOW, if there was no match.
  */
 RequestMethod GetRequestMethodFromString(const std::string & method);
+
+/**
+ * Classifies HTTP headers by multi-value definition.
+ * @param header A header name to be classified.
+ * @return true, if the header is defined in RFC to
+ *   allow multiple comma-separated values.
+ */
+bool IsMultivalHeader(const std::string &header);
+
+/**
+ * Find a single value in a multi-value (comma separated) header.
+ * @param header The comma separated multi-value header.
+ * @param value The value to find
+ * @return true, if value was found (case insensitive).
+ */
+bool MultivalHeaderContains(const std::string &header, const std::string &value);
 
 #endif // HTTPREQUEST_H

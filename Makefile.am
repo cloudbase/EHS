@@ -21,7 +21,7 @@ libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
 	httpresponse.cpp httprequest.cpp formvalue.cpp osdep.cpp \
 	ehstypes.h
 libehs_la_LDFLAGS = -no-undefined -version-number $(LIBVERSION)
-libehs_la_LIBADD = $(LIBEHS_RES)
+libehs_la_LIBADD = $(LIBEHS_RES) $(BOOST_REGEX_LIBS)
 libehs_la_DEPENDENCIES = $(LIBEHS_RES)
 EXTRA_libehs_la_SOURCES = ehsrc.rc
 

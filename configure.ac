@@ -244,7 +244,9 @@ fe_CHECK_FLAG([C++],[CXXFLAGS],[-fno-strict-aliasing])
 CXXFLAGS="$CXXFLAGS $ac_checked_CXXFLAGS"
 
 dnl Check for boost minimum version
+BOOST_STATIC
 BOOST_REQUIRE([1.33.1])
+BOOST_REGEX([mt])
 
 dnl Check for boost::lock_guard
 
