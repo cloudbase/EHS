@@ -44,7 +44,7 @@ export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
      --enable-static --with-ssl=/opt/openssl-static
 %endif
 
-%{__make} %{?_smp_mflags}
+%{__make} %{?_smp_mflags} V=1
 
 %install
 %{__rm} -rf %{buildroot}
