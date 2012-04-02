@@ -317,6 +317,7 @@ case $target_os in
         PLATFORMDIST=setup
         INSTALL_SAMPLES='$(noinst_PROGRAMS)'
         if test "$build_os" = "$target_os" ; then
+            SETUP=nativesetup
             DLLPATH="$PATH"
             AC_ARG_WITH([iscc],
                         AS_HELP_STRING([--with-iscc=PATH],[Override ISCC path. (native mingw only)]),
@@ -325,10 +326,9 @@ case $target_os in
             if test -z "$ISCC" ; then
                 AC_MSG_WARN([InnoSetup compiler is missing, therefore no Setup will be built!])
                 SETUP=
-            else
-                SETUP=nativesetup
             fi
         else
+            SETUP=crosssetup
             if test -z "$ac_cv_dllpath" ; then
                 AC_MSG_WARN([No --with-dllpath option specified, therefore no Setup will be built!])
                 SETUP=
@@ -347,8 +347,6 @@ case $target_os in
                     if test -z "$WINE" ; then
                         AC_MSG_WARN([wine is not available, therefore no Setup will be built!])
                         SETUP=
-                    else
-                        SETUP=crosssetup
                     fi
                 fi
             fi
