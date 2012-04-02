@@ -19,6 +19,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(id -u -n)
 
 BuildArch:      noarch
 
+Buildrequires:  doxygen, graphviz, automake, libtool
 BuildRequires:  mingw32-filesystem >= 49
 BuildRequires:  mingw32-gcc-c++
 BuildRequires:  mingw32-binutils

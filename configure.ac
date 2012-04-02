@@ -51,6 +51,7 @@ LT_INIT([win32-dll pic-only])
 case $target_os in
     mingw*)
         LT_LANG([RC])
+        AC_CHECK_TOOL(RC,windres,)
         ;;
 esac
 ],[
@@ -60,6 +61,7 @@ case $target_os in
     mingw*)
         tagnames="RC"
         _LT_AC_TAGCONFIG
+        AC_CHECK_TOOL(RC,windres,)
         ;;
 esac
 ])
