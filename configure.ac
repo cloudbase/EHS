@@ -369,6 +369,6 @@ DX_PS_FEATURE(OFF)
 DX_INIT_DOXYGEN([EHS], [conf/doxygen.cfg], [doc])
 
 AC_CONFIG_FILES([Makefile samples/Makefile setup/Makefile
-                 conf/doxygen.cfg doc/manual.dox conf/ehs.spec
+                 conf/doxygen.cfg doc/manual.dox conf/ehs.spec conf/mingw32-ehs.spec
                  setup/findrequires.pl setup/isccwrap.sh ehsrc.rc ehstypes.h])
 AC_OUTPUT
