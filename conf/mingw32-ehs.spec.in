@@ -9,8 +9,8 @@
 
 Summary: Embedded HTTP server
 Name:    mingw32-%{xname}
-Version: 1.5.0
-Release: 104
+Version: @VERSION@
+Release: @SVNREV@
 License: LGPL
 Group: Development/Libraries
 URL: http://sourceforge.net/projects/ehs/
