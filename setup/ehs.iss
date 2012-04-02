@@ -8,7 +8,7 @@
 #define APPEXE "setupdir\bin\libehs-1.dll"
 #include "version.iss"
 
-#define APPIDSTR "{56D797D7-543C-408F-BBEB-B56787873D2F}"
+#define APPIDSTR "{3CA40ED6-5F8E-40E2-930B-5CF87F3BD2CF}"
 #define APPIDVAL "{" + APPIDSTR
 
 [Setup]
