@@ -330,22 +330,26 @@ case $target_os in
             fi
         else
             if test -z "$ac_cv_dllpath" ; then
-                AC_MSG_ERROR([Need --with-dllpath option on mingw32 crossbuild])
+                AC_MSG_WARN([No --with-dllpath option specified, therefore no Setup will be built!])
+                SETUP=
+            else
+                DLLPATH="$ac_cv_dllpath"
             fi
-            DLLPATH="$ac_cv_dllpath"
             AC_ARG_WITH([wine-iscc],
                         AS_HELP_STRING([--with-wine-iscc=PATH],[Path of ISCC to be run under wine. (mingw32 crossbuild only)]),
                         [ISCC="$withval"])
-            if test -z "$ISCC" ; then
-                AC_MSG_WARN([InnoSetup compiler is missing, therefore no Setup will be built!])
-                SETUP=
-            else
-                AC_PATH_PROG([WINE],[wine],[""],[$PATH])
-                if test -z "$WINE" ; then
-                    AC_MSG_WARN([wine is not available, therefore no Setup will be built!])
+            if test -n "$SETUP" ; then
+                if test -z "$ISCC" ; then
+                    AC_MSG_WARN([InnoSetup compiler is missing, therefore no Setup will be built!])
                     SETUP=
                 else
-                    SETUP=crosssetup
+                    AC_PATH_PROG([WINE],[wine],[""],[$PATH])
+                    if test -z "$WINE" ; then
+                        AC_MSG_WARN([wine is not available, therefore no Setup will be built!])
+                        SETUP=
+                    else
+                        SETUP=crosssetup
+                    fi
                 fi
             fi
         fi
