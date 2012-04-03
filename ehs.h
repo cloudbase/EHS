@@ -67,7 +67,21 @@ class RawSocketHandler {
          * @param data The received data.
          * @return true, if the connection should be kept open.
          */
-        virtual bool OnData(EHSConnection &conn, std::string data) = 0;
+        virtual bool OnData(EHSConnection *conn, std::string data) = 0;
+
+        /**
+         * Handle connect event.
+         * Called by EHS, if an EHSConnection has switched into raw mode.
+         * @param conn The EHSConnection on which the event has happened.
+         */
+        virtual void OnConnect(EHSConnection *conn) { }
+
+        /**
+         * Handle disconnect event.
+         * Called by EHS, if an EHSConnection is about to be closed.
+         * @param conn The EHSConnection on which the event has happened.
+         */
+        virtual void OnDisconnect(EHSConnection *conn) { }
 
         virtual ~RawSocketHandler ( ) { }
 };

@@ -143,7 +143,12 @@ class EHSConnection {
         /// adds new data to psBuffer
         AddBufferResult AddBuffer(char * ipsData, int inSize);
 
-        /// sends the actual data back to the client
+        /**
+         * Sends the actual data back to the client
+         * @param response Pointer to the response to be sent.
+         * If the pointer is <b>not</b> up-castable to HttpResponse <b>and</b>
+         * the body is empty, then a close of this connection will be triggered.
+         */ 
         void SendResponse(GenericResponse *response);
 
         /// returns true of httprequestlist is not empty

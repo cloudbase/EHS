@@ -157,7 +157,7 @@ void EHSServer::RemoveFinishedConnections ( )
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); ) {
         if ((*i)->CheckDone()) {
-            EHS_TRACE("Found something to delete", "");
+            EHS_TRACE("Found connection to delete: %p", *i);
             RemoveEHSConnection(*i);
             i = m_oEHSConnectionList.begin();
         } else {
@@ -195,6 +195,12 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
 
 EHSConnection::~EHSConnection()
 {
+    if (m_bRawMode) {
+        RawSocketHandler *rsh = m_poEHSServer->m_poTopLevelEHS->GetRawSocketHandler();
+        if (rsh) {
+            rsh->OnDisconnect(this);
+        }
+    }
     delete m_poCurrentHttpRequest;
     delete m_poNetworkAbstraction;
     pthread_mutex_destroy(&m_oMutex);
@@ -208,7 +214,7 @@ NetworkAbstraction *EHSConnection::GetNetworkAbstraction()
 
 
 // adds data to the current buffer for this connection
-EHSConnection::AddBufferResult
+    EHSConnection::AddBufferResult
 EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
         int inSize ///< size of new data
         )
@@ -504,8 +510,6 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
         throw invalid_argument("EHSServer::RemoveEHSConnection: argument is NULL");
     }
     bool removed = false;
-    EHS_TRACE("Look for something to delete within a list of %d connections",
-            m_oEHSConnectionList.size ( ) );
     // go through the list and find all occurances of ipoEHSConnection
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); /* no third part */) {
@@ -522,6 +526,7 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
             i++;
         }
     }
+    EHS_TRACE("%d connections remaining", m_oEHSConnectionList.size());
 }
 
 bool EHS::ThreadInitHandler()
@@ -773,7 +778,7 @@ void EHSServer::CheckClientSockets ( )
                         EHS_TRACE("$$$$$ Got RAW data: len=%d", nBytesReceived);
                     }
                     if (sh && (0 < nBytesReceived)) {
-                        if (! sh->OnData(**i, string(buf, nBytesReceived))) {
+                        if (! sh->OnData(*i, string(buf, nBytesReceived))) {
                             (*i)->DoneReading(false);
                         }
                     }
@@ -847,7 +852,6 @@ void EHSConnection::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
     // push the object on to the list
     m_oResponseQueue.push_back(ehs_move(response));
     while (!m_oResponseQueue.empty()) {
-        --m_nActiveRequests;
         mutex.Unlock();
         SendResponse(m_oResponseQueue.front().get());
         mutex.Lock();
@@ -862,18 +866,24 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
 {
     MutexHelper mutex(&m_oMutex);
 
-
     HttpResponse *response = dynamic_cast<HttpResponse *>(gresp);
     if (NULL == response) {
         // only send it if the client isn't disconnected
         if (Disconnected()) {
             return;
         }
-        EHS_TRACE("Sending GENERIC response", "");
+        size_t len = gresp->GetBody().length();
         mutex.Unlock();
-        m_poNetworkAbstraction->Send(
-                reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
+        if (0 < len) {
+            EHS_TRACE("Sending GENERIC response", "");
+            m_poNetworkAbstraction->Send(
+                    reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
+        } else {
+            // Special case: "sending" a zero-sized body triggers a close.
+            DoneReading(false);
+        }
     } else {
+        --m_nActiveRequests;
         ++m_nResponses;
         // only send it if the client isn't disconnected
         if (Disconnected()) {
@@ -910,6 +920,10 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
             EHS_TRACE("Switching connection to RAW mode", "");
             m_bRawMode = true;
+            RawSocketHandler *rsh = m_poEHSServer->m_poTopLevelEHS->GetRawSocketHandler();
+            if (rsh) {
+                rsh->OnConnect(this);
+            }
             return;
         }
 

@@ -254,6 +254,8 @@ class MyWsHandler : public wspp::wshandler
     }
     virtual void on_close() {
         cerr << "GOT Close" << endl;
+        ehs_autoptr<GenericResponse> r(new GenericResponse(0, m_econn));
+        m_ehs->AddResponse(ehs_move(r));
     }
     virtual bool on_ping(const std::string data) {
         cerr << "GOT Ping: '" << data << "'" << endl;
@@ -285,17 +287,35 @@ class MyRawSocketHandler : public RawSocketHandler
           , m_hmap(handler_map())
     { }
 
-    virtual bool OnData(EHSConnection &conn, std::string data)
+    virtual bool OnData(EHSConnection *conn, std::string data)
     {
-        conn_ptr c;
-        if (m_cmap.end() == m_cmap.find(&conn)) {
-            handler_ptr h(new MyWsHandler(&conn, m_parent));
-            conn_ptr c(new wspp::wsendpoint(h.get()));
-            m_hmap[&conn] = h;
-            m_cmap[&conn] = c;
+        if (m_cmap.end() != m_cmap.find(conn)) {
+            m_cmap[conn]->AddRxData(data);
+            return true;
         }
-        m_cmap[&conn]->AddRxData(data);
-        return true;
+        return false;
+    }
+
+    virtual void OnConnect(EHSConnection *conn)
+    {
+        cerr << "GOT WS CONNECT" << endl;
+        handler_ptr h(new MyWsHandler(conn, m_parent));
+        conn_ptr c(new wspp::wsendpoint(h.get()));
+        m_hmap[conn] = h;
+        m_cmap[conn] = c;
+    }
+
+    virtual void OnDisconnect(EHSConnection *conn)
+    {
+        cerr << "GOT WS DISCONNECT" << endl;
+        conn_map::iterator ic = m_cmap.find(conn);
+        if (m_cmap.end() != ic) {
+            m_cmap.erase(ic);
+        }
+        handler_map::iterator ih = m_hmap.find(conn);
+        if (m_hmap.end() != ih) {
+            m_hmap.erase(ih);
+        }
     }
 
     private:
