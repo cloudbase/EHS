@@ -36,6 +36,7 @@ data via POST or GET, and uploads via multi-part form attachments.
 %package devel
 Summary: Embedded HTTP server
 Group: Development/Libraries
+Requires mingw32-%{xname} = %{version}-%{release}
 
 %description devel
 Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
