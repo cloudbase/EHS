@@ -182,8 +182,10 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
     m_sBuffer(""),
     m_oResponseQueue(ResponseQueue()),
     m_oHttpRequestList(HttpRequestList()),
-    m_sAddress(ipoNetworkAbstraction->GetAddress()),
-    m_nPort(ipoNetworkAbstraction->GetPort()),
+    m_sRemoteAddress(ipoNetworkAbstraction->GetRemoteAddress()),
+    m_sLocalAddress(ipoNetworkAbstraction->GetLocalAddress()),
+    m_nRemotePort(ipoNetworkAbstraction->GetRemotePort()),
+    m_nLocalPort(ipoNetworkAbstraction->GetLocalPort()),
     m_nMaxRequestSize(MAX_REQUEST_SIZE_DEFAULT),
     m_oMutex(pthread_mutex_t())
 {

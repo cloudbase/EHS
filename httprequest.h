@@ -68,13 +68,39 @@ class HttpRequest {
          * Retrieves the peer's IP address.
          * @return The IP address of the peer that sent this request as dot-quad.
          */
-        std::string Address();
+        std::string RemoteAddress();
 
         /**
          * Retrieves the peer's port.
          * @return The peer port that sent this request.
          */
-        int Port();
+        int RemotePort();
+
+        /**
+         * Retrieves the local IP address.
+         * @return The local IP address where this request was received as dot-quad.
+         */
+        std::string LocalAddress();
+
+        /**
+         * Retrieves the local port.
+         * @return The local port where this request was received.
+         */
+        int LocalPort();
+
+        /**
+         * Retrieves the peer's IP address.
+         * @return The IP address of the peer that sent this request as dot-quad.
+         * @deprecated Use RemoteAddress()
+         */
+        DEPRECATED("Use RemoteAddress()") std::string Address() { return RemoteAddress(); }
+
+        /**
+         * Retrieves the peer's port.
+         * @return The peer port that sent this request.
+         * @deprecated Use RemotePort()
+         */
+        DEPRECATED("Use RemotePort()") int Port() { return RemotePort(); }
 
         /**
          * Retrieves this request's Id.

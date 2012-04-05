@@ -97,6 +97,8 @@ Socket::Socket(ehs_socket_t fd, sockaddr_in * peer) :
 {
     memcpy(&m_peer, peer, sizeof(m_peer));
     memset(&m_bindaddr, 0, sizeof(m_bindaddr));
+    socklen_t len = sizeof(m_bindaddr);
+    getsockname(fd, reinterpret_cast<struct sockaddr *>(&m_bindaddr), &len);
 }
 
 Socket::~Socket()
@@ -294,7 +296,7 @@ retry:
 #endif
             );
     EHS_TRACE("Got a connection from %s:%hu\n",
-            GetAddress().c_str(), ntohs(m_peer.sin_port));
+            GetRemoteAddress().c_str(), ntohs(m_peer.sin_port));
 
     if (INVALID_SOCKET == fd) {
         switch (net_errno) {
@@ -319,13 +321,13 @@ retry:
 string Socket::GetPeer() const
 {
     char buf[20];
-    string ret(GetAddress());
-    snprintf(buf, 20, ":%d", GetPort());
+    string ret(GetRemoteAddress());
+    snprintf(buf, 20, ":%d", GetRemotePort());
     ret.append(buf);
     return ret;
 }
 
-string Socket::GetAddress() const
+string Socket::GetRemoteAddress() const
 {
     struct in_addr in;
     memcpy (&in, &m_peer.sin_addr.s_addr, sizeof(in));
@@ -333,7 +335,20 @@ string Socket::GetAddress() const
 }
 
 
-int Socket::GetPort() const
+int Socket::GetRemotePort() const
 {
     return ntohs(m_peer.sin_port);
 }
+
+string Socket::GetLocalAddress() const
+{
+    struct in_addr in;
+    memcpy (&in, &m_bindaddr.sin_addr.s_addr, sizeof(in));
+    return string(inet_ntoa(in));
+}
+
+int Socket::GetLocalPort() const
+{
+    return ntohs(m_bindaddr.sin_port);
+}
+

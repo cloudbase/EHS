@@ -66,16 +66,42 @@ class NetworkAbstraction {
          * Retrieves the peer address.
          * @return The address of the connected peer in quad-dotted format.
          */
-        virtual std::string GetAddress() const = 0;
+        virtual std::string GetRemoteAddress() const = 0;
 
         /**
          * Retrieves the peer's port of a connection.
          * @return The peer port.
          */
-        virtual int GetPort() const = 0;
+        virtual int GetRemotePort() const = 0;
 
         /**
-         * Combination of GetAddress and GetPort.
+         * Retrieves the peer address.
+         * @return The address of the connected peer in quad-dotted format.
+         */
+        virtual std::string GetLocalAddress() const = 0;
+
+        /**
+         * Retrieves the peer's port of a connection.
+         * @return The peer port.
+         */
+        virtual int GetLocalPort() const = 0;
+
+        /**
+         * Retrieves the peer address.
+         * @return The address of the connected peer in quad-dotted format.
+         * @deprecated Use GetRemoteAddress()
+         */
+        DEPRECATED("Use GetRemoteAddress()") virtual std::string GetAddress() const { return GetRemoteAddress(); }
+
+        /**
+         * Retrieves the peer's port of a connection.
+         * @return The peer port.
+         * @deprecated Use GetRemotePort()
+         */
+        DEPRECATED("Use GetRemotePort()") virtual int GetPort() const { return GetRemotePort(); }
+
+        /**
+         * Combination of GetRemoteAddress and GetRemotePort.
          * @return The address of the connected peer in quad-dotted format,
          *   followed by the port, separated by a colon.
          */

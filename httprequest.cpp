@@ -78,17 +78,25 @@ bool IsMultivalHeader(const std::string &header)
     return ret;
 }
 
-void HttpRequest::GetFormDataFromString ( const string & irsString ///< string to parse for form data
-        )
+void HttpRequest::GetFormDataFromString(const string & irsString)
 {
-    pcrecpp::RE re("[?]?([^?=]*)=([^&]*)&?");
-    string name;
-    string value;
-    pcrecpp::StringPiece input(irsString);
-    while (re.FindAndConsume(&input, &name, &value)) {
+    boost::regex re("[?]?([^?=]*)=([^&]*)&?");
+
+    std::string::const_iterator start, end; 
+    start = irsString.begin(); 
+    end = irsString.end(); 
+    boost::match_results<string::const_iterator> res; 
+    boost::match_flag_type flags = boost::match_default; 
+    while (regex_search(start, end, res, re, flags)) { 
+        string name(res[1].first, res[1].second);
+        string value(res[2].first,res[2].second); 
+        start = res[0].second; 
         EHS_TRACE("Info: Got form data: '%s' => '%s'", name.c_str(), value.c_str());
         ContentDisposition oContentDisposition;
         m_oFormValueMap[name] = FormValue(value, oContentDisposition);
+        // update flags: 
+        flags |= boost::match_prev_avail; 
+        flags |= boost::match_not_bob;
     }
 }
 
@@ -224,18 +232,24 @@ HttpRequest::ParseMultipartFormDataResult HttpRequest::ParseMultipartFormData ( 
 //   everything after the : gets passed in in irsData
 int HttpRequest::ParseCookieData(string & irsData)
 {
-#ifdef EHS_DEBUG
-    cerr << "looking for cookies in '" << irsData << "'" << endl;
-#endif
     int ccount = 0;
+    boost::regex re("\\s*([^=]+)=([^;]+)(;|$)*");
+    std::string::const_iterator start, end; 
 
-    pcrecpp::RE re("\\s*([^=]+)=([^;]+)(;|$)*");
-    pcrecpp::StringPiece input(irsData);
-    string name;
-    string value;
-    while (re.FindAndConsume(&input, &name, &value)) {
+    EHS_TRACE("Looking for cookie data in '%s'", irsData.c_str());
+    start = irsData.begin(); 
+    end = irsData.end(); 
+    boost::match_results<string::const_iterator> res; 
+    boost::match_flag_type flags = boost::match_default; 
+    while (regex_search(start, end, res, re, flags)) { 
+        string name(res[1].first, res[1].second);
+        string value(res[2].first,res[2].second); 
+        start = res[0].second; 
         m_oCookieMap[name] = value;
         ccount++;
+        // update flags: 
+        flags |= boost::match_prev_avail; 
+        flags |= boost::match_not_bob;
     }
     return ccount;
 }
@@ -638,14 +652,25 @@ RequestMethod GetRequestMethodFromString(const string &method)
     return (methods.end() == i) ? REQUESTMETHOD_UNKNOWN : i->second;
 }
 
-string HttpRequest::Address()
+string HttpRequest::RemoteAddress()
 {
-    return m_poSourceEHSConnection->GetAddress();
+    return m_poSourceEHSConnection->GetRemoteAddress();
 }
 
-int HttpRequest::Port()
+int HttpRequest::RemotePort()
 {
-    return m_poSourceEHSConnection->GetPort();
+    return m_poSourceEHSConnection->GetRemotePort();
+}
+
+
+string HttpRequest::LocalAddress()
+{
+    return m_poSourceEHSConnection->GetLocalAddress();
+}
+
+int HttpRequest::LocalPort()
+{
+    return m_poSourceEHSConnection->GetLocalPort();
 }
 
 

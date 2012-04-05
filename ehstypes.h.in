@@ -66,6 +66,8 @@ struct __caseless
 # define ehs_rvref
 #endif
 
+@DEFINE_DEPRECATED@
+
 #ifdef _WIN32
 #include <pthread.h>
 typedef unsigned long ehs_threadid_t;

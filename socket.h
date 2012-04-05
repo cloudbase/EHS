@@ -126,9 +126,13 @@ class Socket : public NetworkAbstraction {
 
     protected:
 
-        int GetPort() const;
+        int GetLocalPort() const;
 
-        std::string GetAddress() const;
+        int GetRemotePort() const;
+
+        std::string GetLocalAddress() const;
+
+        std::string GetRemoteAddress() const;
 
         std::string GetPeer() const;
 

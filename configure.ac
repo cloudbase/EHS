@@ -278,6 +278,22 @@ void mv(std::unique_ptr<foo>p) { int v = p->bar; }]],
 AC_LANG_POP
 AC_SUBST([USE_UNIQUE_PTR])
 
+dnl Check for availability of the deprecated attribute
+DEFINE_DEPRECATED='#define DEPRECATED(x)'
+AC_MSG_CHECKING([for availability of __attribute__((deprecated))])
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([
+AC_LANG_PROGRAM([[static void foo() {} __attribute__((deprecated ("message")))]],[[foo()]])],[
+    DEFINE_DEPRECATED='#define DEPRECATED(x) __attribute__((deprecated (x)))'
+    AC_MSG_RESULT([yes])],[
+        AC_COMPILE_IFELSE([
+            AC_LANG_PROGRAM([[static void foo() {} __attribute__((deprecated))]],[[foo()]])],[
+            DEFINE_DEPRECATED='#define DEPRECATED(x) __attribute__((deprecated))'
+            AC_MSG_RESULT([yes])],[AC_MSG_RESULT([no])])
+])
+AC_LANG_POP
+AC_SUBST(DEFINE_DEPRECATED)
+
 dnl findrequires.pl script
 AC_CHECK_TARGET_TOOL([OBJDUMP],[objdump],[no])
 case ${OBJDUMP}-${target_os} in

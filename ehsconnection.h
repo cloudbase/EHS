@@ -76,11 +76,17 @@ class EHSConnection {
         /// holds pending requests
         HttpRequestList m_oHttpRequestList;
 
-        /// address from which the connection originated
-        std::string m_sAddress;
+        /// remote address from which the connection originated
+        std::string m_sRemoteAddress;
+
+        /// local address from which the connection originated
+        std::string m_sLocalAddress;
 
         /// remote port from which the connection originated
-        int m_nPort;
+        int m_nRemotePort;
+
+        /// local port from which the connection originated
+        int m_nLocalPort;
 
         size_t m_nMaxRequestSize;
 
@@ -88,11 +94,29 @@ class EHSConnection {
 
     public:
 
-        /// returns address of the connection.
-        std::string GetAddress() const { return m_sAddress; }
+        /// returns the remote address of the connection.
+        std::string GetRemoteAddress() const { return m_sRemoteAddress; }
 
-        /// returns client port of the connection.
-        int GetPort() const { return m_nPort; }
+        /// returns the remote port of the connection.
+        int GetRemotePort() const { return m_nRemotePort; }
+
+        /// returns the local address of the connection.
+        std::string GetLocalAddress() const { return m_sLocalAddress; }
+
+        /// returns the local port of the connection.
+        int GetLocalPort() const { return m_nLocalPort; }
+
+        /**
+         * returns address of the connection.
+         * @deprecated Use GetRemoteAddress()
+         */
+        DEPRECATED("Use GetRemoteAddress()") std::string GetAddress() const { return GetRemoteAddress(); }
+
+        /**
+         * returns client port of the connection.
+         * @deprecated Use GetRemotePort()
+         */
+        DEPRECATED("Use GetRemotePort()") int GetPort() const { return GetRemotePort(); }
 
         /// returns whether the client has disconnected from us.
         bool Disconnected() const { return m_bDisconnected; }
