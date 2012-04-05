@@ -113,8 +113,9 @@ namespace wspp {
 
             void send(const std::string& payload, frame::opcode::value op);
 
-            wshandler(const wspp::wshandler&);
-            wshandler& operator=(const wspp::wshandler&);
+            // Non-copyable
+            wshandler(const wshandler&);
+            wshandler& operator=(const wshandler&);
 
             wsendpoint *m_endpoint;
             friend class wsendpoint;
@@ -124,6 +125,11 @@ namespace wspp {
      * This class implements a server-side WebSockets endpoint.
      */
     class wsendpoint {
+        private:
+            // Non-copyable
+            wsendpoint(const wsendpoint&);
+            wsendpoint& operator=(const wsendpoint&);
+
         public:
             /**
              * Constructor

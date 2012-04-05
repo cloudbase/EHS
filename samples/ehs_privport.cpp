@@ -70,8 +70,8 @@ class TestHarness : public EHS
             << "<tr><td>body-length:</td><td>" << request->Body().length ( ) << "</td></tr>" << endl
             << "<tr><td>number-request-headers:</td><td>" << request->Headers().size ( ) << "</td></tr>" << endl
             << "<tr><td>number-form-value-maps:</td><td>" << request->FormValues().size ( ) << "</td></tr>" << endl
-            << "<tr><td>client-address:</td><td>" << request->Address ( ) << "</td></tr>" << endl
-            << "<tr><td>client-port:</td><td>" << request->Port ( ) << "</td></tr>" << endl;
+            << "<tr><td>client-address:</td><td>" << request->RemoteAddress ( ) << "</td></tr>" << endl
+            << "<tr><td>client-port:</td><td>" << request->RemotePort ( ) << "</td></tr>" << endl;
 
         for ( StringMap::iterator i = request->Headers().begin ( );
                 i != request->Headers().end ( ); i++ ) {

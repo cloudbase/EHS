@@ -74,14 +74,14 @@ class RawSocketHandler {
          * Called by EHS, if an EHSConnection has switched into raw mode.
          * @param conn The EHSConnection on which the event has happened.
          */
-        virtual void OnConnect(EHSConnection *conn) { }
+        virtual void OnConnect(EHSConnection *conn) = 0;
 
         /**
          * Handle disconnect event.
          * Called by EHS, if an EHSConnection is about to be closed.
          * @param conn The EHSConnection on which the event has happened.
          */
-        virtual void OnDisconnect(EHSConnection *conn) { }
+        virtual void OnDisconnect(EHSConnection *conn) = 0;
 
         virtual ~RawSocketHandler ( ) { }
 };

@@ -37,7 +37,7 @@ class MyEHS : public EHS {
 
         ostringstream oss;
         oss << "ehs_mirror: Secure - " << (request->Secure() ? "yes" : "no") << endl
-            << request->Address() << ":" << request->Port() << endl;
+            << request->RemoteAddress() << ":" << request->RemotePort() << endl;
 		response->SetBody ( oss.str().c_str(), oss.str().length() );
 		return HTTPRESPONSECODE_200_OK;
 	}
