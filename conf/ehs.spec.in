@@ -24,6 +24,15 @@ Buildrequires: doxygen, graphviz, automake, libtool
 %if %{is_fc}
 Buildrequires: elfutils-devel
 %endif
+%if %{is_sles}
+%if %{sles_version} > 10
+Buildrequires: libdw-devel
+%endif
+%endif
+%if %{is_suse}
+%if %{suse_version} > 1999
+Buildrequires: libdw-devel
+%endif
 
 %description
 Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
