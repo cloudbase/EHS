@@ -98,7 +98,13 @@ Socket::Socket(ehs_socket_t fd, sockaddr_in * peer) :
     memcpy(&m_peer, peer, sizeof(m_peer));
     memset(&m_bindaddr, 0, sizeof(m_bindaddr));
     socklen_t len = sizeof(m_bindaddr);
-    getsockname(fd, reinterpret_cast<struct sockaddr *>(&m_bindaddr), &len);
+    getsockname(fd, reinterpret_cast<struct sockaddr *>(&m_bindaddr),
+#ifdef _WIN32
+            reinterpret_cast<int *>(&len) 
+#else
+            &len 
+#endif
+            );
 }
 
 Socket::~Socket()
@@ -303,7 +309,7 @@ retry:
             case EAGAIN:
             case EINTR:
 #ifdef _WIN32
-                case WSAEWOULDBLOCK:
+            case WSAEWOULDBLOCK:
 #endif
                 goto retry;
                 break;
