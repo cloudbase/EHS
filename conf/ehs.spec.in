@@ -4,17 +4,26 @@
 # use static SSL libs
 %define with_staticssl %{?_with_staticssl: 1} %{?!_with_staticssl: 0}
 
+%define is_fc 0%{?fedora}%{?fedora_version}
+%define is_suse 0%{?suse_version}
+%define is_sles 0%{?sles_version}
+%define is_mdv 0%{?mdkversion}
+
 Summary: Embedded HTTP server
 Name:    ehs
 Version: @VERSION@
-Release: @SVNREV@
+Release: @SVNREV@%{dist}
 License: LGPL
 Group: System Environment/Libraries
 URL: http://sourceforge.net/projects/ehs/
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(id -u -n)
-Buildrequires: openssl-devel, gcc-c++, pcre-devel, boost-devel elfutils-devel
+Buildrequires: openssl-devel, gcc-c++, pcre-devel, boost-devel
 Buildrequires: doxygen, graphviz, automake, libtool
+
+%if %{is_fc}
+Buildrequires: elfutils-devel
+%endif
 
 %description
 Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
