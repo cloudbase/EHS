@@ -173,11 +173,9 @@ void Socket::Init(int port)
 
 #ifdef _WIN32
     u_long one = 1;
-    ioctlsocket(m_fd, FIONBIO, &one);
     setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char *>(&one), sizeof(int));
 #else
     int one = 1;
-    ioctl(m_fd, FIONBIO, &one);
     setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const void *>(&one), sizeof(int));
 #endif
 
@@ -321,6 +319,14 @@ retry:
         throw runtime_error(sError);
         return NULL;
     }
+    // Switch socket into non-blocking mode
+#ifdef _WIN32
+    u_long one = 1;
+    ioctlsocket(fd, FIONBIO, &one);
+#else
+    int one = 1;
+    ioctl(fd, FIONBIO, &one);
+#endif
     return new Socket(fd, &m_peer);
 }
 
