@@ -83,6 +83,7 @@ const char *HttpResponse::GetPhrase(ResponseCode code)
         phrases[HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS] = "Switching Protocols";
         phrases[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
         phrases[HTTPRESPONSECODE_302_FOUND] = "FOUND";
+        phrases[HTTPRESPONSECODE_304_NOT_MODIFIED] = "Not modified";
         phrases[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
         phrases[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
         phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
