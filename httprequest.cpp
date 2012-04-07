@@ -42,6 +42,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/regex.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/assign.hpp>
 
 using namespace std;
 
@@ -637,17 +638,15 @@ string GetNextLine(string & buffer)
 
 RequestMethod GetRequestMethodFromString(const string &method)
 {
-    static map<string, RequestMethod> methods;
-    if (0 == methods.size()) {
-        methods["OPTIONS"] = REQUESTMETHOD_OPTIONS;
-        methods["GET"]     = REQUESTMETHOD_GET;
-        methods["HEAD"]    = REQUESTMETHOD_HEAD;
-        methods["POST"]    = REQUESTMETHOD_POST;
-        methods["PUT"]     = REQUESTMETHOD_PUT;
-        methods["DELETE"]  = REQUESTMETHOD_DELETE;
-        methods["TRACE"]   = REQUESTMETHOD_TRACE;
-        methods["CONNECT"] = REQUESTMETHOD_CONNECT;
-    }
+    static map<string, RequestMethod> methods = boost::assign::map_list_of
+        ("OPTIONS", REQUESTMETHOD_OPTIONS)
+        ("GET",     REQUESTMETHOD_GET)
+        ("HEAD",    REQUESTMETHOD_HEAD)
+        ("POST",    REQUESTMETHOD_POST)
+        ("PUT",     REQUESTMETHOD_PUT)
+        ("DELETE",  REQUESTMETHOD_DELETE)
+        ("TRACE",   REQUESTMETHOD_TRACE)
+        ("CONNECT", REQUESTMETHOD_CONNECT);
     map<string, RequestMethod>::const_iterator i = methods.find(method);
     return (methods.end() == i) ? REQUESTMETHOD_UNKNOWN : i->second;
 }

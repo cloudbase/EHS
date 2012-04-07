@@ -41,6 +41,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <boost/assign.hpp>
 
 using namespace std;
 
@@ -77,22 +78,20 @@ HttpResponse::HttpResponse ( int inResponseId,
 ///< HTTP response code to get text version of
 const char *HttpResponse::GetPhrase(ResponseCode code)
 {
-    static map<int, const char *> phrases;
-    if (0 == phrases.size()) {
-        phrases[HTTPRESPONSECODE_200_OK] = "OK";
-        phrases[HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS] = "Switching Protocols";
-        phrases[HTTPRESPONSECODE_301_MOVEDPERMANENTLY] = "Moved Permanently";
-        phrases[HTTPRESPONSECODE_302_FOUND] = "FOUND";
-        phrases[HTTPRESPONSECODE_304_NOT_MODIFIED] = "Not modified";
-        phrases[HTTPRESPONSECODE_400_BADREQUEST] = "Bad request";
-        phrases[HTTPRESPONSECODE_401_UNAUTHORIZED] = "Unauthorized";
-        phrases[HTTPRESPONSECODE_403_FORBIDDEN] = "Forbidden";
-        phrases[HTTPRESPONSECODE_404_NOTFOUND] = "Not Found";
-		phrases[HTTPRESPONSECODE_413_TOOLARGE] = "Request entity too large";
-		phrases[HTTPRESPONSECODE_426_UPGRADE_REQUIRED] = "Upgrade required";
-        phrases[HTTPRESPONSECODE_500_INTERNALSERVERERROR] = "Internal Server Error";
-        phrases[HTTPRESPONSECODE_503_SERVICEUNAVAILABLE] = "Service Unavailable";
-    }
+    static map<int, const char *> phrases = boost::assign::map_list_of
+        (HTTPRESPONSECODE_200_OK,                  "OK")
+        (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS, "Switching Protocols")
+        (HTTPRESPONSECODE_301_MOVEDPERMANENTLY,    "Moved Permanently")
+        (HTTPRESPONSECODE_302_FOUND,               "FOUND")
+        (HTTPRESPONSECODE_304_NOT_MODIFIED,        "Not modified")
+        (HTTPRESPONSECODE_400_BADREQUEST,          "Bad request")
+        (HTTPRESPONSECODE_401_UNAUTHORIZED,        "Unauthorized")
+        (HTTPRESPONSECODE_403_FORBIDDEN,           "Forbidden")
+        (HTTPRESPONSECODE_404_NOTFOUND,            "Not Found")
+        (HTTPRESPONSECODE_413_TOOLARGE,            "Request entity too large")
+        (HTTPRESPONSECODE_426_UPGRADE_REQUIRED,    "Upgrade required")
+        (HTTPRESPONSECODE_500_INTERNALSERVERERROR, "Internal Server Error")
+        (HTTPRESPONSECODE_503_SERVICEUNAVAILABLE,  "Service Unavailable");
     map<int, const char *>::const_iterator i = phrases.find(code);
     return (phrases.end() == i) ? "INVALID" : i->second;
 }
