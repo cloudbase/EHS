@@ -166,14 +166,6 @@ retry:
 #endif
         throw runtime_error(sError);
     }
-    // Switch socket into non-blocking mode
-#ifdef _WIN32
-    u_long one = 1;
-    ioctlsocket(fd, FIONBIO, &one);
-#else
-    int one = 1;
-    ioctl(fd, FIONBIO, &one);
-#endif
 
     // TCP connection is ready. Do server side SSL.
     SSL *ssl = SSL_new(s_pSslCtx);
