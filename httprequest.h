@@ -212,7 +212,10 @@ class HttpRequest {
          */
         std::string Cookies(const std::string & name)
         {
-            return m_oCookieMap[name];
+            if (m_oCookieMap.find(name) != m_oCookieMap.end()) {
+                return m_oCookieMap[name];
+            }
+            return std::string();
         }
 
     private:
