@@ -125,6 +125,24 @@ class GenericResponse {
         /// Destructor
         virtual ~GenericResponse() { }
 
+        /**
+         * Enable/Disable idle-timeout handling for the current connection.
+         * @param enable If true, idle-timeout handling is enabled,
+         *   otherwise the socket may stay open forever.
+         * When creating an EHSConnection, this is initially enabled.
+         */
+        void EnableIdleTimeout(bool enable = true);
+
+        /**
+         * Enable/Disable TCP keepalive on the underlying socket of the current connection.
+         * This enables detection of "dead" sockets, even when
+         * idle-timeout handling is disabled.
+         * @param enable If true, enable TCP keepalive.
+         * When creating an EHSConnection, this is initially disabled.
+         */
+        void EnableKeepAlive(bool enable = true);
+
+
     protected:
         /// response id for making sure we send responses in the right order
         int m_nResponseId;

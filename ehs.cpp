@@ -172,6 +172,7 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
     m_bRawMode(false),
     m_bDoneReading(false),
     m_bDisconnected(false),
+    m_bIdleHandling(true),
     m_poCurrentHttpRequest(NULL),
     m_poEHSServer(ipoEHSServer),
     m_nLastActivity(0),
@@ -208,6 +209,19 @@ EHSConnection::~EHSConnection()
     pthread_mutex_destroy(&m_oMutex);
 }
 
+void EHSConnection::EnableKeepAlive(bool enable)
+{
+    MutexHelper mh(&m_oMutex);
+    if (m_poNetworkAbstraction) {
+        ehs_socket_t s = m_poNetworkAbstraction->GetFd();
+        int one = enable ? 1 : 0;
+#ifdef _WIN32
+        setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<char *>(&one), sizeof(int));
+#else
+        setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<const void *>(&one), sizeof(int));
+#endif
+    }
+}
 
 NetworkAbstraction *EHSConnection::GetNetworkAbstraction()
 {

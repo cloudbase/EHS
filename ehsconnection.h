@@ -52,6 +52,8 @@ class EHSConnection {
 
         bool m_bDisconnected; ///< client has closed connection on us
 
+        bool m_bIdleHandling; ///< Shall this connection be closed on idle-timeout.
+
         HttpRequest * m_poCurrentHttpRequest; ///< request we're currently parsing
 
         EHSServer * m_poEHSServer; ///< server with which this is associated
@@ -129,6 +131,23 @@ class EHSConnection {
         /// adds a response to the response list and sends as many responses as are ready
         void AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response);
 
+        /**
+         * Enable/Disable idle-timeout handling for this connection.
+         * @param enable If true, idle-timeout handling is enabled,
+         *   otherwise the socket may stay open forever.
+         * When creating an EHSConnection, this is initially enabled.
+         */
+        void EnableIdleTimeout(bool enable = true) { m_bIdleHandling = enable; }
+
+        /**
+         * Enable/Disable TCP keepalive on the underlying socket.
+         * This enables detection of "dead" sockets, even when
+         * idle-timeout handling is disabled.
+         * @param enable If true, enable TCP keepalive.
+         * When creating an EHSConnection, this is initially disabled.
+         */
+        void EnableKeepAlive(bool enable = true);
+
     private:
 
         /// Constructor
@@ -139,10 +158,10 @@ class EHSConnection {
         ~EHSConnection();
 
         /// updates the last activity to the current time
-        void UpdateLastActivity() { m_nLastActivity = time ( NULL ); }
+        void UpdateLastActivity() { m_nLastActivity = time(NULL); }
 
         /// returns the time of last activity
-        time_t LastActivity() { return m_nLastActivity; }
+        time_t LastActivity() { return m_bIdleHandling ? m_nLastActivity : time(NULL); }
 
         /// returns whether we're still reading from this socket -- mutex must be locked
         bool StillReading() { return !m_bDoneReading; }

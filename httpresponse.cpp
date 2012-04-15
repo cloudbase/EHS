@@ -35,6 +35,7 @@
 #include "formvalue.h"
 #include "httprequest.h"
 #include "datum.h"
+#include "ehsconnection.h"
 #include <ctime>
 #include <clocale>
 #include <cstring>
@@ -169,5 +170,19 @@ void HttpResponse::SetCookie ( CookieParameters & iroCookieParameters )
 #ifdef EHS_DEBUG
         cerr << "Cookie set with insufficient data -- requires name and value" << endl;
 #endif
+    }
+}
+
+void GenericResponse::EnableIdleTimeout(bool enable)
+{
+    if (m_poEHSConnection) {
+        m_poEHSConnection->EnableIdleTimeout(enable);
+    }
+}
+
+void GenericResponse::EnableKeepAlive(bool enable)
+{
+    if (m_poEHSConnection) {
+        m_poEHSConnection->EnableKeepAlive(enable);
     }
 }
