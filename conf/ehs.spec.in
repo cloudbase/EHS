@@ -62,7 +62,6 @@ export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
 %{__make} %{?_smp_mflags} V=1
 
 %install
-%{__rm} -rf %{buildroot}
 %{__make} DESTDIR=%{buildroot} install
 
 %clean
@@ -74,11 +73,12 @@ export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
 
 %files
 %defattr(644, root, root, 0755)
-%{_libdir}/*.so*
+%{_libdir}/*.so.*
 
 %files devel
 %defattr(644, root, root, 0755)
 %doc AUTHORS COPYING INSTALL NEWS README ehs_development_guide.txt doc/html
+%{_libdir}/*.so
 %{_libdir}/*.*a
 %{_includedir}/%{name}
 
