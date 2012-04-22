@@ -4,6 +4,7 @@
 # use static SSL libs
 %define with_staticssl %{?_with_staticssl: 1} %{?!_with_staticssl: 0}
 
+%define rel @SVNREV@%{?dist}
 %define is_fc 0%{?fedora}%{?fedora_version}
 %define is_suse 0%{?suse_version}
 %define is_sles 0%{?sles_version}
@@ -12,7 +13,7 @@
 Summary: Embedded HTTP server
 Name:    ehs
 Version: @VERSION@
-Release: @SVNREV@%{dist}
+Release: %{rel}
 License: LGPL
 Group: System Environment/Libraries
 URL: http://sourceforge.net/projects/ehs/
