@@ -184,6 +184,7 @@ retry_handshake:
     int ret = SSL_accept(ssl);
     if (1 != ret) {
         ostringstream oss;
+        int syserr = errno;
         int sslerr = SSL_get_error(ssl, ret);
         switch (sslerr) {
             case SSL_ERROR_WANT_READ:
@@ -191,10 +192,19 @@ retry_handshake:
             case SSL_ERROR_WANT_ACCEPT:
                 goto retry_handshake;
                 break;
+            case SSL_ERROR_SYSCALL:
+                if ((syserr == EAGAIN) || (syserr == EINTR)) {
+                    goto retry_handshake;
+                }
+                s_pSslError->GetError(sError);
+                oss << "Error during SSL handshake: " << sError
+                    << " (syscall:" << ::strerror(syserr) << ") from " << GetPeer();
+                break;
+            default:
+                s_pSslError->GetError(sError);
+                oss << "Error during SSL handshake: " << sError
+                    << " (SSL_err:" << sslerr << ") from " << GetPeer();
         }
-        s_pSslError->GetError(sError);
-        oss << "Error during SSL handshake: " << sError
-            << " (SSL_err:" << sslerr << ") from " << GetPeer();
         SSL_free(ssl);
 #ifdef _WIN32
         closesocket(fd);
