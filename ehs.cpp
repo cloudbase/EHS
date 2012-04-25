@@ -868,8 +868,9 @@ void EHSConnection::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
     // push the object on to the list
     m_oResponseQueue.push_back(ehs_move(response));
     while (!m_oResponseQueue.empty()) {
+        GenericResponse *r = m_oResponseQueue.front().get();
         mutex.Unlock();
-        SendResponse(m_oResponseQueue.front().get());
+        SendResponse(r);
         mutex.Lock();
         m_oResponseQueue.pop_front();
         // set last activity to the current time for idle purposes
