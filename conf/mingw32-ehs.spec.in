@@ -5,12 +5,13 @@
 %global __find_provides %{_mingw32_findprovides}
 %define __debug_install_post %{_mingw32_debug_install_post}
 
+%define rel @SVNREV@%{?dist}
 %define xname ehs
 
 Summary: Embedded HTTP server
 Name:    mingw32-%{xname}
 Version: @VERSION@
-Release: @SVNREV@
+Release: %{rel}
 License: LGPL
 Group: Development/Libraries
 URL: http://sourceforge.net/projects/ehs/
