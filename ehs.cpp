@@ -882,6 +882,7 @@ void EHSConnection::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
 void EHSConnection::SendResponse(GenericResponse *gresp)
 {
     MutexHelper mutex(&m_oMutex);
+    int r = 0;
 
     HttpResponse *response = dynamic_cast<HttpResponse *>(gresp);
     if (NULL == response) {
@@ -893,8 +894,9 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         mutex.Unlock();
         if (0 < len) {
             EHS_TRACE("Sending GENERIC response", "");
-            m_poNetworkAbstraction->Send(
+            r = m_poNetworkAbstraction->Send(
                     reinterpret_cast<const void *>(gresp->GetBody().data()), gresp->GetBody().length());
+            EHS_TRACE("Sent GENERIC response r=%d", r);
         } else {
             // Special case: "sending" a zero-sized body triggers a close.
             DoneReading(false);
@@ -930,27 +932,32 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         // extra line break signalling end of headers
         oss << "\r\n";
         mutex.Unlock();
-        m_poNetworkAbstraction->Send(
+        r = m_poNetworkAbstraction->Send(
                 reinterpret_cast<const void *>(oss.str().c_str()), oss.str().length());
 
-        // Switch protocols if necessary
-        if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
-            EHS_TRACE("Switching connection to RAW mode", "");
-            m_bRawMode = true;
-            RawSocketHandler *rsh = m_poEHSServer->m_poTopLevelEHS->GetRawSocketHandler();
-            if (rsh) {
-                rsh->OnConnect(this);
+        if (-1 != r) {
+            // Switch protocols if necessary
+            if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
+                EHS_TRACE("Switching connection to RAW mode", "");
+                m_bRawMode = true;
+                RawSocketHandler *rsh = m_poEHSServer->m_poTopLevelEHS->GetRawSocketHandler();
+                if (rsh) {
+                    rsh->OnConnect(this);
+                }
+                return;
             }
-            return;
-        }
 
-        // now send the body
-        int blen = atoi(response->GetHeaders()["content-length"].c_str());
-        if (blen > 0) {
-            EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
-            m_poNetworkAbstraction->Send(response->GetBody().data(), blen);
-            EHS_TRACE("Done sending %d bytes in thread %08x", blen, pthread_self());
+            // now send the body
+            int blen = atoi(response->GetHeaders()["content-length"].c_str());
+            if (blen > 0) {
+                EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
+                int r = m_poNetworkAbstraction->Send(response->GetBody().data(), blen);
+                EHS_TRACE("Done sending %d bytes in thread %08x r=%d", blen, pthread_self(), r);
+            }
         }
+    }
+    if (-1 == r) {
+        DoneReading(false);
     }
 }
 
