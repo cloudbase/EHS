@@ -21,7 +21,7 @@ nativesetup: .setupdir .dlldeps .stripsetup
 	"$(ISCC)" "$(srcdir)/ehs.iss"
 
 crosssetup: .setupdir .dlldeps .stripsetup isccwrap.sh
-	sh isccwrap.sh "$(srcdir)/ehs.iss"
+	$(ISCC) "$(srcdir)/ehs.iss"
 
 setup: $(SETUP)
 

@@ -28,6 +28,7 @@ BuildRequires:  mingw32-openssl
 BuildRequires:  mingw32-pthreads
 BuildRequires:  mingw32-boost-static
 BuildRequires:  mingw32-pcre
+BuildRequires:  iscc
 
 %description
 Embedded HTTP Server (EHS) is a C++ class which can be inherited from in order
