@@ -88,7 +88,10 @@ DWLIB=
 dnl The following headers have to be checked *before* invoking
 dnl AC_CHECK_LIB for pcrecpp, ssl and crypto in order for those
 dnl checks to work correctly in mingw
-AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h pcre.h pcrecpp.h])
+AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h pcre.h])
+AC_LANG_PUSH([C++])
+AC_CHECK_HEADERS([pcrecpp.h])
+AC_LANG_POP
 
 AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
