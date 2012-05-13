@@ -13,4 +13,5 @@
 	dh $@
 
 override_dh_auto_build:
+	chmod a+wr conf/doxygen.cfg
 	dh_auto_build -- doxygen-doc
