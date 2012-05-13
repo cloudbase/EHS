@@ -1,7 +1,7 @@
 Source: ehs
 Priority: extra
 Maintainer: Fritz Elfert <ehsdev@fritz-elfert.de>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, g++, libssl-dev, libdw-dev, libboost1.46-dev, libboost-regex1.46-dev, libpcre3-dev, libtool
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, g++, libssl-dev, libdw-dev, libboost1.46-dev, libboost-regex1.46-dev, libpcre3-dev, libtool, doxygen, graphviz
 Standards-Version: 3.9.2
 Section: libs
 Homepage: http://ehs.fritz-elfert.de
