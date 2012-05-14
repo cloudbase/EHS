@@ -40,7 +40,7 @@ MAINTAINERCLEANFILES = -r aclocal.m4 config.h.in* configure Makefile.in \
 
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
 
-CLEANFILES = -r $(PACKAGE)_$(VERSION).orig.tar.gz $(PACKAGE)-$(VERSION)
+CLEANFILES = -r $(PACKAGE)-$(VERSION) $(PACKAGE)_*.tar.gz $(PACKAGE)_*.dsc
 
 am_v_rc = $(am_v_rc_$(V))
 am_v_rc_ = $(am_v_rc_$(AM_DEFAULT_VERBOSITY))
@@ -69,9 +69,7 @@ debprep: dist
 
 # Create debian source package
 debsrc: debprep
-	ln -snf $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)_$(VERSION).orig.tar.gz
 	dpkg-source -b $(PACKAGE)-$(VERSION)
-	echo "Debtransform-Tar: $(PACKAGE)_$(VERSION).orig.tar.gz" >> $(PACKAGE)_$(VERSION)-$(SVNREV).dsc
 
 rpm: dist conf/$(PACKAGE).spec
 	cp $(distdir).tar.gz ~/rpmbuild/SOURCES/
