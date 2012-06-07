@@ -174,6 +174,19 @@ class HttpResponse : public GenericResponse {
          */
         std::string HttpTime(time_t stamp);
 
+        /**
+         * Retrieves a specific HTTP header.
+         * @param name The name of the HTTP header to be retrieved.
+         * @return The value of the specified header.
+         */
+        std::string Header(const std::string & name)
+        {
+            if (m_oResponseHeaders.find(name) != m_oResponseHeaders.end()) {
+                return m_oResponseHeaders[name];
+            }
+            return std::string();
+        }
+
     private:
 
         /// the response code to be sent back

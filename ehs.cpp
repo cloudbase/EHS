@@ -882,6 +882,7 @@ void EHSConnection::AddResponse(ehs_autoptr<GenericResponse> ehs_rvref response)
 void EHSConnection::SendResponse(GenericResponse *gresp)
 {
     MutexHelper mutex(&m_oMutex);
+    bool forceClose = false;
     int r = 0;
 
     HttpResponse *response = dynamic_cast<HttpResponse *>(gresp);
@@ -910,6 +911,11 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         }
         EHS_TRACE("Sending HTTP response", "");
         HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
+        if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
+            // Make shure, that we don't close the connaction when switching protocols
+            response->RemoveHeader("Connection");
+        }
+        forceClose = (0 == response->Header("connection").compare("close"));
         ostringstream oss;
         // add in the response code
         oss << "HTTP/1.1 " << response->GetResponseCode()
@@ -948,7 +954,7 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
             }
 
             // now send the body
-            int blen = atoi(response->GetHeaders()["content-length"].c_str());
+            int blen = atoi(response->Header("content-length").c_str());
             if (blen > 0) {
                 EHS_TRACE("Sending %d bytes in thread %08x", blen, pthread_self());
                 int r = m_poNetworkAbstraction->Send(response->GetBody().data(), blen);
@@ -956,7 +962,7 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
             }
         }
     }
-    if (-1 == r) {
+    if (forceClose || (-1 == r)) {
         DoneReading(false);
     }
 }
@@ -1072,6 +1078,13 @@ EHS::RouteRequest(HttpRequest *request ///< request info for service
         ehs_autoptr<HttpResponse> response(new HttpResponse(request->m_nRequestId,
                     request->m_poSourceEHSConnection));
         // get the actual response and return code
+        if (0 == request->HttpVersion().compare("1.0")) {
+            if (0 == request->Headers("Connection").compare("keep-alive")) {
+                response->SetHeader("Connection", "keep-alive");
+            } else {
+                response->SetHeader("Connection", "close");
+            }
+        }
         response->SetResponseCode(HandleRequest(request, response.get()));
         return ehs_move(response);
     }
