@@ -28,6 +28,11 @@
 #endif
 
 #ifdef COMPILE_WITH_SSL
+
+#ifdef HAVE_WINSOCK2_H
+# include <winsock2.h>
+#endif
+
 #include "ehs.h"
 #include "securesocket.h"
 #include "debug.h"
