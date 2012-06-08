@@ -915,11 +915,8 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         }
         EHS_TRACE("Sending HTTP response", "");
         HttpResponse *response = reinterpret_cast<HttpResponse *>(gresp);
-        if (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS == response->GetResponseCode()) {
-            // Make shure, that we don't close the connaction when switching protocols
-            response->RemoveHeader("Connection");
-        }
-        forceClose = (0 == response->Header("connection").compare("close"));
+        forceClose = ((0 == response->Header("connection").compare("close")) &&
+                (HTTPRESPONSECODE_101_SWITCHING_PROTOCOLS != response->GetResponseCode()));
         ostringstream oss;
         // add in the response code
         oss << "HTTP/1.1 " << response->GetResponseCode()
