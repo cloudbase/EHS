@@ -62,7 +62,7 @@ export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
 %endif
 %configure \
 %if %{with_debug}
-    --enable-debug
+    --enable-debug \
 %endif
 %if %{with_staticssl}
      --enable-static --with-ssl=/opt/openssl-static
