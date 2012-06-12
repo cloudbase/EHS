@@ -3,6 +3,8 @@
 %define with_specialstderr %{?_with_specialstderr: 1} %{?!_with_specialstderr: 0}
 # use static SSL libs
 %define with_staticssl %{?_with_staticssl: 1} %{?!_with_staticssl: 0}
+# Enable debugging
+%define with_debug %{?_with_debug: 1} %{?!_with_debug: 0}
 
 %define rel @SVNREV@%{?dist}
 %define is_fc 0%{?fedora}%{?fedora_version}
@@ -59,6 +61,9 @@ This package contains the development headers as well as a static library.
 export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
 %endif
 %configure \
+%if %{with_debug}
+    --enable-debug
+%endif
 %if %{with_staticssl}
      --enable-static --with-ssl=/opt/openssl-static
 %endif
