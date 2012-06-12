@@ -530,7 +530,7 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     // get the content length
                     unsigned int nContentLength = 0;
                     try {
-                        boost::lexical_cast<unsigned int>(m_oRequestHeaders["Content-Length"]);
+                        nContentLength = boost::lexical_cast<unsigned int>(m_oRequestHeaders["Content-Length"]);
                     } catch (const boost::bad_lexical_cast &e) {
                         m_nCurrentHttpParseState = HTTPPARSESTATE_INVALIDREQUEST;
                         continue;
@@ -549,8 +549,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                         // otherwise, we've gotten enough data from the client, handle it now
 
                         // grab out the actual body from the request and leave the rest
-                        m_sBody = irsData.substr(0, nContentLength);
-                        irsData = irsData.substr(nContentLength);
+                        m_sBody.assign(irsData.substr(0, nContentLength));
+                        irsData.erase(0, nContentLength);
 
                         // if we're dealing with multi-part form attachments
                         if (m_oRequestHeaders["Content-Type"].substr(0, 9) == "multipart") {
