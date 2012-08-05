@@ -258,6 +258,7 @@ namespace wspp {
 #ifdef HAVE_BOOST_LOCK_GUARD
                 boost::lock_guard<boost::recursive_mutex> lock(m_lock);
 #else
+                // cppcheck-suppress unusedScopedObject
                 MutexHelper((pthread_mutex_t *)&m_lock);
 #endif
 
@@ -283,6 +284,7 @@ namespace wspp {
 #ifdef HAVE_BOOST_LOCK_GUARD
                 boost::lock_guard<boost::recursive_mutex> lock(m_lock);
 #else
+                // cppcheck-suppress unusedScopedObject
                 MutexHelper((pthread_mutex_t *)&m_lock);
 #endif
 
@@ -318,6 +320,7 @@ namespace wspp {
 #ifdef HAVE_BOOST_LOCK_GUARD
                 boost::lock_guard<boost::recursive_mutex> lock(m_lock);
 #else
+                // cppcheck-suppress unusedScopedObject
                 MutexHelper((pthread_mutex_t *)&m_lock);
 #endif
 

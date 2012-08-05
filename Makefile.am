@@ -74,9 +74,9 @@ debsrc: debprep
 rpm: dist conf/$(PACKAGE).spec
 	cp $(distdir).tar.gz ~/rpmbuild/SOURCES/
 	rm -f *.rpm
-	QA_RPATHS=3 rpmbuild -ba conf/$(PACKAGE).spec 2>&1 | tee rpmbuild.log
+	QA_RPATHS=3 rpmbuild $(RPMBUILD_OPTS) -ta $(distdir).tar.gz 2>&1 | tee rpmbuild.log
 	test -n "`grep ^Wrote: rpmbuild.log`" || exit 1
-	for rpm in `grep ^Wrote: rpmbuild.log|awk '{print $$2}'` ; do ln -snf $$rpm . ; done
+	for rpm in `grep ^Wrote: rpmbuild.log|awk '{print $$2}'` ; do cp $$rpm . ; done
 	rm -f rpmbuild.log
 
 setup: all doxygen-doc
