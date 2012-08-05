@@ -72,7 +72,6 @@ debsrc: debprep
 	dpkg-source -b $(PACKAGE)-$(VERSION)
 
 rpm: dist conf/$(PACKAGE).spec
-	cp $(distdir).tar.gz ~/rpmbuild/SOURCES/
 	rm -f *.rpm
 	QA_RPATHS=3 rpmbuild $(RPMBUILD_OPTS) -ta $(distdir).tar.gz 2>&1 | tee rpmbuild.log
 	test -n "`grep ^Wrote: rpmbuild.log`" || exit 1
