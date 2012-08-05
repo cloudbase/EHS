@@ -5,6 +5,7 @@
 %define with_staticssl %{?_with_staticssl: 1} %{?!_with_staticssl: 0}
 # Enable debugging
 %define with_debug %{?_with_debug: 1} %{?!_with_debug: 0}
+%define make_verbose_flags %{?_with_verbose: V=1 AM_DEFAULT_VERBOSITY=1}
 
 %define rel @SVNREV@%{?dist}
 %define is_fc 0%{?fedora}%{?fedora_version}
@@ -61,6 +62,7 @@ This package contains the development headers as well as a static library.
 export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
 %endif
 %configure \
+    --enable-warn \
 %if %{with_debug}
     --enable-debug \
 %endif
@@ -68,10 +70,10 @@ export CFLAGS="$RPM_OPT_FLAGS -DSPECIAL_STDERR"
      --enable-static --with-ssl=/opt/openssl-static
 %endif
 
-%{__make} %{?_smp_mflags} V=1
+%{__make} %{?_smp_mflags} %{make_verbose_flags}
 
 %install
-%{__make} DESTDIR=%{buildroot} install
+%{__make} DESTDIR=%{buildroot} %{make_verbose_flags} install
 
 %clean
 %{__rm} -rf %{buildroot}

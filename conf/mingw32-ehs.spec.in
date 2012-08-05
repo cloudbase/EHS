@@ -4,6 +4,7 @@
 %global __find_requires %{_mingw32_findrequires}
 %global __find_provides %{_mingw32_findprovides}
 %define __debug_install_post %{_mingw32_debug_install_post}
+%define make_verbose_flags %{?_with_verbose: V=1 AM_DEFAULT_VERBOSITY=1}
 
 %define rel @SVNREV@%{?dist}
 %define xname ehs
@@ -53,14 +54,14 @@ This package contains the development headers as well as a static library.
 %setup -q -n %{xname}-%{version}
 
 %build
-%{_mingw32_configure} --enable-static --enable-shared \
+%{_mingw32_configure} --enable-static --enable-shared --enable-warn \
     --with-dllpath=/usr/i686-pc-mingw32/sys-root/mingw/bin \
     --program-transform-name=s/i686-pc-mingw32-//
-make %{?_smp_mflags} V=1 AM_DEFAULT_VERBOSITY=1
+make %{?_smp_mflags} %{make_verbose_flags}
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT V=1 AM_DEFAULT_VERBOSITY=1 install
+make DESTDIR=$RPM_BUILD_ROOT %{make_verbose_flags} install
 
 %clean
 %{__rm} -rf %{buildroot}
