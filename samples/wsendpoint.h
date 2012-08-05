@@ -86,7 +86,7 @@ namespace wspp {
              * Send a text message to the remote client.
              * @param data The payload to send.
              */
-            void send_text(const std::string data) {
+            void send_text(const std::string & data) {
                 send(data, frame::opcode::TEXT);
             }
 
@@ -94,7 +94,7 @@ namespace wspp {
              * Send a binary message to the remote client.
              * @param data The payload to send.
              */
-            void send_binary(const std::string data) {
+            void send_binary(const std::string & data) {
                 send(data, frame::opcode::BINARY);
             }
 
@@ -107,9 +107,9 @@ namespace wspp {
         private:
             virtual void on_message(std::string header, std::string data) = 0;
             virtual void on_close() = 0;
-            virtual bool on_ping(const std::string data) = 0;
-            virtual void on_pong(const std::string data) = 0;
-            virtual void do_response(const std::string data) = 0;
+            virtual bool on_ping(const std::string & data) = 0;
+            virtual void on_pong(const std::string & data) = 0;
+            virtual void do_response(const std::string & data) = 0;
 
             void send(const std::string& payload, frame::opcode::value op);
 

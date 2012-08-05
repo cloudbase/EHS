@@ -75,13 +75,13 @@ class TestHarness : public EHS
             << "<tr><td>client-port:</td><td>" << request->RemotePort() << "</td></tr>" << endl;
 
         for (StringMap::iterator i = request->Headers().begin();
-                i != request->Headers().end(); i++) {
+                i != request->Headers().end(); ++i) {
             oss << "<tr><td>Request Header:</td><td>"
                 << i->first << " => " << i->second << "</td></tr>" << endl;
         }
 
         for ( CookieMap::iterator i = request->Cookies().begin ( );
-                i != request->Cookies().end ( ); i++ ) {
+                i != request->Cookies().end ( ); ++i ) {
             oss << "<tr><td>Cookie:</td><td>"
                 << i->first << " => " << i->second << "</td></tr>" << endl;
         }
@@ -100,7 +100,7 @@ class TestHarness : public EHS
     bool CheckAuthHeader(HttpRequest *r)
     {
         StringMap::iterator i;
-        for (i = r->Headers().begin() ; i != r->Headers().end() ; i++) {
+        for (i = r->Headers().begin() ; i != r->Headers().end() ; ++i) {
             if (0 == i->first.compare("Authorization")) {
                 if (0 == i->second.compare(0, 6, "Basic ")) {
                     string decoded = base64_decode(i->second.substr(6));

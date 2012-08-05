@@ -160,7 +160,7 @@ void HttpResponse::SetCookie ( CookieParameters & iroCookieParameters )
         }
 
         for ( CookieParameters::iterator i = iroCookieParameters.begin ( );
-                i != iroCookieParameters.end ( ); i++ ) {
+                i != iroCookieParameters.end ( ); ++i ) {
             if ( i->first != "name" && i->first != "value" ) {
                 ssBuffer << "; " << i->first << "=" << i->second.GetCharString ( );
             }

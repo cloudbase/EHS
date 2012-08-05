@@ -78,7 +78,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
         oss << "<p>Please log in</p>" << endl << "<form action = \"/\" method=\"GET\">" << endl
             << "User name: <input type=\"text\" name=\"user\"><br />" << endl
             << "<select name=\"existinguser\" width=\"20\">" << endl;
-		for ( StringList::iterator i = m_oNameList.begin(); i != m_oNameList.end ( ); i++ ) {
+		for ( StringList::iterator i = m_oNameList.begin(); i != m_oNameList.end ( ); ++i ) {
             oss << "<option>" << i->substr ( 0, 150 ) << endl;
 		}
 		oss << "</select> <input type=\"submit\">" << endl << "</form>" << endl;

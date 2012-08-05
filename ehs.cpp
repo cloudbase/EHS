@@ -114,7 +114,7 @@ int EHSServer::CreateFdSet()
     FD_SET(m_poNetworkAbstraction->GetFd(), &m_oReadFds);
     ehs_socket_t nHighestFd = m_poNetworkAbstraction->GetFd();
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
-            i != m_oEHSConnectionList.end(); i++) {
+            i != m_oEHSConnectionList.end(); ++i) {
         /// skip this one if it's already been used
         if ((*i)->StillReading()) {
             ehs_socket_t nCurrentFd = (*i)->GetNetworkAbstraction()->GetFd();
@@ -138,7 +138,7 @@ void EHSServer::ClearIdleConnections()
 {
     // don't lock mutex, as this is only called from within locked sections
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
-            i != m_oEHSConnectionList.end(); i++) {
+            i != m_oEHSConnectionList.end(); ++i) {
 
         MutexHelper mh(&(*i)->m_oMutex);
         // if it's been more than N seconds since a response has been
@@ -165,7 +165,7 @@ void EHSServer::RemoveFinishedConnections ( )
             RemoveEHSConnection(*i);
             i = m_oEHSConnectionList.begin();
         } else {
-            i++;
+            ++i;
         }
     }
 }
@@ -495,9 +495,9 @@ HttpRequest * EHSServer::GetNextRequest()
         int nWhich = (int)(((double)m_oEHSConnectionList.size()) * rand() / (RAND_MAX + 1.0));
         // go to that element
         EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
-        int nCounter = 0;
-        for (nCounter = 0; nCounter < nWhich; nCounter++) {
-            i++;
+        int nCounter;
+        for (nCounter = 0; nCounter < nWhich; ++nCounter) {
+            ++i;
         }
         // now get the next available request treating the list as circular
         EHSConnectionList::iterator iStartPoint = i;
@@ -543,7 +543,7 @@ void EHSServer::RemoveEHSConnection(EHSConnection * ipoEHSConnection)
             delete *i;
             i = m_oEHSConnectionList.erase(i);
         } else {
-            i++;
+            ++i;
         }
     }
     EHS_TRACE("%d connections remaining", m_oEHSConnectionList.size());
@@ -782,7 +782,7 @@ void EHSServer::CheckClientSockets ( )
 {
     // go through all the sockets from which we're still reading
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
-            i != m_oEHSConnectionList.end(); i++) {
+            i != m_oEHSConnectionList.end(); ++i) {
         if (FD_ISSET((*i)->GetNetworkAbstraction()->GetFd(), &m_oReadFds)) {
             // do the actual read
             char buf[8192];
@@ -926,14 +926,14 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
         StringCaseMap::iterator ith = response->GetHeaders().begin();
         while (ith != response->GetHeaders().end()) {
             oss << ith->first << ": " << ith->second << "\r\n";
-            ith++;
+            ++ith;
         }
 
         // now push out all the cookies
         StringList::iterator itl = response->GetCookies().begin ( );
         while (itl != response->GetCookies().end()) {
             oss << "Set-Cookie: " << *itl << "\r\n";
-            itl++;
+            ++itl;
         }
 
         // extra line break signalling end of headers
@@ -1004,8 +1004,7 @@ EHS::~EHS ()
             m_poParent->UnregisterEHS(m_sRegisteredAs.c_str());
         }
     } catch (...) {
-        delete m_poEHSServer;
-        throw;
+        // destructors don't trow
     }
     delete m_poEHSServer;
 }

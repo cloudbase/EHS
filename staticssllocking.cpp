@@ -80,14 +80,16 @@ StaticSslLocking::StaticSslLocking ( )
 StaticSslLocking::~StaticSslLocking()
 {
     if (NULL == StaticSslLocking::poMutexes) {
-        throw runtime_error("StaticSslLocking::~StaticSslLocking: poMutexes is NULL");
+        // Destructors don't thow
+        // throw runtime_error("StaticSslLocking::~StaticSslLocking: poMutexes is NULL");
     }
 
     CRYPTO_set_id_callback(NULL);
     CRYPTO_set_locking_callback(NULL);
     for ( int i = 0; i < CRYPTO_num_locks(); i++) {
         if (0 != pthread_mutex_destroy(&StaticSslLocking::poMutexes[i])) {
-            throw runtime_error("StaticSslLocking::~StaticSslLocking: Could not destroy CRYPTO mutex");
+            // Destructors don't thow
+            // throw runtime_error("StaticSslLocking::~StaticSslLocking: Could not destroy CRYPTO mutex");
         }
     }
     delete [] StaticSslLocking::poMutexes;

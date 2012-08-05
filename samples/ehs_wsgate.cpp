@@ -121,7 +121,7 @@ class WsGate : public EHS
             f.read (buf,fsize);
             f.close();
             response->SetBody(buf, fsize);
-            delete buf;
+            delete[] buf;
             return HTTPRESPONSECODE_200_OK;
         }
         if (0 == request->Uri().compare("/wsgate")) {
@@ -261,14 +261,14 @@ class MyWsHandler : public wspp::wshandler
         ehs_autoptr<GenericResponse> r(new GenericResponse(0, m_econn));
         m_ehs->AddResponse(ehs_move(r));
     }
-    virtual bool on_ping(const std::string data) {
+    virtual bool on_ping(const std::string & data) {
         cerr << "GOT Ping: '" << data << "'" << endl;
         return true;
     }
-    virtual void on_pong(const std::string data) {
+    virtual void on_pong(const std::string & data) {
         cerr << "GOT Pong: '" << data << "'" << endl;
     }
-    virtual void do_response(const std::string data) {
+    virtual void do_response(const std::string & data) {
         cerr << "Send WS response '" << data << "'" << endl;
         ehs_autoptr<GenericResponse> r(new GenericResponse(0, m_econn));
         r->SetBody(data.data(), data.length());
