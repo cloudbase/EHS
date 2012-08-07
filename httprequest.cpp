@@ -31,7 +31,6 @@
 #include "ehsconnection.h"
 #include "debug.h"
 
-#include <pcrecpp.h>
 #include <string>
 #include <algorithm>
 #include <set>
@@ -134,18 +133,21 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
     string sHeaders(isSubbody, 0, nBlankLinePosition);
     // First line MUST be the content-disposition header line, so that
     // we know what the name of the field is.. otherwise, we're in trouble
-    string sContentDisposition;
-    string sNameValuePairs;
-    pcrecpp::RE re("Content-Disposition:[ ]?([^;]+);[ ]?(.*)");
-    if (re.PartialMatch(sHeaders, &sContentDisposition, &sNameValuePairs)) {
+    boost::smatch match;
+    boost::regex re("Content-Disposition:[ ]?([^;]+);[ ]?(.*)");
+    if (boost::regex_match(sHeaders, match, re)) {
+        string sContentDisposition(match[1]);
+        string sPairs(match[2]);
         StringCaseMap oStringCaseMap;
-        string sName;
-        string sValue;
-        pcrecpp::StringPiece nvp(sNameValuePairs);
-        pcrecpp::RE nvre("[ ]?([^= ]+)=\"([^\"]+)\"[;]?");
-        while (nvre.FindAndConsume(&nvp, &sName, &sValue)) {
+        boost::regex nvre("[ ]?([^= ]+)=\"([^\"]+)\"[;]?");
+        boost::sregex_iterator i(sPairs.begin(), sPairs.end(), nvre);
+        boost::sregex_iterator end;
+        while (i != end) {
+            string sName((*i)[1]);
+            string sValue((*i)[2]);
             EHS_TRACE("Subbody header found: '%s' => '%s'", sName.c_str(), sValue.c_str());
             oStringCaseMap[sName] = sValue;
+            ++i;
         }
 
         // Take oStringCaseMap and actually fill the right object with its data
@@ -156,7 +158,7 @@ HttpRequest::ParseSubbodyResult HttpRequest::ParseSubbody(string isSubbody)
         roFormValue.m_sBody = isSubbody.substr(nBlankLinePosition + 4);
     } else {
         // couldn't find content-disposition line -- FATAL ERROR
-        EHS_TRACE("ERROR: Couldn't find content-disposition line", "");
+        EHS_TRACE("ERROR: Couldn't find content-disposition line sHeaders='%s'", sHeaders.c_str());
         return PARSESUBBODY_INVALIDSUBBODY;
     }
     return PARSESUBBODY_SUCCESS;
@@ -195,8 +197,8 @@ HttpRequest::ParseMultipartFormDataResult HttpRequest::ParseMultipartFormData ( 
             return PARSEMULTIPARTFORMDATA_FAILED;
         }
 
-        // go past the initial boundary
-        string sRemainingBody = m_sBody.substr(blen);
+        // go past the initial boundary and it's terminating CRLF
+        string sRemainingBody = m_sBody.substr(blen + 2);
 
         // while we're at a boundary after we grab a part, keep going
         string::size_type nNextPartPosition;

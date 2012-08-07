@@ -9,9 +9,9 @@ EHS stands for Embedded HTTP Server and allows you to easily extend an existing
 C++ class to have HTTP (web) server capabilities.
 
 
-How to build EHS (for UNIX):
+How to build EHS (on UNIX):
 ------------------
-./configure --with-ssl --enable-debug --enable-memory --enable-warn
+./configure --enable-warn
 
 --with-ssl:      compile with HTTPS support. Requires OpenSSL library installed.
                  If not specified, configure will enable SSL support automatically,
@@ -20,12 +20,12 @@ How to build EHS (for UNIX):
                  build a new application, but rather spammy.
 --enable-warn:   Enable additional compiler warnings
 
+For info about more options, run ./configure --help
+
 
 Requirements:
 --------------
-PCRECPP (Perl Compatible Regular Expressions for C++) can be found at
-http://www.pcre.org. EHS 1.4 was tested against version 7.8. Earlier and
-later versions may work as well, but have not been tested.
+Boost (libboost_regex)
 
 OpenSSL is required for HTTPS support (./configure --with-ssl).  It can be 
 found at http://www.openssl.org.

@@ -67,12 +67,6 @@ esac
 ])
 
 dnl Checks for libraries.
-
-AC_ARG_WITH([pcre],AS_HELP_STRING([--with-pcre=DIR],[Specifies the location of the PCRE library]),
-    [CPPFLAGS="$CPPFLAGS -I${withval}/include"
-     CXXFLAGS="$CXXFLAGS -I${withval}/include"
-     LDFLAGS="$LDFLAGS -L${withval}/lib"],[])
-
 ac_cv_dllpath=
 AC_ARG_WITH([dllpath],
             AS_HELP_STRING([--with-dllpath=PATH],
@@ -80,20 +74,15 @@ AC_ARG_WITH([dllpath],
         [ac_cv_dllpath=$withval])
 
 
-dnl Replace `main' with a function in -lpcre:
 BFDLIB1=
 BFDLIB2=
 DWLIB=
 
 dnl The following headers have to be checked *before* invoking
-dnl AC_CHECK_LIB for pcrecpp, ssl and crypto in order for those
+dnl AC_CHECK_LIB for ssl and crypto in order for those
 dnl checks to work correctly in mingw
-AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h pcre.h])
-AC_LANG_PUSH([C++])
-AC_CHECK_HEADERS([pcrecpp.h])
-AC_LANG_POP
+AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h])
 
-AC_CHECK_LIB(pcrecpp, main)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(sokt, socket)
 AC_CHECK_LIB(z, inflate)

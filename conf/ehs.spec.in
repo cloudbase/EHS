@@ -25,7 +25,7 @@ Source0: %{name}-%{version}.tar.gz
 Source99: %{name}.rpmlintrc
 %endif
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(id -u -n)
-Buildrequires: openssl-devel, gcc-c++, pcre-devel, boost-devel
+Buildrequires: openssl-devel, gcc-c++, boost-devel
 Buildrequires: doxygen, graphviz, automake, libtool
 
 %if %{is_fc}

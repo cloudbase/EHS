@@ -64,7 +64,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 		}
 		cerr << "Got name of " << sName << endl;
 			
-        oss << "Hi " << sName << "</body></html>";
+        oss << "Hi " << sName << "<p><a href=\"/\">Back to login form</a></body></html>";
 		m_oNameList.push_back ( sName );
 			
 		response->SetBody( oss.str().c_str(), oss.str().length() );
@@ -75,7 +75,7 @@ ResponseCode FormTester::HandleRequest ( HttpRequest * request, HttpResponse * r
 		// otherwise, present the form to the user to fill in
 		cerr << "Got no form data" << endl;
 
-        oss << "<p>Please log in</p>" << endl << "<form action = \"/\" method=\"GET\">" << endl
+        oss << "<p>Please log in</p>" << endl << "<form action = \"/\" method=\"POST\">" << endl
             << "User name: <input type=\"text\" name=\"user\"><br />" << endl
             << "<select name=\"existinguser\" width=\"20\">" << endl;
 		for ( StringList::iterator i = m_oNameList.begin(); i != m_oNameList.end ( ); ++i ) {
