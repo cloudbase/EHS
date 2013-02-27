@@ -241,7 +241,10 @@ dnl Check for boost minimum version
 BOOST_STATIC
 BOOST_REQUIRE([1.33.1])
 BOOST_REGEX([mt])
+dnl With newer boost, we need boost_system as well
+if test $boost_major_version -gt 148; then
 BOOST_SYSTEM([mt])
+fi
 
 dnl Check for boost::lock_guard
 

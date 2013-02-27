@@ -192,6 +192,7 @@ EHSConnection::EHSConnection(NetworkAbstraction *ipoNetworkAbstraction,
     m_nRemotePort(ipoNetworkAbstraction->GetRemotePort()),
     m_nLocalPort(ipoNetworkAbstraction->GetLocalPort()),
     m_nMaxRequestSize(MAX_REQUEST_SIZE_DEFAULT),
+    m_sParseContentType(""),
     m_oMutex(pthread_mutex_t())
 {
     UpdateLastActivity();
