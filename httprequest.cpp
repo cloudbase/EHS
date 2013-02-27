@@ -437,7 +437,10 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                     } else {
                         // else the body is just one piece
                         // check for any form data
-                        GetFormDataFromString(m_sBody);
+                        if(m_sParseContentType.empty() ||
+                            m_oRequestHeaders["Content-Type"].compare(m_sParseContentType) == 0) {
+                            GetFormDataFromString(m_sBody);
+                        }
 #ifdef EHS_DEBUG
                         cerr << "Done with body, done with entire chunked request" << endl;
 #endif
@@ -569,7 +572,10 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
                             // else the body is just one piece
 
                             // check for any form data
-                            GetFormDataFromString(m_sBody);
+                            if(m_sParseContentType.empty() ||
+                                m_oRequestHeaders["Content-Type"].compare(m_sParseContentType) == 0) {
+                                GetFormDataFromString(m_sBody);
+                            }
 #ifdef EHS_DEBUG
                             cerr << "Done with body, done with entire request" << endl;
 #endif
@@ -594,7 +600,8 @@ HttpRequest::HttpParseStates HttpRequest::ParseData ( string & irsData ///< buff
 }
 
 HttpRequest::HttpRequest (int inRequestId,
-        EHSConnection * ipoSourceEHSConnection) :
+        EHSConnection * ipoSourceEHSConnection,
+        const string & irsParseContentType) :
     m_nCurrentHttpParseState(HTTPPARSESTATE_REQUEST),
     m_nRequestMethod(REQUESTMETHOD_UNKNOWN),
     m_sUri(""),
@@ -609,7 +616,8 @@ HttpRequest::HttpRequest (int inRequestId,
     m_nRequestId(inRequestId),
     m_poSourceEHSConnection(ipoSourceEHSConnection),
     m_bChunked(false),
-    m_nChunkLen(0)
+    m_nChunkLen(0),
+    m_sParseContentType(irsParseContentType)
 {
     if (NULL == m_poSourceEHSConnection) {
 #ifdef EHS_DEBUG

@@ -92,6 +92,9 @@ class EHSConnection {
 
         size_t m_nMaxRequestSize;
 
+        /// parse form data for content type given here - always if string is empty
+        std::string m_sParseContentType;
+
         pthread_mutex_t m_oMutex; ///< mutex protecting entire object
 
     public:
@@ -204,6 +207,9 @@ class EHSConnection {
 
         /// Sets the maximum request size
         void SetMaxRequestSize(size_t n) { m_nMaxRequestSize = n; }
+
+        /// Sets the content type to parse form data for
+        void SetParseContentType(const std::string & s) { m_sParseContentType = s; }
 
         friend class EHSServer;
 };

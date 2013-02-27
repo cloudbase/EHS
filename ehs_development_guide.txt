@@ -123,6 +123,11 @@ oSP [ "norouterequest" ] = "1" -- means to disregard trying to route requests
 oSP [ "maxrequestsize" ] = "262144" -- The maximum size of an incoming request.
                                        You may want to increase this, if you
                                        want to handle file uploads.
+oSP [ "parsecontenttype" ] = "application/x-www-form-urlencoded"
+                           -- By default, the request's POST body is always
+                              parsed by scanning for URL-encoded form data.
+                              Using this option, this can be limited to just
+                              the given content type.
 oSP [ "bindaddress" ] = "127.0.0.1" -- Specifies the address to bind to. The
                                        default is "0.0.0.0" which listens on
                                        all interfaces.

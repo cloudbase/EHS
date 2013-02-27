@@ -278,7 +278,7 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
                 }
             }
             // create the initial request
-            m_poCurrentHttpRequest = new HttpRequest(++m_nRequests, this);
+            m_poCurrentHttpRequest = new HttpRequest(++m_nRequests, this, m_sParseContentType);
             m_poCurrentHttpRequest->m_bSecure = m_poNetworkAbstraction->IsSecure();
         }
         // parse through the current data
@@ -305,8 +305,9 @@ HttpRequest * EHSConnection::GetNextRequest()
     MutexHelper mh(&m_oMutex);
     if (!m_oHttpRequestList.empty()) {
         ret = m_oHttpRequestList.front();
-        m_oHttpRequestList.pop_front();
+        // increment active requests before removing the request from the list to avoid idle-detection race conditions
         ++m_nActiveRequests;
+        m_oHttpRequestList.pop_front();
     }
     return ret;
 }
@@ -769,6 +770,12 @@ void EHSServer::CheckAcceptSocket ( )
             EHS_TRACE("Setting connections MaxRequestSize to %lu\n", n);
             poEHSConnection->SetMaxRequestSize ( n );
         }
+        if (m_poTopLevelEHS->m_oParams.find("parsecontenttype") !=
+                m_poTopLevelEHS->m_oParams.end()) {
+            string pct = m_poTopLevelEHS->m_oParams["parsecontenttype"];
+            EHS_TRACE("Setting parse content type to %s\n", pct.c_str());
+            poEHSConnection->SetParseContentType ( pct );
+        }
         {
             MutexHelper mutex(&m_oMutex);
             m_oEHSConnectionList.push_back(poEHSConnection);
@@ -890,6 +897,7 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
     int r = 0;
 
     HttpResponse *response = dynamic_cast<HttpResponse *>(gresp);
+    bool processed = false;
     if (NULL == response) {
         // only send it if the client isn't disconnected
         if (Disconnected()) {
@@ -907,10 +915,11 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
             DoneReading(false);
         }
     } else {
-        --m_nActiveRequests;
-        ++m_nResponses;
+        processed = true;
         // only send it if the client isn't disconnected
         if (Disconnected()) {
+            --m_nActiveRequests;
+            ++m_nResponses;
             return;
         }
         EHS_TRACE("Sending HTTP response", "");
@@ -951,6 +960,9 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
                 if (rsh) {
                     rsh->OnConnect(this);
                 }
+                mutex.Lock();
+                --m_nActiveRequests;
+                ++m_nResponses;
                 return;
             }
 
@@ -963,8 +975,15 @@ void EHSConnection::SendResponse(GenericResponse *gresp)
             }
         }
     }
+    mutex.Lock();
     if (forceClose || (-1 == r)) {
         DoneReading(false);
+    }
+
+    // moved here to avoid race conditions deleting the connection during sending the response
+    if(processed) {
+        --m_nActiveRequests;
+        ++m_nResponses;
     }
 }
 

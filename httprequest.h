@@ -56,8 +56,10 @@ class HttpRequest {
          * Constructs a ne instance.
          * @param inRequestId A unique Id (normally incremented by EHS).
          * @param ipoSourceEHSConnection The connection on which this request was received.
+         * @param irsParseContentType Content type to parse form data for, empty string to always parse
          */
-        HttpRequest (int inRequestId, EHSConnection *ipoSourceEHSConnection);
+        HttpRequest (int inRequestId, EHSConnection *ipoSourceEHSConnection,
+            const std::string & irsParseContentType);
 
     public:
 
@@ -315,6 +317,9 @@ class HttpRequest {
         bool m_bChunked;
 
         size_t m_nChunkLen;
+
+        /// content-type to parse form data for. if empty, always parse
+        std::string m_sParseContentType;
 
         friend class EHSConnection;
         friend class EHS;

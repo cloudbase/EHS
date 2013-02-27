@@ -54,7 +54,7 @@ ehs_exception_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
 
 ehs_wsgate_SOURCES = ehs_wsgate.cpp btexception.cpp base64.cpp sha1.cpp
 ehs_wsgate_CPPFLAGS = $(AM_CPPFLAGS) $(TRACE_CPPFLAGS)
-ehs_wsgate_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS)
+ehs_wsgate_LDADD = $(top_builddir)/libehs.la $(TRACE_LIBS) $(BOOST_SYSTEM_LIBS)
 
 bindhelper_SOURCES = bindhelper.c
 

@@ -241,6 +241,7 @@ dnl Check for boost minimum version
 BOOST_STATIC
 BOOST_REQUIRE([1.33.1])
 BOOST_REGEX([mt])
+BOOST_SYSTEM([mt])
 
 dnl Check for boost::lock_guard
 
