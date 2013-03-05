@@ -53,7 +53,12 @@ void StaticSslLocking::SslStaticLockCallback ( int inMode,
 
 unsigned long StaticSslLocking::SslThreadIdCallback ( )
 {
+#ifdef __APPLE__
+    // TODO pthread_t is a pointer on OSX, so this conversion is everything else than clean
+    return reinterpret_cast<unsigned long>(THREADID(pthread_self()));
+#else // __APPLE__
     return static_cast<unsigned long>(THREADID(pthread_self()));
+#endif // __APPLE__
 }
 
 
