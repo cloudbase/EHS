@@ -56,6 +56,9 @@ class Datum {
         /// assignment operator for longs
         Datum & operator= ( long inLong );
 
+        /// assignment operator for unsigned int
+        Datum & operator= ( unsigned int inUI );
+
         /// assignment operator for ints
         Datum & operator= ( int inInt );
 

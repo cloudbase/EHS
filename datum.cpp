@@ -54,6 +54,14 @@ Datum & Datum::operator= ( long inLong )
     return *this;
 }
 
+Datum & Datum::operator= ( unsigned int inUI )
+{
+    char psBuffer [ 100 ];
+    sprintf ( psBuffer, "%u", inUI );
+    sDatum = psBuffer;
+    return *this;
+}
+
 Datum & Datum::operator= ( int inInt )
 {
     char psBuffer [ 100 ];
