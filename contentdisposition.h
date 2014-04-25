@@ -27,7 +27,7 @@
 #define CONTENTDISPOSITION_H
 
 #include <string>
-#include <ehstypes.h>
+#include "ehstypes.h"
 
 /**
  * This class stores the content disposition of a subbody.

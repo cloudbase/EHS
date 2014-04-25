@@ -42,8 +42,15 @@
 #include <string>
 
 #ifdef _WIN32
+#ifdef HAVE_WINDOWS_H
+#include <Windows.h>
 inline void sleep(int seconds) { Sleep(seconds * 1000); }
+#define usleep(x) Sleep(x/1000)
 #endif
+#endif
+
+#ifndef F_OK
+#define F_OK 0
 
 // A small helper class for providing
 // non-blocking keyboard input.

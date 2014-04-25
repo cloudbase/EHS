@@ -66,7 +66,7 @@ int main (int argc, char **argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-            usleep(300000);
+			usleep(300000);
         }
         srv.StopServer();
     } catch (exception &e) {

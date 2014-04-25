@@ -71,7 +71,7 @@ const char *net_strerror() {
     int err = net_errno;
     if (!FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_FROM_HMODULE,
             GetModuleHandleA("wsock32.dll"), err, 0, ret, sizeof(ret), NULL)) {
-        snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
+				snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
     }
     return ret;
 }

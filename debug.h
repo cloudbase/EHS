@@ -34,6 +34,9 @@
 # include <iostream>
 # include <cstdio>
 # include <cstdarg>
+#ifdef WIN32
+#include <debugapi.h>
+#endif
 #endif
 
 static inline void _ehs_trace(const char*

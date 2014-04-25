@@ -138,5 +138,5 @@ bool Datum::operator!= ( int inCompare )
 
 bool Datum::operator != ( const char * ipsCompare ) 
 {
-    return strcasecmp ( (const char*)*this, ipsCompare );
+	return strcasecmp((const char*)*this, ipsCompare);
 }
