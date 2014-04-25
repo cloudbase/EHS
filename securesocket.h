@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: securesocket.h 95 2012-03-31 21:08:13Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

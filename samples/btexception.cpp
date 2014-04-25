@@ -10,7 +10,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <pthread.h>
-#include <unistd.h>
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 
 #ifdef HAVE_EXECINFO_H
 # include <execinfo.h>

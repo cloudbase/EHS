@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: httpresponse.h 150 2012-06-07 14:57:34Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -26,7 +26,7 @@
 #ifndef HTTPRESPONSE_H
 #define HTTPRESPONSE_H
 
-#include <ehstypes.h>
+#include "ehstypes.h"
 
 /// different response codes and their corresponding phrases -- defined in EHS.cpp
 enum ResponseCode {

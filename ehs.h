@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs.h 121 2012-04-05 22:39:22Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -35,11 +35,11 @@
 
 // EHS headers
 
-#include <formvalue.h>
-#include <ehstypes.h>
-#include <datum.h>
-#include <httpresponse.h>
-#include <httprequest.h>
+#include "formvalue.h"
+#include "ehstypes.h"
+#include "datum.h"
+#include "httpresponse.h"
+#include "httprequest.h"
 
 #include <memory>
 #include <string>

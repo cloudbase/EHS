@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs_test.cpp 70 2011-12-12 17:11:44Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

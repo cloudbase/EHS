@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: dynamicssllocking.h 28 2010-06-05 03:20:36Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

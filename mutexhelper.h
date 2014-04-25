@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: mutexhelper.h 43 2010-06-14 02:42:17Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

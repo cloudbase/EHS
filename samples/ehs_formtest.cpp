@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs_formtest.cpp 160 2012-08-07 13:36:13Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -120,7 +120,11 @@ int main (int argc, char ** argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+#ifdef _WIN32
+			Sleep(300);
+#else
             usleep(300000);
+#endif
         }
         srv.StopServer ( );
     } catch (exception &e) {
