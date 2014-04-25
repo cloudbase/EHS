@@ -26,7 +26,7 @@
 #ifndef _EHSCONNECTION_H_
 #define _EHSCONNECTION_H_
 
-#include <ehstypes.h>
+#include "ehstypes.h"
 
 class EHSServer;
 class NetworkAbstraction;

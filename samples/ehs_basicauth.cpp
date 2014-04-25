@@ -23,7 +23,7 @@
  *
  */
 
-#include <ehs.h>
+#include "ehs.h"
 #include <sstream>
 #include <iostream>
 #include <typeinfo>

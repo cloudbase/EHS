@@ -42,7 +42,13 @@
 #include <string>
 
 #ifdef _WIN32
+#include <Windows.h>
 inline void sleep(int seconds) { Sleep(seconds * 1000); }
+#define usleep(x) Sleep(x/1000)
+#endif
+
+#ifndef F_OK
+#define F_OK 0
 #endif
 
 // A small helper class for providing
