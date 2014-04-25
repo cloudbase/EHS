@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs.cpp 162 2013-02-27 00:34:38Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -41,6 +41,7 @@
 #include "securesocket.h"
 #include "debug.h"
 #include "mutexhelper.h"
+#include "ehstypes.h"
 
 #include <boost/regex.hpp>
 #include <fstream>
@@ -51,6 +52,9 @@
 
 #ifdef COMPILE_WITH_SSL
 # include <openssl/opensslv.h>
+
+#define VERSION "1"
+#define SVNREV "1"
 #endif
 static const char * const EHSconfig = "EHS_CONFIG:SSL="
 #ifdef COMPILE_WITH_SSL
@@ -564,7 +568,11 @@ void EHS::ThreadExitHandler()
 
 const std::string EHS::GetPassphrase(bool /* twice */)
 {
-    return m_oParams["passphrase"];
+#ifdef _WIN32
+    return m_oParams["passphrase"].GetCharString();
+#else
+	return m_oParams["passphrase"];
+#endif
 }
 
 void EHS::StartServer(EHSServerParameters &params)
@@ -773,8 +781,14 @@ void EHSServer::CheckAcceptSocket ( )
         }
         if (m_poTopLevelEHS->m_oParams.find("parsecontenttype") !=
                 m_poTopLevelEHS->m_oParams.end()) {
-            string pct = m_poTopLevelEHS->m_oParams["parsecontenttype"];
+            
+#ifdef _WIN32
+			Datum pct = m_poTopLevelEHS->m_oParams["parsecontenttype"];
+			EHS_TRACE("Setting parse content type to %s\n", pct.GetCharString());
+#else
+			string pct = m_poTopLevelEHS->m_oParams["parsecontenttype"];
             EHS_TRACE("Setting parse content type to %s\n", pct.c_str());
+#endif
             poEHSConnection->SetParseContentType ( pct );
         }
         {

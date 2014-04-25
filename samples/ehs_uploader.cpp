@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs_uploader.cpp 70 2011-12-12 17:11:44Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -34,7 +34,9 @@
 #include <sstream>
 #include <cstdlib>
 #include "common.h"
-
+#ifdef _WIN32
+#include <io.h>
+#endif
 using namespace std;
 
 class FileUploader : public EHS {
@@ -80,7 +82,11 @@ ResponseCode FileUploader::HandleRequest ( HttpRequest * request, HttpResponse *
             cerr << "stripped sFileName = '" << sFileName << "'" << endl;
             if (!sFileName.empty()) {
                 // For safety reasons, we do not allow writing to existing files.
+#ifdef _WIN32
+				if (0 != _access(sFileName.c_str(), 0)) {
+#else
                 if (0 != access(sFileName.c_str(), F_OK)) {
+#endif
                     cerr << "Writing " << nFileSize << " bytes to file" << endl;
                     ofstream outfile(sFileName.c_str(), ios::out | ios::trunc | ios::binary );
                     outfile.write(request->FormValues("file").m_sBody.c_str(), nFileSize);

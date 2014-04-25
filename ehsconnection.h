@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehsconnection.h 161 2013-02-27 00:02:04Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -26,7 +26,7 @@
 #ifndef _EHSCONNECTION_H_
 #define _EHSCONNECTION_H_
 
-#include <ehstypes.h>
+#include "ehstypes.h"
 
 class EHSServer;
 class NetworkAbstraction;

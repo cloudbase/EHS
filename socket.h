@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: socket.h 119 2012-04-05 21:49:58Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -33,12 +33,14 @@
 #ifdef HAVE_WINSOCK2_H
 # include <winsock2.h>
 #endif
+
 #ifdef HAVE_WINDOWS_H
 # include <windows.h>
 #endif
 #ifdef HAVE_TIME_H
 # include <time.h>
 #endif
+
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif

@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: common.h 93 2012-03-31 13:47:58Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -42,7 +42,11 @@
 #include <string>
 
 #ifdef _WIN32
+#ifdef HAVE_WINDOWS_H
+#include <Windows.h>
 inline void sleep(int seconds) { Sleep(seconds * 1000); }
+#define usleep(x) Sleep(x/1000)
+#endif
 #endif
 
 // A small helper class for providing

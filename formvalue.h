@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: formvalue.h 66 2011-11-16 10:54:13Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -28,8 +28,8 @@
 
 #include <string>
 
-#include <ehstypes.h>
-#include <contentdisposition.h>
+#include "ehstypes.h"
+#include "contentdisposition.h"
 
 /**
  * This class stores form data sent from the client in GET and POST requests.

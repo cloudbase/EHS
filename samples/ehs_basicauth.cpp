@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ehs_basicauth.cpp 157 2012-08-05 04:16:07Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -23,7 +23,7 @@
  *
  */
 
-#include <ehs.h>
+#include "ehs.h"
 #include <sstream>
 #include <iostream>
 #include <typeinfo>
@@ -140,7 +140,12 @@ int main (int argc, char **argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
+#ifdef _WIN32
+			Sleep(3000); //rudimentary work around. 
+			//better using boost ?
+#else
             usleep(300000);
+#endif
         }
         srv.StopServer();
     } catch (exception &e) {

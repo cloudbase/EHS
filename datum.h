@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: datum.h 164 2013-04-11 08:44:21Z vaxpower $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

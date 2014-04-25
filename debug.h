@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: debug.h 81 2012-03-20 12:03:05Z felfert $
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -34,6 +34,9 @@
 # include <iostream>
 # include <cstdio>
 # include <cstdarg>
+#ifdef WIN32
+#include <debugapi.h>
+#endif
 #endif
 
 static inline void _ehs_trace(const char*
