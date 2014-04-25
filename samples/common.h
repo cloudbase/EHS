@@ -1,4 +1,4 @@
-/* $Id: common.h 93 2012-03-31 13:47:58Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -48,6 +48,9 @@ inline void sleep(int seconds) { Sleep(seconds * 1000); }
 #define usleep(x) Sleep(x/1000)
 #endif
 #endif
+
+#ifndef F_OK
+#define F_OK 0
 
 // A small helper class for providing
 // non-blocking keyboard input.

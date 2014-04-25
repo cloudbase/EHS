@@ -1,4 +1,4 @@
-/* $Id: networkabstraction.h 120 2012-04-05 22:03:59Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

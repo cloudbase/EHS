@@ -1,4 +1,4 @@
-/* $Id: ehs_chunktest.cpp 70 2011-12-12 17:11:44Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -66,11 +66,7 @@ int main (int argc, char **argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-#ifdef _WIN32
-			Sleep(300);
-#else
 			usleep(300000);
-#endif
         }
         srv.StopServer();
     } catch (exception &e) {

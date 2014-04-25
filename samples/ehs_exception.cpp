@@ -1,4 +1,4 @@
-/* $Id: ehs_exception.cpp 81 2012-03-20 12:03:05Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -111,11 +111,7 @@ int main (int argc, char **argv)
         kbdio kbd;
         cout << "Press q to terminate ..." << endl;
         while (!(srv.ShouldTerminate() || kbd.qpressed())) {
-#ifdef _WIN32
-			Sleep(300);
-#else
 			usleep(300000);
-#endif
         }
 
         srv.StopServer();

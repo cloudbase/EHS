@@ -1,4 +1,4 @@
-/* $Id: formvalue.h 66 2011-11-16 10:54:13Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

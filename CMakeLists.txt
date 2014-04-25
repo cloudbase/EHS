@@ -365,6 +365,14 @@ if(UNIX)
 	set(STRCASE_CMP_REDEFINITION "strcasecmp")
 endif()
 
+if(WIN32)
+	set(SNPRINTF "_snprintf")
+endif()
+# if we're on UNIX leave it as is, even if function is not found.
+if(UNIX)
+	set(SNPRINTF "snprintf")
+endif()
+
 message(STATUS "Strcasecmp has been redefined to ${STRCASE_CMP_REDEFINITION}")
 
 CHECK_FUNCTION_EXISTS(strerror HAVE_STRERROR)

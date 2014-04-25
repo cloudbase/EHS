@@ -118,6 +118,9 @@
 /* Redefinition of strcasecmp for WIN32 */
 #define strcasecmp @STRCASE_CMP_REDEFINITION@
 
+/*Redefinition of snprintf*/
+#define snprintf @SNPRINTF@
+
 /* Redefinition of __attribute__ for WIN32 */
 #ifndef __GNUC__ 
 #define  __attribute__(x)  /*NOTHING*/ 

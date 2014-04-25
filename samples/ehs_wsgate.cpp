@@ -1,4 +1,4 @@
-/* $Id: ehs_wsgate.cpp 157 2012-08-05 04:16:07Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

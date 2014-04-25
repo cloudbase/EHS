@@ -1,4 +1,4 @@
-/* $Id: contentdisposition.h 30 2010-06-05 19:08:00Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

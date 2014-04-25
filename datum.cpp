@@ -1,4 +1,4 @@
-/* $Id: datum.cpp 164 2013-04-11 08:44:21Z vaxpower $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -138,9 +138,5 @@ bool Datum::operator!= ( int inCompare )
 
 bool Datum::operator != ( const char * ipsCompare ) 
 {
-#ifdef _WIN32
-	return _stricmp((const char*)*this, ipsCompare);
-#else
 	return strcasecmp((const char*)*this, ipsCompare);
-#endif
 }

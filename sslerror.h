@@ -1,4 +1,4 @@
-/* $Id: sslerror.h 71 2011-12-13 10:20:45Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

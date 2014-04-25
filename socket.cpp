@@ -1,4 +1,4 @@
-/* $Id: socket.cpp 151 2012-06-07 15:43:04Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -71,11 +71,7 @@ const char *net_strerror() {
     int err = net_errno;
     if (!FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_FROM_HMODULE,
             GetModuleHandleA("wsock32.dll"), err, 0, ret, sizeof(ret), NULL)) {
-#ifdef _WIN32
-		_snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
-#else
-        snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
-#endif
+				snprintf(ret, sizeof(ret), "Unknown error %d (0x%08x)", err, err);
     }
     return ret;
 }
@@ -336,11 +332,7 @@ string Socket::GetPeer() const
 {
     char buf[20];
     string ret(GetRemoteAddress());
-#ifdef _WIN32
-	_snprintf(buf, 20, ":%d", GetRemotePort());
-#else
     snprintf(buf, 20, ":%d", GetRemotePort());
-#endif
     ret.append(buf);
     return ret;
 }

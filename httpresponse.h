@@ -1,4 +1,4 @@
-/* $Id: httpresponse.h 150 2012-06-07 14:57:34Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

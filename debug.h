@@ -1,4 +1,4 @@
-/* $Id: debug.h 81 2012-03-20 12:03:05Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *

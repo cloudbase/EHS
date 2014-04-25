@@ -1,4 +1,4 @@
-/* $Id: ehs.cpp 162 2013-02-27 00:34:38Z felfert $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
@@ -787,7 +787,7 @@ void EHSServer::CheckAcceptSocket ( )
 			EHS_TRACE("Setting parse content type to %s\n", pct.GetCharString());
 #else
 			string pct = m_poTopLevelEHS->m_oParams["parsecontenttype"];
-            EHS_TRACE("Setting parse content type to %s\n", pct.c_str());
+                        EHS_TRACE("Setting parse content type to %s\n", pct.c_str());
 #endif
             poEHSConnection->SetParseContentType ( pct );
         }

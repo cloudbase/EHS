@@ -1,4 +1,4 @@
-/* $Id: staticssllocking.cpp 163 2013-03-05 13:49:06Z vaxpower $
+/* $Id$
  *
  * EHS is a library for embedding HTTP(S) support into a C++ application
  *
