@@ -34,7 +34,9 @@
 #include <sstream>
 #include <cstdlib>
 #include "common.h"
-
+#ifdef _WIN32
+#include <io.h>
+#endif
 using namespace std;
 
 class FileUploader : public EHS {

@@ -26,7 +26,7 @@
 #ifndef HTTPRESPONSE_H
 #define HTTPRESPONSE_H
 
-#include <ehstypes.h>
+#include "ehstypes.h"
 
 /// different response codes and their corresponding phrases -- defined in EHS.cpp
 enum ResponseCode {
