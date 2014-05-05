@@ -139,6 +139,7 @@ if(MSVC)
 	# set DEPRECATED(x) to __declspec(deprecated(x))
 	set(DEPRECATED "__declspec(deprecated(x))")
 	set(COMPILE_WITH_SSL 1)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
 
