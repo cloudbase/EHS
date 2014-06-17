@@ -566,7 +566,7 @@ set(EHS_ALL_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/config.h include/ehs/contentdisp
   include/ehs/securesocket.h include/ehs/socket.h include/ehs/sslerror.h include/ehs/staticssllocking.h)
 if (WIN32)
  # in order for header files to appear in VS solution, add them to the sources list
- set(EHS_SOURCES "${EHS_SOURCES}" ${EHS_HEADERS})
+ set(EHS_SOURCES "${EHS_SOURCES}" ${EHS_ALL_HEADERS})
 endif()
 
 set(EHS_PUBLIC_HEADERS include/ehs/contentdisposition.h include/ehs/datum.h include/ehs/ehs.h include/ehs/ehstypes.h include/ehs/formvalue.h include/ehs/httprequest.h include/ehs/httpresponse.h include/ehs/networkabstraction.h)
