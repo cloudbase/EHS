@@ -146,20 +146,6 @@ endif()
 # handle gcc options
 if(CMAKE_COMPILER_IS_GNUCC)
 
-	# add -fPIC flag to bindhelper
-	#if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i686")
-#		if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-#			set(BINDHELPER_LINK_FLAGS "-fPIC")
-#		else()
-#			set(BINDHELPER_LINK_FLAGS "-march=i686")
-#		endif()
-#	else()
-#		
-#		if(${CMAKE_VERSION} VERSION_LESS 2.8.9)
-#			set(BINDHELPER_LINK_FLAGS "-fPIC")
-#		endif()
-#	endif()
-
 	# check and enable C++11
 	check_cxx_compiler_flag("-std=c++11" HAVE_CPLUSPLUS11)
 	if (HAVE_CPLUSPLUS11)
@@ -533,7 +519,7 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
 
 # create ehstypes.h from ehstypes.h.in
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ehstypes.h.cmake
-		${CMAKE_CURRENT_SOURCE_DIR}/ehstypes.h
+		${CMAKE_CURRENT_SOURCE_DIR}/include/ehs/ehstypes.h
 		)
 
 # add config.h location to include search path
@@ -569,19 +555,21 @@ endif()
 #set(pkglibexecdir "${CMAKE_INSTALL_FULL_LIBEXECDIR}/${CMAKE_PROJECT_NAME}")
 
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ehs)
 
 set(EHS_SOURCES datum.cpp dynamicssllocking.cpp ehs.cpp formvalue.cpp httprequest.cpp
    httpresponse.cpp osdep.cpp securesocket.cpp socket.cpp sslerror.cpp staticssllocking.cpp)
 
-set(EHS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/config.h  contentdisposition.h datum.h debug.h dynamicssllocking.h ehs.h 
-  ehsconnection.h ehsserver.h ehstypes.h formvalue.h httprequest.h httpresponse.h mutexhelper.h networkabstraction.h
-  securesocket.h socket.h sslerror.h staticssllocking.h)
+set(EHS_ALL_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/config.h include/ehs/contentdisposition.h include/ehs/datum.h include/ehs/debug.h
+  include/ehs/dynamicssllocking.h include/ehs/ehs.h include/ehs/ehsconnection.h include/ehs/ehsserver.h include/ehs/ehstypes.h 
+  include/ehs/formvalue.h include/ehs/httprequest.h include/ehs/httpresponse.h include/ehs/mutexhelper.h include/ehs/networkabstraction.h
+  include/ehs/securesocket.h include/ehs/socket.h include/ehs/sslerror.h include/ehs/staticssllocking.h)
 if (WIN32)
  # in order for header files to appear in VS solution, add them to the sources list
- set(EHS_SOURCES "${EHS_SOURCES}" ${EHS_HEADERS})
+ set(EHS_SOURCES "${EHS_SOURCES}" ${EHS_ALL_HEADERS})
 endif()
 
+set(EHS_PUBLIC_HEADERS include/ehs/contentdisposition.h include/ehs/datum.h include/ehs/ehs.h include/ehs/ehstypes.h include/ehs/formvalue.h include/ehs/httprequest.h include/ehs/httpresponse.h include/ehs/networkabstraction.h)
 add_library(ehs STATIC ${EHS_SOURCES})
 
 #target_link_libraries(ehs "-fPIC")
@@ -592,7 +580,7 @@ set_target_properties(ehs PROPERTIES VERSION ${EHS_MAJOR_VERSION} SOVERSION ${EH
 
 install(TARGETS ehs DESTINATION lib)
 if (UNIX)
- install(FILES ${EHS_HEADERS} DESTINATION include/ehs)
+ install(FILES ${EHS_PUBLIC_HEADERS} DESTINATION include/ehs)
 elseif(WIN32)
- install(FILES ${EHS_HEADERS} DESTINATION include)
+ install(FILES ${EHS_PUBLIC_HEADERS} DESTINATION include)
 endif()
