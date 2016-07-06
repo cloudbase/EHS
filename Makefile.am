@@ -1,3 +1,4 @@
+AM_CXXFLAGS = -I$(top_srcdir)/include/ehs
 ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = . samples $(PLATFORM_SUBDIRS)
@@ -7,13 +8,27 @@ DIST_SUBDIRS = . samples setup
 lib_LTLIBRARIES = libehs.la
 
 # headers to be installed with the library
-pkginclude_HEADERS = ehs.h networkabstraction.h \
-	datum.h httpresponse.h httprequest.h \
-	ehstypes.h formvalue.h contentdisposition.h
+pkginclude_HEADERS = \
+	include/ehs/ehs.h \
+	include/ehs/networkabstraction.h \
+	include/ehs/datum.h \
+	include/ehs/httpresponse.h \
+	include/ehs/httprequest.h \
+	ehstypes.h \
+	include/ehs/formvalue.h \
+	include/ehs/contentdisposition.h
 
-noinst_HEADERS = config.h socket.h securesocket.h sslerror.h debug.h \
-	staticssllocking.h dynamicssllocking.h ehsconnection.h ehsserver.h \
-	mutexhelper.h
+noinst_HEADERS = \
+	config.h \
+	include/ehs/socket.h \
+	include/ehs/securesocket.h \
+	include/ehs/sslerror.h \
+	include/ehs/debug.h \
+	include/ehs/staticssllocking.h \
+	include/ehs/dynamicssllocking.h \
+	include/ehs/ehsconnection.h \
+	include/ehs/ehsserver.h \
+	include/ehs/mutexhelper.h
 
 # Sources for building EHS library
 libehs_la_SOURCES=ehs.cpp dynamicssllocking.cpp securesocket.cpp \
