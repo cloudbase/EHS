@@ -140,17 +140,13 @@ void EHSServer::ClearIdleConnections()
     // don't lock mutex, as this is only called from within locked sections
     for (EHSConnectionList::iterator i = m_oEHSConnectionList.begin();
             i != m_oEHSConnectionList.end(); ++i) {
-
-        MutexHelper mh(&(*i)->m_oMutex);
         // if it's been more than N seconds since a response has been
         //   sent and there are no pending requests
         if ((*i)->StillReading() &&
                 time(NULL) - (*i)->LastActivity() > m_nIdleTimeout &&
                 (!(*i)->RequestsPending())) {
             EHS_TRACE("Done reading because of idle timeout", "");
-            mh.Unlock();
             (*i)->DoneReading(false);
-            mh.Lock();
         }
     }
     RemoveFinishedConnections();
@@ -296,7 +292,6 @@ EHSConnection::AddBuffer(char *ipsData, ///< new data to be added
 /// call when no more reads will be performed on this object.  inDisconnected is true when client has disconnected
 void EHSConnection::DoneReading(bool ibDisconnected)
 {
-    MutexHelper mh(&m_oMutex);
     m_bDoneReading = true;
     m_bDisconnected = ibDisconnected;
 }
