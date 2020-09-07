@@ -1,7 +1,7 @@
 Source: ehs
 Priority: extra
 Maintainer: Fritz Elfert <ehsdev@fritz-elfert.de>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, g++, libssl-dev, libdw-dev, libboost-dev, libboost-regex-dev, libpcre3-dev, libtool, doxygen, graphviz
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, g++, libssl-dev, libdw-dev, libboost-dev, libboost-regex-dev, libpcre3-dev, libtool, doxygen, graphviz, cmake
 Standards-Version: 3.9.2
 Section: libs
 Homepage: http://ehs.fritz-elfert.de
